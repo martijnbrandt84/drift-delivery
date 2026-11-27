@@ -1,9 +1,12 @@
 import * as THREE from 'three';
+import {
+  ISLAND_CENTER, getNaturalGroundBase, getRingRadius, getIslandPolar, getCoastRadius, EAGLE_PEAK
+} from './landscape.js';
 
 // =========================================================
 // WEGENNET & SUPERSNELLE O(1) SPATIAL GRID LOOKUP!
 // =========================================================
-export const WORLD_LIMIT = 240;
+export const WORLD_LIMIT = 420;
 export const MAIN_HALF_WIDTH = 4.8;
 export const STREET_HALF_WIDTH = 4.1;
 export const TOWN_ELEV = 1.50;
@@ -44,7 +47,7 @@ export const LAKE_BRIDGES = [
   { name: 'Bear River Bridge', uCenter: 0.688, uHalfSpan: 0.027, archHeight: 1.50 }
 ];
 
-export function getLakeLoopBaseElev(u) {
+function getRawLakeLoopElev(u) {
   const eastRidge = Math.exp(-((cyclicDiff(u, 0.185) / 0.088) ** 2)) * 6.8;
   const westBluff = Math.exp(-((cyclicDiff(u, 0.865) / 0.078) ** 2)) * 4.8;
   const rolling = Math.sin(u * Math.PI * 4 - 0.4) * 1.15 + Math.cos(u * Math.PI * 6 + 0.3) * 0.55;
@@ -67,6 +70,17 @@ export function getLakeLoopBaseElev(u) {
   const dTown = Math.abs(cyclicDiff(u, 0.50));
   if (dTown < 0.14) h = THREE.MathUtils.lerp(TOWN_ELEV, h, THREE.MathUtils.smoothstep(dTown, 0.085, 0.14));
 
+  return h;
+}
+
+// Extra T-splitsing aan de noordoostkant van de meerweg: verbindingsweg naar de kustweg
+export const U_LAKE_NORTH_JUNCTION = 0.115;
+const lakeNorthJY = getRawLakeLoopElev(U_LAKE_NORTH_JUNCTION);
+
+export function getLakeLoopBaseElev(u) {
+  let h = getRawLakeLoopElev(u);
+  const d = Math.abs(cyclicDiff(u, U_LAKE_NORTH_JUNCTION));
+  if (d < 0.05) h = THREE.MathUtils.lerp(lakeNorthJY, h, THREE.MathUtils.smoothstep(d, 0.018, 0.05));
   return h;
 }
 
@@ -114,7 +128,7 @@ const valleyWaypoints = [
 export const valleyCurve = new THREE.CatmullRomCurve3(valleyWaypoints, false, 'centripetal', 0.5);
 export const VALLEY_BRIDGE = { name: 'Meadow Brook Bridge', uCenter: 0.60, uHalfSpan: 0.042, archHeight: 1.40 };
 
-export function getValleyBaseElev(u) {
+function getRawValleyElev(u) {
   const seMountainPass = Math.exp(-(((u - 0.19) / 0.105) ** 2)) * 7.8;
   const swPineSummit = Math.exp(-(((u - 0.81) / 0.10) ** 2)) * 7.2;
   const waves = Math.sin(u * Math.PI * 5) * 0.95;
@@ -133,6 +147,20 @@ export function getValleyBaseElev(u) {
   const endBlend = THREE.MathUtils.smoothstep(1.0 - u, 0.0, 0.09);
   let h = THREE.MathUtils.lerp(jEastY, midWave, startBlend);
   h = THREE.MathUtils.lerp(jWestY, h, endBlend);
+  return h;
+}
+
+// Twee extra T-splitsingen op de valleiweg: naar de zuidkust en naar de westkust
+export const U_VALLEY_SOUTH_JUNCTION = 0.31;
+export const U_VALLEY_WEST_JUNCTION = 0.795;
+const valleyJunctionFlats = [U_VALLEY_SOUTH_JUNCTION, U_VALLEY_WEST_JUNCTION].map((uj) => ({ uj, y: getRawValleyElev(uj) }));
+
+export function getValleyBaseElev(u) {
+  let h = getRawValleyElev(u);
+  for (const f of valleyJunctionFlats) {
+    const d = Math.abs(u - f.uj);
+    if (d < 0.05) h = THREE.MathUtils.lerp(f.y, h, THREE.MathUtils.smoothstep(d, 0.016, 0.05));
+  }
   return h;
 }
 
@@ -225,10 +253,407 @@ export const streetSampleSets = townStreetDefs.map((def) => ({
   samples: sampleRoadCurve(def.id, def.curve, def.samplesCount, false, def.halfWidth, def.elevFn, null)
 }));
 
+// =========================================================
+// RIVIEREN (nu doorgetrokken tot aan de oceaan)
+// =========================================================
+function createRiverFromBridgeSample(centerS, halfWidth, flowsIntoLake = true, bendSign = 1) {
+  const dotToCenter = (-centerS.x) * centerS.nx + (-centerS.z) * centerS.nz;
+  const inSign = dotToCenter >= 0 ? 1 : -1;
+  const inX = centerS.nx * inSign;
+  const inZ = centerS.nz * inSign;
+  const outX = -inX;
+  const outZ = -inZ;
+  const sideX = centerS.tx;
+  const sideZ = centerS.tz;
+
+  const pts = flowsIntoLake
+    ? [
+        new THREE.Vector3(centerS.x + inX * 48, 0, centerS.z + inZ * 48),
+        new THREE.Vector3(centerS.x + inX * 24 + sideX * 5 * bendSign, 0, centerS.z + inZ * 24 + sideZ * 5 * bendSign),
+        new THREE.Vector3(centerS.x + inX * 11, 0, centerS.z + inZ * 11),
+        new THREE.Vector3(centerS.x, 0, centerS.z),
+        new THREE.Vector3(centerS.x + outX * 11, 0, centerS.z + outZ * 11),
+        new THREE.Vector3(centerS.x + outX * 44 - sideX * 12 * bendSign, 0, centerS.z + outZ * 44 - sideZ * 12 * bendSign),
+        new THREE.Vector3(centerS.x + outX * 95 + sideX * 16 * bendSign, 0, centerS.z + outZ * 95 + sideZ * 16 * bendSign),
+        new THREE.Vector3(centerS.x + outX * 155, 0, centerS.z + outZ * 155)
+      ]
+    : [
+        new THREE.Vector3(centerS.x + inX * 36 + sideX * 8, 0, centerS.z + inZ * 36 + sideZ * 8),
+        new THREE.Vector3(centerS.x + inX * 18, 0, centerS.z + inZ * 18),
+        new THREE.Vector3(centerS.x + inX * 10, 0, centerS.z + inZ * 10),
+        new THREE.Vector3(centerS.x, 0, centerS.z),
+        new THREE.Vector3(centerS.x + outX * 10, 0, centerS.z + outZ * 10),
+        new THREE.Vector3(centerS.x + outX * 38 - sideX * 10, 0, centerS.z + outZ * 38 - sideZ * 10),
+        new THREE.Vector3(centerS.x + outX * 85 + sideX * 12, 0, centerS.z + outZ * 85 + sideZ * 12)
+      ];
+
+  // Doortrekken naar zee: in de laatste stroomrichting verder meanderen tot voorbij de kustlijn
+  for (let k = 0; k < 8; k++) {
+    const last = pts[pts.length - 1];
+    const pol = getIslandPolar(last.x, last.z);
+    if (pol.r > getCoastRadius(pol.theta) + 30) break;
+    const prev = pts[pts.length - 2];
+    const dir = new THREE.Vector3(last.x - prev.x, 0, last.z - prev.z).normalize();
+    // Zachte bijsturing richting open zee zodat de rivier niet langs de kust blijft lopen
+    const radial = new THREE.Vector3(last.x - ISLAND_CENTER.x, 0, last.z - ISLAND_CENTER.z).normalize();
+    dir.lerp(radial, 0.35).normalize();
+    const wiggle = (k % 2 === 0 ? 1 : -1) * 9 * bendSign;
+    pts.push(new THREE.Vector3(last.x + dir.x * 55 - dir.z * wiggle, 0, last.z + dir.z * 55 + dir.x * wiggle));
+  }
+
+  const curve = new THREE.CatmullRomCurve3(pts, false, 'centripetal', 0.5);
+  const count = Math.max(70, Math.round(curve.getLength() / 3.2));
+  const sampled = [];
+  for (let k = 0; k <= count; k++) {
+    const p = curve.getPointAt(k / count);
+    sampled.push({ x: p.x, z: p.z });
+  }
+  return { sampled, halfWidth, pondCenter: flowsIntoLake ? null : pts[0] };
+}
+
+const lakeBridge0Sample = lakeSamples[0];
+const lakeBridge1Sample = lakeSamples[Math.round(LAKE_BRIDGES[1].uCenter * lakeSamples.length)];
+const valleyBridgeSample = valleySamples[Math.round(VALLEY_BRIDGE.uCenter * (valleySamples.length - 1))];
+
+export const riverCurves = [
+  createRiverFromBridgeSample(lakeBridge0Sample, 7.4, true, 1),
+  createRiverFromBridgeSample(lakeBridge1Sample, 7.2, true, -1),
+  createRiverFromBridgeSample(valleyBridgeSample, 6.2, false, 1)
+];
+
+export const VALLEY_POND = { x: riverCurves[2].pondCenter.x, z: riverCurves[2].pondCenter.z, r: 14.5 };
+
+riverCurves.forEach((riv) => {
+  let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+  riv.sampled.forEach((p) => {
+    minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x);
+    minZ = Math.min(minZ, p.z); maxZ = Math.max(maxZ, p.z);
+  });
+  riv.bbox = { minX, maxX, minZ, maxZ };
+});
+
+export function getDistToRivers(x, z) {
+  let minEffective = Infinity;
+  for (const riv of riverCurves) {
+    const b = riv.bbox;
+    // Snelle afwijzing: ver buiten de bounding box hoeven we niet elk punt te toetsen
+    const outX = x < b.minX ? b.minX - x : x > b.maxX ? x - b.maxX : 0;
+    const outZ = z < b.minZ ? b.minZ - z : z > b.maxZ ? z - b.maxZ : 0;
+    if (Math.hypot(outX, outZ) - riv.halfWidth > Math.min(minEffective, 60)) continue;
+    for (let i = 0; i < riv.sampled.length; i++) {
+      const p = riv.sampled[i];
+      const d = Math.hypot(x - p.x, z - p.z) - riv.halfWidth;
+      if (d < minEffective) minEffective = d;
+    }
+  }
+  const dPond = Math.hypot(x - VALLEY_POND.x, z - VALLEY_POND.z) - VALLEY_POND.r;
+  return Math.min(minEffective, dPond);
+}
+
+// =========================================================
+// HOOGTEPROFIELEN VOOR NIEUWE WEGEN: volgen de natuurlijke grond (gladgestreken),
+// met automatische bruggen over rivieren en zee-inhammen en vlakke T-splitsingen.
+// =========================================================
+function segIntersectT(ax, az, bx, bz, cx, cz, dx, dz) {
+  const rX = bx - ax, rZ = bz - az, sX = dx - cx, sZ = dz - cz;
+  const denom = rX * sZ - rZ * sX;
+  if (Math.abs(denom) < 1e-9) return -1;
+  const t = ((cx - ax) * sZ - (cz - az) * sX) / denom;
+  const v = ((cx - ax) * rZ - (cz - az) * rX) / denom;
+  return t >= 0 && t <= 1 && v >= 0 && v <= 1 ? t : -1;
+}
+
+function buildRoadProfile(curve, closed, opts = {}) {
+  const L = curve.getLength();
+  const N = Math.max(64, Math.round(L / 1.5));
+  const step = L / N;
+  const count = closed ? N : N + 1;
+  const pts = [];
+  const raw = new Float64Array(count);
+  for (let i = 0; i < count; i++) {
+    const p = curve.getPointAt(i / N);
+    pts.push(p);
+    raw[i] = getNaturalGroundBase(p.x, p.z);
+  }
+  const wrap = (i) => (closed ? ((i % count) + count) % count : THREE.MathUtils.clamp(i, 0, count - 1));
+
+  // 1. Zee/meer onder de weg: markeren en lineair overbruggen
+  const isWater = Array.from(raw, (h) => h < 0.9);
+  const waterRuns = [];
+  {
+    const startScan = closed ? Math.max(0, isWater.findIndex((w) => !w)) : 0;
+    const visited = new Uint8Array(count);
+    for (let k = 0; k < count; k++) {
+      const i = wrap(startScan + k);
+      if (!isWater[i] || visited[i]) continue;
+      let len = 0;
+      while (len < count && isWater[wrap(i + len)] && !(closed === false && i + len >= count)) {
+        visited[wrap(i + len)] = 1;
+        len++;
+      }
+      waterRuns.push({ a: i, len });
+    }
+    waterRuns.forEach(({ a, len }) => {
+      const hA = raw[wrap(a - 1)];
+      const hB = raw[wrap(a + len)];
+      for (let k = 0; k < len; k++) raw[wrap(a + k)] = THREE.MathUtils.lerp(hA, hB, (k + 1) / (len + 1));
+    });
+  }
+
+  // 2. Gladstrijken (3x box blur)
+  const radius = Math.max(1, Math.round((opts.smoothM ?? 50) / step));
+  let cur = raw;
+  for (let pass = 0; pass < 3; pass++) {
+    const next = new Float64Array(count);
+    for (let i = 0; i < count; i++) {
+      let sum = 0;
+      for (let k = -radius; k <= radius; k++) sum += cur[wrap(i + k)];
+      next[i] = sum / (radius * 2 + 1);
+    }
+    cur = next;
+  }
+  const minY = opts.minY ?? 1.8;
+  for (let i = 0; i < count; i++) cur[i] = Math.max(cur[i], minY);
+
+  const uDist = (u, c) => {
+    let d = u - c;
+    if (closed) { while (d > 0.5) d -= 1; while (d < -0.5) d += 1; }
+    return Math.abs(d);
+  };
+  const applyFlat = (uc, y, flatM, blendM) => {
+    for (let i = 0; i < count; i++) {
+      const dm = uDist(i / N, uc) * L;
+      if (dm < blendM) cur[i] = THREE.MathUtils.lerp(y, cur[i], THREE.MathUtils.smoothstep(dm, flatM, blendM));
+    }
+  };
+
+  // 3. Bruggen: zee-inhammen (hangbrug) en rivierkruisingen (houten brug)
+  const bridges = [];
+  waterRuns.forEach(({ a, len }) => {
+    const uCenter = ((a + (len - 1) * 0.5) / N) % 1;
+    const halfM = len * step * 0.5 + 9;
+    const isLong = halfM > 26;
+    const deckY = Math.max(isLong ? 5.0 : 1.6, cur[wrap(a + Math.round(len * 0.5))]);
+    applyFlat(uCenter, deckY, halfM, halfM * 2.2);
+    bridges.push({ uCenter, uHalfSpan: halfM / L, archHeight: isLong ? 2.6 : 1.4, type: isLong ? 'suspension' : 'wood' });
+  });
+
+  for (const riv of riverCurves) {
+    for (let i = 0; i < count - (closed ? 0 : 1); i++) {
+      const p0 = pts[i];
+      const p1 = pts[wrap(i + 1)];
+      for (let k = 0; k < riv.sampled.length - 1; k++) {
+        const r0 = riv.sampled[k];
+        const r1 = riv.sampled[k + 1];
+        const t = segIntersectT(p0.x, p0.z, p1.x, p1.z, r0.x, r0.z, r1.x, r1.z);
+        if (t < 0) continue;
+        const uCenter = ((i + t) / N) % 1;
+        if (bridges.some((b) => uDist(uCenter, b.uCenter) * L < 30)) continue;
+        const halfM = riv.halfWidth + 7.5;
+        // Dek iets boven de oever houden (max 4.2m) met een lange, rustige aanloop i.p.v. een steile duik
+        const deckY = THREE.MathUtils.clamp(cur[wrap(Math.round(uCenter * N))], 1.45, 4.2);
+        applyFlat(uCenter, deckY, halfM, halfM + 48);
+        bridges.push({ uCenter, uHalfSpan: halfM / L, archHeight: 1.5, type: 'wood' });
+      }
+    }
+  }
+
+  // Optioneel: gelijkmatige klim (spiraalweg) van begin- naar eindhoogte
+  if (opts.linearRamp) {
+    const y0 = opts.flats && opts.flats[0] && opts.flats[0].u === 0 && opts.flats[0].y != null ? opts.flats[0].y : cur[0];
+    const y1 = cur[count - 1];
+    for (let i = 0; i < count; i++) cur[i] = THREE.MathUtils.lerp(y0, y1, i / (count - 1));
+  }
+
+  // 4. Vlakke T-splitsingen (aansluitingen op andere wegen)
+  (opts.flats || []).forEach((f) => {
+    const y = f.y ?? cur[wrap(Math.round(f.u * N))];
+    f.resolvedY = y;
+    applyFlat(f.u, y, f.flatM ?? 9, f.blendM ?? 38);
+  });
+
+  const elevFn = (u) => {
+    const fi = (closed ? ((u % 1) + 1) % 1 : THREE.MathUtils.clamp(u, 0, 1)) * N;
+    const i0 = Math.floor(fi);
+    const f = fi - i0;
+    return THREE.MathUtils.lerp(cur[wrap(i0)], cur[wrap(i0 + 1)], f);
+  };
+  const bridgeFn = (u) => {
+    for (let i = 0; i < bridges.length; i++) {
+      const b = bridges[i];
+      let diff = u - b.uCenter;
+      if (closed) { while (diff > 0.5) diff -= 1; while (diff < -0.5) diff += 1; }
+      if (Math.abs(diff) <= b.uHalfSpan) {
+        const norm = diff / b.uHalfSpan;
+        const archY = 0.5 * (1 + Math.cos(norm * Math.PI)) * b.archHeight;
+        return { onBridge: true, bridgeId: `${opts.id}_${i}`, norm, archY };
+      }
+    }
+    return { onBridge: false, bridgeId: null, norm: 0, archY: 0 };
+  };
+  return { elevFn, bridgeFn, bridges, length: L };
+}
+
+function closestUOnCurve(curve, x, z, closed, steps = 2000) {
+  let best = 0;
+  let bestD = Infinity;
+  for (let k = 0; k <= steps; k++) {
+    const u = k / steps;
+    const p = curve.getPointAt(closed ? u % 1 : u);
+    const d = (p.x - x) ** 2 + (p.z - z) ** 2;
+    if (d < bestD) { bestD = d; best = u % 1; }
+  }
+  return best;
+}
+
+function frameAt(curve, u) {
+  const pt = curve.getPointAt(u);
+  const tan = curve.getTangentAt(u);
+  const len = Math.hypot(tan.x, tan.z) || 1;
+  const tx = tan.x / len;
+  const tz = tan.z / len;
+  return { pt, tx, tz, nx: -tz, nz: tx };
+}
+
+// =========================================================
+// KUSTWEG: grote ring rondom het eiland
+// =========================================================
+const ringWaypoints = [];
+const RING_WP = 56;
+for (let k = 0; k < RING_WP; k++) {
+  const theta = -Math.PI + (k / RING_WP) * Math.PI * 2;
+  const r = getRingRadius(theta);
+  ringWaypoints.push(new THREE.Vector3(ISLAND_CENTER.x + Math.cos(theta) * r, 0, ISLAND_CENTER.z + Math.sin(theta) * r));
+}
+export const ringCurve = new THREE.CatmullRomCurve3(ringWaypoints, true, 'centripetal', 0.5);
+
+function ringPointAtTheta(theta) {
+  const r = getRingRadius(theta);
+  return { x: ISLAND_CENTER.x + Math.cos(theta) * r, z: ISLAND_CENTER.z + Math.sin(theta) * r };
+}
+
+// Aansluitpunten op de kustweg
+const RING_JUNCTION_THETAS = { north: -1.06, south: 1.12, west: -3.02, eagle: -2.05 };
+export const RING_JUNCTIONS = {};
+Object.entries(RING_JUNCTION_THETAS).forEach(([key, theta]) => {
+  const p = ringPointAtTheta(theta);
+  RING_JUNCTIONS[key] = { u: closestUOnCurve(ringCurve, p.x, p.z, true) };
+});
+
+const ringProfile = buildRoadProfile(ringCurve, true, {
+  id: 'ring',
+  smoothM: 55,
+  minY: 2.0,
+  flats: Object.values(RING_JUNCTIONS).map((j) => {
+    const f = { u: j.u };
+    j.flat = f;
+    return f;
+  })
+});
+export const getRingBaseElev = ringProfile.elevFn;
+export const getRingBridgeAtU = ringProfile.bridgeFn;
+export const RING_BRIDGES = ringProfile.bridges;
+Object.values(RING_JUNCTIONS).forEach((j) => {
+  const fr = frameAt(ringCurve, j.u);
+  // normaal richting eilandcentrum
+  let inX = fr.nx, inZ = fr.nz;
+  if (inX * (ISLAND_CENTER.x - fr.pt.x) + inZ * (ISLAND_CENTER.z - fr.pt.z) < 0) { inX = -inX; inZ = -inZ; }
+  j.x = fr.pt.x; j.z = fr.pt.z; j.y = j.flat.resolvedY; j.inX = inX; j.inZ = inZ;
+});
+
+// =========================================================
+// VERBINDINGSWEGEN: binnenland -> kustweg, plus de spiraalweg naar Eagle Peak
+// =========================================================
+function hostJunction(curve, u, elevFn) {
+  const fr = frameAt(curve, u);
+  let outX = fr.nx, outZ = fr.nz;
+  if (outX * (fr.pt.x - ISLAND_CENTER.x) + outZ * (fr.pt.z - ISLAND_CENTER.z) < 0) { outX = -outX; outZ = -outZ; }
+  return { x: fr.pt.x, z: fr.pt.z, y: elevFn(u), outX, outZ };
+}
+
+function makeConnector(id, host, ringJ, midPoints) {
+  const wps = [
+    new THREE.Vector3(host.x - host.outX * 1.2, 0, host.z - host.outZ * 1.2),
+    new THREE.Vector3(host.x + host.outX * 16, 0, host.z + host.outZ * 16),
+    ...midPoints.map((p) => new THREE.Vector3(p[0], 0, p[1])),
+    new THREE.Vector3(ringJ.x + ringJ.inX * 16, 0, ringJ.z + ringJ.inZ * 16),
+    new THREE.Vector3(ringJ.x - ringJ.inX * 1.2, 0, ringJ.z - ringJ.inZ * 1.2)
+  ];
+  const curve = new THREE.CatmullRomCurve3(wps, false, 'centripetal', 0.5);
+  const prof = buildRoadProfile(curve, false, {
+    id,
+    smoothM: 40,
+    minY: 1.8,
+    flats: [
+      { u: 0, y: host.y, flatM: 6, blendM: 34 },
+      { u: 1, y: ringJ.y, flatM: 6, blendM: 34 }
+    ]
+  });
+  return { id, curve, elevFn: prof.elevFn, bridgeFn: prof.bridgeFn, bridges: prof.bridges, host, ringJ };
+}
+
+const hostNorth = hostJunction(lakeCurve, U_LAKE_NORTH_JUNCTION, getLakeLoopBaseElev);
+const hostSouth = hostJunction(valleyCurve, U_VALLEY_SOUTH_JUNCTION, getValleyBaseElev);
+const hostWest = hostJunction(valleyCurve, U_VALLEY_WEST_JUNCTION, getValleyBaseElev);
+
+export const connectorRoads = [
+  makeConnector('north_link', hostNorth, RING_JUNCTIONS.north, [[96, -128]]),
+  makeConnector('south_link', hostSouth, RING_JUNCTIONS.south, [[84, 212]]),
+  makeConnector('west_link', hostWest, RING_JUNCTIONS.west, [[-176, 52]])
+];
+
+// Spiraalweg naar de top van Eagle Peak (doodlopend, met uitkijktoren bovenop)
+function makeEagleSpiral() {
+  const j = RING_JUNCTIONS.eagle;
+  const ex = EAGLE_PEAK.x;
+  const ez = EAGLE_PEAK.z;
+  const startAng = Math.atan2(j.z - ez, j.x - ex);
+  const turns = 1.45;
+  const r0 = 56;
+  const r1 = 11;
+  const wps = [
+    new THREE.Vector3(j.x + j.inX * 1.2, 0, j.z + j.inZ * 1.2),
+    new THREE.Vector3(j.x - j.inX * 14, 0, j.z - j.inZ * 14)
+  ];
+  const steps = 26;
+  for (let k = 1; k <= steps; k++) {
+    const t = k / steps;
+    const ang = startAng + 0.55 + t * turns * Math.PI * 2;
+    const rr = THREE.MathUtils.lerp(r0, r1, t);
+    wps.push(new THREE.Vector3(ex + Math.cos(ang) * rr, 0, ez + Math.sin(ang) * rr));
+  }
+  const curve = new THREE.CatmullRomCurve3(wps, false, 'centripetal', 0.5);
+  const prof = buildRoadProfile(curve, false, {
+    id: 'eagle_spiral',
+    smoothM: 22,
+    minY: 2.0,
+    linearRamp: true,
+    flats: [{ u: 0, y: j.y, flatM: 6, blendM: 30 }]
+  });
+  const endPt = curve.getPointAt(1);
+  return {
+    id: 'eagle_spiral', curve, elevFn: prof.elevFn, bridgeFn: prof.bridgeFn, bridges: prof.bridges,
+    summit: { x: endPt.x, z: endPt.z, y: prof.elevFn(1) }
+  };
+}
+export const eagleSpiralRoad = makeEagleSpiral();
+
+export const outerRoadDefs = [
+  { id: 'ring_road', curve: ringCurve, elevFn: getRingBaseElev, bridgeFn: getRingBridgeAtU, bridges: RING_BRIDGES, isClosed: true },
+  ...connectorRoads.map((c) => ({ ...c, isClosed: false })),
+  { ...eagleSpiralRoad, isClosed: false }
+];
+outerRoadDefs.forEach((def) => {
+  const count = Math.max(80, Math.round(def.curve.getLength() / 0.85));
+  def.samples = sampleRoadCurve(def.id, def.curve, count, def.isClosed, MAIN_HALF_WIDTH, def.elevFn, def.bridgeFn);
+});
+export const ringSamples = outerRoadDefs[0].samples;
+
 export const allRoadNetworks = [
   { id: 'lake_loop', samples: lakeSamples, halfWidth: MAIN_HALF_WIDTH, isClosed: true },
   { id: 'valley_road', samples: valleySamples, halfWidth: MAIN_HALF_WIDTH, isClosed: false },
-  ...streetSampleSets.map((s) => ({ id: s.def.id, samples: s.samples, halfWidth: s.def.halfWidth, isClosed: false }))
+  ...streetSampleSets.map((s) => ({ id: s.def.id, samples: s.samples, halfWidth: s.def.halfWidth, isClosed: false })),
+  ...outerRoadDefs.map((d) => ({ id: d.id, samples: d.samples, halfWidth: MAIN_HALF_WIDTH, isClosed: d.isClosed }))
 ];
 
 // PERFORMANCE FIX: Spatial Hash Grid voor alle wegpunten zodat `getClosestNetworkRoad` 20x sneller is!
@@ -308,7 +733,13 @@ export const INTERSECTIONS = [
   { x: -28, z: OAK_ST_Z, y: TOWN_ELEV, r: 6.6 },
   { x: 0, z: OAK_ST_Z, y: TOWN_ELEV, r: 7.0 },
   { x: 28, z: OAK_ST_Z, y: TOWN_ELEV, r: 6.6 },
-  { x: valleySouthHitPt.x, z: valleySouthHitPt.z, y: valleySouthHitY, r: 7.6 }
+  { x: valleySouthHitPt.x, z: valleySouthHitPt.z, y: valleySouthHitY, r: 7.6 },
+  // Nieuwe T-splitsingen van de verbindingswegen en de spiraalweg
+  ...connectorRoads.flatMap((c) => [
+    { x: c.host.x, z: c.host.z, y: c.host.y, r: 7.8 },
+    { x: c.ringJ.x, z: c.ringJ.z, y: c.ringJ.y, r: 7.8 }
+  ]),
+  { x: RING_JUNCTIONS.eagle.x, z: RING_JUNCTIONS.eagle.z, y: RING_JUNCTIONS.eagle.y, r: 7.8 }
 ];
 
 export function isInsideIntersection(x, z, extraR = 0) {

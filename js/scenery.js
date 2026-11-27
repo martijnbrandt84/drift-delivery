@@ -46,7 +46,7 @@ function makeSignCanvasTexture(lines) {
 const signPostMat = makeToonMat(0x3a3f33);
 const signBackingMat = makeToonMat(0x1f6b3a);
 
-function createRoadSign(x, z, baseY, yaw, lines) {
+export function createRoadSign(x, z, baseY, yaw, lines) {
   const g = new THREE.Group();
   const tex = makeSignCanvasTexture(lines);
   const panelW = 2.0;

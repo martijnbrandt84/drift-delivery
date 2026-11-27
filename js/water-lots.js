@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { lakeSamples, valleySamples, LAKE_BRIDGES, VALLEY_BRIDGE } from './roads.js';
+import { lakeSamples, valleySamples, ringSamples, riverCurves, VALLEY_POND, getDistToRivers } from './roads.js';
 
 // =========================================================
 // WATERLOPEN & KAVELS (MET EXACTE RECHTHOEKIGE VLAKTE-ZONES)
@@ -10,70 +10,8 @@ export function getLakeShoreRadius(theta) {
 
 export const SANDBAR_ISLAND = { x: 24, z: 6, r: 8.5 };
 
-function createRiverFromBridgeSample(centerS, halfWidth, flowsIntoLake = true, bendSign = 1) {
-  const dotToCenter = (-centerS.x) * centerS.nx + (-centerS.z) * centerS.nz;
-  const inSign = dotToCenter >= 0 ? 1 : -1;
-  const inX = centerS.nx * inSign;
-  const inZ = centerS.nz * inSign;
-  const outX = -inX;
-  const outZ = -inZ;
-  const sideX = centerS.tx;
-  const sideZ = centerS.tz;
-
-  const pts = flowsIntoLake
-    ? [
-        new THREE.Vector3(centerS.x + inX * 48, 0, centerS.z + inZ * 48),
-        new THREE.Vector3(centerS.x + inX * 24 + sideX * 5 * bendSign, 0, centerS.z + inZ * 24 + sideZ * 5 * bendSign),
-        new THREE.Vector3(centerS.x + inX * 11, 0, centerS.z + inZ * 11),
-        new THREE.Vector3(centerS.x, 0, centerS.z),
-        new THREE.Vector3(centerS.x + outX * 11, 0, centerS.z + outZ * 11),
-        new THREE.Vector3(centerS.x + outX * 44 - sideX * 12 * bendSign, 0, centerS.z + outZ * 44 - sideZ * 12 * bendSign),
-        new THREE.Vector3(centerS.x + outX * 95 + sideX * 16 * bendSign, 0, centerS.z + outZ * 95 + sideZ * 16 * bendSign),
-        new THREE.Vector3(centerS.x + outX * 155, 0, centerS.z + outZ * 155)
-      ]
-    : [
-        new THREE.Vector3(centerS.x + inX * 36 + sideX * 8, 0, centerS.z + inZ * 36 + sideZ * 8),
-        new THREE.Vector3(centerS.x + inX * 18, 0, centerS.z + inZ * 18),
-        new THREE.Vector3(centerS.x + inX * 10, 0, centerS.z + inZ * 10),
-        new THREE.Vector3(centerS.x, 0, centerS.z),
-        new THREE.Vector3(centerS.x + outX * 10, 0, centerS.z + outZ * 10),
-        new THREE.Vector3(centerS.x + outX * 38 - sideX * 10, 0, centerS.z + outZ * 38 - sideZ * 10),
-        new THREE.Vector3(centerS.x + outX * 85 + sideX * 12, 0, centerS.z + outZ * 85 + sideZ * 12)
-      ];
-
-  const curve = new THREE.CatmullRomCurve3(pts, false, 'centripetal', 0.5);
-  const sampled = [];
-  for (let k = 0; k <= 70; k++) {
-    const p = curve.getPointAt(k / 70);
-    sampled.push({ x: p.x, z: p.z });
-  }
-  return { sampled, halfWidth, pondCenter: flowsIntoLake ? null : pts[0] };
-}
-
-const lakeBridge0Sample = lakeSamples[0];
-const lakeBridge1Sample = lakeSamples[Math.round(LAKE_BRIDGES[1].uCenter * lakeSamples.length)];
-const valleyBridgeSample = valleySamples[Math.round(VALLEY_BRIDGE.uCenter * (valleySamples.length - 1))];
-
-export const riverCurves = [
-  createRiverFromBridgeSample(lakeBridge0Sample, 7.4, true, 1),
-  createRiverFromBridgeSample(lakeBridge1Sample, 7.2, true, -1),
-  createRiverFromBridgeSample(valleyBridgeSample, 6.2, false, 1)
-];
-
-export const VALLEY_POND = { x: riverCurves[2].pondCenter.x, z: riverCurves[2].pondCenter.z, r: 14.5 };
-
-export function getDistToRivers(x, z) {
-  let minEffective = Infinity;
-  for (const riv of riverCurves) {
-    for (let i = 0; i < riv.sampled.length; i++) {
-      const p = riv.sampled[i];
-      const d = Math.hypot(x - p.x, z - p.z) - riv.halfWidth;
-      if (d < minEffective) minEffective = d;
-    }
-  }
-  const dPond = Math.hypot(x - VALLEY_POND.x, z - VALLEY_POND.z) - VALLEY_POND.r;
-  return Math.min(minEffective, dPond);
-}
+// Rivieren worden nu in roads.js gedefinieerd (nodig om bruggen op de nieuwe wegen automatisch te plaatsen)
+export { riverCurves, VALLEY_POND, getDistToRivers };
 
 export const ruralLots = [
   { netSamples: lakeSamples, u: 0.145, outward: true, dist: 18.5, type: 'aframe', yawOff: -0.1 },
@@ -99,6 +37,17 @@ export const ruralLots = [
     flatElevOffset: -0.06,
     flatBox: { minLX: -19.5, maxLX: 19.5, minLZ: -14.0, maxLZ: 14.5, blend: 12.0 }
   },
+
+  // Huizen en hutten langs de nieuwe kustweg (u = positie op de ring, outward = zeezijde)
+  { netSamples: ringSamples, u: 0.035, outward: true, dist: 18.0, type: 'cabin', yawOff: 0.05 },
+  { netSamples: ringSamples, u: 0.205, outward: false, dist: 17.5, type: 'aframe', yawOff: -0.08 },
+  { netSamples: ringSamples, u: 0.338, outward: true, dist: 18.0, type: 'house_blue', yawOff: 0.06 },
+  { netSamples: ringSamples, u: 0.455, outward: false, dist: 17.5, type: 'house_yellow', yawOff: -0.05 },
+  { netSamples: ringSamples, u: 0.56, outward: true, dist: 18.0, type: 'aframe', yawOff: 0.1 },
+  { netSamples: ringSamples, u: 0.594, outward: false, dist: 14.0, type: 'cabin', yawOff: 0.0, tag: 'moose_lodge' },
+  { netSamples: ringSamples, u: 0.72, outward: true, dist: 18.0, type: 'cabin', yawOff: -0.04 },
+  { netSamples: ringSamples, u: 0.775, outward: true, dist: 17.5, type: 'house_red', yawOff: -0.06 },
+  { netSamples: ringSamples, u: 0.905, outward: false, dist: 18.0, type: 'cabin', yawOff: 0.08 },
 
   // Grote Amerikaanse Boerderij op het brede, vlakke zuidwestelijke vallei-plateau (u=0.70, ver afgelegen van het dorp!).
   // flatBox legt zowel de schuur, silo's, het boerenhuis als alle 3 de maisvelden 100% waterpas.

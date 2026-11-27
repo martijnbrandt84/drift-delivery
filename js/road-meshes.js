@@ -7,7 +7,7 @@ import {
 import {
   MAIN_HALF_WIDTH, lakeSamples, valleySamples, streetSampleSets, INTERSECTIONS,
   isInsideIntersection, LAKE_BRIDGES, lakeCurve, getLakeLoopBaseElev, getLakeBridgeAtU,
-  valleyCurve, VALLEY_BRIDGE, getValleyBaseElev, getValleyBridgeAtU
+  valleyCurve, VALLEY_BRIDGE, getValleyBaseElev, getValleyBridgeAtU, outerRoadDefs
 } from './roads.js';
 import { driveways } from './water-lots.js';
 import { hardColliders, registerDestructible } from './demolition.js';
@@ -193,6 +193,7 @@ function buildCompleteRoadSystem() {
   renderRoadSampleRuns(lakeSamples, true, MAIN_HALF_WIDTH, true);
   renderRoadSampleRuns(valleySamples, false, MAIN_HALF_WIDTH, true);
   streetSampleSets.forEach((st) => renderRoadSampleRuns(st.samples, false, st.def.halfWidth, st.def.dashedCenter));
+  outerRoadDefs.forEach((def) => renderRoadSampleRuns(def.samples, def.isClosed, MAIN_HALF_WIDTH, true));
 
   INTERSECTIONS.forEach((inter) => {
     const radius = inter.r * 0.78;
@@ -265,6 +266,7 @@ function buildCompleteRoadSystem() {
 
   placeRoadBollards(lakeSamples, 18);
   placeRoadBollards(valleySamples, 18);
+  outerRoadDefs.forEach((def) => placeRoadBollards(def.samples, def.id === 'eagle_spiral' ? 9 : 22));
 }
 buildCompleteRoadSystem();
 
@@ -358,8 +360,10 @@ function buildSingleBridgeFromCurve(curve, isClosed, uCenter, uHalfSpan, elevFn,
       hardColliders.push({ x: px, z: pz, r: 0.45 });
 
       if (p === 1 || p === 3) {
-        const pier = createOutlinedMesh(new THREE.CylinderGeometry(0.85, 1.2, 5.4, 8), stonePierMat, 0.05, false);
-        pier.position.set(px - Math.sign(railSide) * ps.nx * 0.75, ps.y - 2.75, pz - Math.sign(railSide) * ps.nz * 0.75);
+        // Pijler reikt altijd tot onder de rivierbedding, ook bij hogere brugdekken
+        const pierLen = Math.max(5.4, ps.y + 3.2);
+        const pier = createOutlinedMesh(new THREE.CylinderGeometry(0.85, 1.2, pierLen, 8), stonePierMat, 0.05, false);
+        pier.position.set(px - Math.sign(railSide) * ps.nx * 0.75, ps.y - 0.05 - pierLen * 0.5, pz - Math.sign(railSide) * ps.nz * 0.75);
         bridgeGroup.add(pier);
       }
 
@@ -388,6 +392,10 @@ function buildSingleBridgeFromCurve(curve, isClosed, uCenter, uHalfSpan, elevFn,
 
 function buildFarmGoldenGateBridge() {
   const { uCenter, uHalfSpan } = FARM_RIVER_BRIDGE;
+  buildSuspensionBridge(valleyCurve, false, uCenter, uHalfSpan, getValleyBaseElev, getFarmRiverBridgeAtU, { numSegs: 24, towerHeight: 9.0 });
+}
+
+function buildSuspensionBridge(curve, isClosed, uCenter, uHalfSpan, elevFn, bridgeInfoFn, opts = {}) {
   const halfWidth = MAIN_HALF_WIDTH;
   const deckMat = makeToonMat(0x464349);
   const edgeStripeMat = new THREE.MeshBasicMaterial({ color: 0xfff8eb });
@@ -397,20 +405,21 @@ function buildFarmGoldenGateBridge() {
   const lanternMat = new THREE.MeshBasicMaterial({ color: 0xffe899 });
 
   const bridgeGroup = new THREE.Group();
-  const numSegs = 24;
+  const numSegs = opts.numSegs ?? 24;
   const bSamples = [];
 
   for (let s = 0; s <= numSegs; s++) {
-    const u = uCenter - uHalfSpan + (s / numSegs) * (uHalfSpan * 2);
-    const pt = valleyCurve.getPointAt(u);
-    const tan = valleyCurve.getTangentAt(u);
+    let u = uCenter - uHalfSpan + (s / numSegs) * (uHalfSpan * 2);
+    if (isClosed) u = ((u % 1) + 1) % 1;
+    const pt = curve.getPointAt(u);
+    const tan = curve.getTangentAt(u);
     const len2D = Math.hypot(tan.x, tan.z) || 1;
     const tx = tan.x / len2D;
     const tz = tan.z / len2D;
     const nx = -tz;
     const nz = tx;
-    const bInf = getFarmRiverBridgeAtU(u);
-    const baseY = getValleyBaseElev(u);
+    const bInf = bridgeInfoFn(u);
+    const baseY = elevFn(u);
     bSamples.push({ x: pt.x, y: baseY + bInf.archY, z: pt.z, tx, tz, nx, nz });
   }
 
@@ -418,8 +427,9 @@ function buildFarmGoldenGateBridge() {
     const abut = new THREE.Group();
     setAlignedTransform(abut, endS.x, endS.y, endS.z, Math.atan2(endS.tx, endS.tz), 0);
 
-    const wall = createOutlinedMesh(new THREE.BoxGeometry((halfWidth + 0.9) * 2, 5.2, 1.8), stoneBaseMat, 0.05, false, true);
-    wall.position.y = -2.58;
+    const wallH = Math.max(5.2, endS.y + 8.0);
+    const wall = createOutlinedMesh(new THREE.BoxGeometry((halfWidth + 0.9) * 2, wallH, 1.8), stoneBaseMat, 0.05, false, true);
+    wall.position.y = 0.02 - wallH * 0.5;
     abut.add(wall);
 
     [-halfWidth - 0.55, halfWidth + 0.55].forEach((sideX) => {
@@ -457,8 +467,17 @@ function buildFarmGoldenGateBridge() {
     bridgeGroup.add(segHolder);
   }
 
-  const towerIndices = [6, 18];
-  const towerHeight = 9.0;
+  const tA = Math.round(numSegs * 0.25);
+  const tB = numSegs - tA;
+  const towerIndices = [tA, tB];
+  const towerHeight = opts.towerHeight ?? 9.0;
+  const mid = numSegs * 0.5;
+  const cableHeightAt = (i) =>
+    i <= tA
+      ? THREE.MathUtils.lerp(1.1, towerHeight, i / tA)
+      : i >= tB
+      ? THREE.MathUtils.lerp(towerHeight, 1.1, (i - tB) / tA)
+      : 1.35 + ((i - mid) / (mid - tA)) ** 2 * (towerHeight - 1.35);
 
   towerIndices.forEach((tIdx) => {
     const ts = bSamples[tIdx];
@@ -471,8 +490,10 @@ function buildFarmGoldenGateBridge() {
       const towerGrp = new THREE.Group();
       setAlignedTransform(towerGrp, px, ts.y, pz, yaw, 0);
 
-      const leg = createOutlinedMesh(new THREE.BoxGeometry(0.58, towerHeight + 5.0, 0.68), goldenRedMat, 0.045);
-      leg.position.y = towerHeight * 0.5 - 2.4;
+      // Torenpoten lopen door tot op de zeebodem / rivierbedding
+      const legDepth = Math.max(5.0, ts.y + 8.0);
+      const leg = createOutlinedMesh(new THREE.BoxGeometry(0.58, towerHeight + legDepth, 0.68), goldenRedMat, 0.045);
+      leg.position.y = (towerHeight - legDepth) * 0.5 + 0.1;
       towerGrp.add(leg);
 
       const topBeam = createOutlinedMesh(new THREE.BoxGeometry(0.5, 0.55, 1.1), goldenRedMat, 0.04, false);
@@ -514,19 +535,8 @@ function buildFarmGoldenGateBridge() {
       deckBar.add(createOutlinedMesh(new THREE.BoxGeometry(0.28, 0.52, deckSpan * 1.03), goldenRedMat, 0.035, false));
       bridgeGroup.add(deckBar);
 
-      const cableH0 =
-        i <= 6
-          ? THREE.MathUtils.lerp(1.1, towerHeight, i / 6)
-          : i >= 18
-          ? THREE.MathUtils.lerp(towerHeight, 1.1, (i - 18) / 6)
-          : 1.35 + ((i - 12) / 6) ** 2 * (towerHeight - 1.35);
-
-      const cableH1 =
-        i + 1 <= 6
-          ? THREE.MathUtils.lerp(1.1, towerHeight, (i + 1) / 6)
-          : i + 1 >= 18
-          ? THREE.MathUtils.lerp(towerHeight, 1.1, (i + 1 - 18) / 6)
-          : 1.35 + ((i + 1 - 12) / 6) ** 2 * (towerHeight - 1.35);
+      const cableH0 = cableHeightAt(i);
+      const cableH1 = cableHeightAt(i + 1);
 
       const yC0 = s0.y + cableH0;
       const yC1 = s1.y + cableH1;
@@ -553,3 +563,18 @@ function buildFarmGoldenGateBridge() {
 LAKE_BRIDGES.forEach((b) => buildSingleBridgeFromCurve(lakeCurve, true, b.uCenter, b.uHalfSpan, getLakeLoopBaseElev, getLakeBridgeAtU, MAIN_HALF_WIDTH));
 buildSingleBridgeFromCurve(valleyCurve, false, VALLEY_BRIDGE.uCenter, VALLEY_BRIDGE.uHalfSpan, getValleyBaseElev, getValleyBridgeAtU, MAIN_HALF_WIDTH);
 buildFarmGoldenGateBridge();
+
+// Bruggen op de nieuwe kustweg en verbindingswegen (automatisch gevonden boven rivieren en de fjord)
+outerRoadDefs.forEach((def) => {
+  def.bridges.forEach((b) => {
+    if (b.type === 'suspension') {
+      const spanM = b.uHalfSpan * 2 * def.curve.getLength();
+      buildSuspensionBridge(def.curve, def.isClosed, b.uCenter, b.uHalfSpan, def.elevFn, def.bridgeFn, {
+        numSegs: Math.max(24, Math.round(spanM / 2.6 / 2) * 2),
+        towerHeight: 13.5
+      });
+    } else {
+      buildSingleBridgeFromCurve(def.curve, def.isClosed, b.uCenter, b.uHalfSpan, def.elevFn, def.bridgeFn, MAIN_HALF_WIDTH);
+    }
+  });
+});

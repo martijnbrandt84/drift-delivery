@@ -2,24 +2,7 @@ import * as THREE from 'three';
 import { scene, toonGradient } from './scene-setup.js';
 import { TOWN_ELEV, WATER_LEVEL, getClosestNetworkRoad } from './roads.js';
 import { getLakeShoreRadius, SANDBAR_ISLAND, getDistToRivers, ruralLots, driveways } from './water-lots.js';
-
-function getNaturalGroundBase(x, z) {
-  const r = Math.hypot(x, z - 25);
-  const theta = Math.atan2(z - 25, x);
-
-  const outerMountains = Math.max(0, (r - 156) * 0.38);
-  const mountainPeaks = Math.max(0, r - 135) * (Math.sin(theta * 5 + 0.4) * 0.14 + Math.cos(theta * 8 - 0.6) * 0.09);
-
-  const broadHills =
-    Math.sin(x * 0.021 + 0.5) * Math.cos(z * 0.019 - 0.2) * 5.4 +
-    Math.sin((x - z) * 0.016 + 1.1) * 3.5 +
-    Math.cos(x * 0.038 + z * 0.035) * 1.25;
-
-  const hillEast = Math.exp(-(((x - 54) ** 2 + (z - 124) ** 2) / (33 ** 2))) * 8.8;
-  const hillWest = Math.exp(-(((x + 56) ** 2 + (z - 118) ** 2) / (35 ** 2))) * 8.2;
-
-  return 3.5 + broadHills + hillEast + hillWest + outerMountains + mountainPeaks;
-}
+import { getNaturalGroundBase, OCEAN_FLOOR } from './landscape.js';
 
 function getOrientedBoxDist(x, z, lot, minLX, maxLX, minLZ, maxLZ) {
   const dx = x - lot.x;
@@ -118,6 +101,9 @@ function getRawTerrainHeight(x, z) {
     }
   }
 
+  // Geen onnatuurlijk diepe gaten in het centrale meer/rivierdal (gaf een donker vierkant onder de westbrug)
+  if (rLake < 150) h = Math.max(h, -2.8);
+
   const dIsland = Math.hypot(x - SANDBAR_ISLAND.x, z - SANDBAR_ISLAND.z);
   if (dIsland < SANDBAR_ISLAND.r + 9.0) {
     const islandH = THREE.MathUtils.lerp(0.65, -0.62, THREE.MathUtils.smoothstep(dIsland, SANDBAR_ISLAND.r * 0.45, SANDBAR_ISLAND.r + 9.0));
@@ -141,8 +127,8 @@ function getRawTerrainHeight(x, z) {
 // =========================================================
 // GEBAKKEN TERREIN + O(1) DRIVESURFACE GRID VOOR 60FPS!
 // =========================================================
-export const TERRAIN_SIZE = 540;
-const TERRAIN_SEGMENTS = 260;
+export const TERRAIN_SIZE = 880;
+const TERRAIN_SEGMENTS = 410;
 const groundGeo = new THREE.PlaneGeometry(TERRAIN_SIZE, TERRAIN_SIZE, TERRAIN_SEGMENTS, TERRAIN_SEGMENTS);
 groundGeo.rotateX(-Math.PI / 2);
 
@@ -166,24 +152,49 @@ const cSnowShore = new THREE.Color(0xdce4ec);
 const cSnowRock = new THREE.Color(0xb0b8c2);
 
 for (let i = 0; i < gPos.count; i++) {
-  const vx = gPos.getX(i);
-  const vz = gPos.getZ(i);
-  const vy = getRawTerrainHeight(vx, vz);
+  const vy = getRawTerrainHeight(gPos.getX(i), gPos.getZ(i));
   gPos.setY(i, vy);
   heightGrid[i] = vy;
+}
+
+const cellSize = TERRAIN_SIZE / TERRAIN_SEGMENTS;
+const cSnowCap = new THREE.Color(0xf7fbff);
+const cAlpineRock = new THREE.Color(0x8a8079);
+const cDeepSea = new THREE.Color(0x3d7f8f);
+
+for (let i = 0; i < gPos.count; i++) {
+  const vx = gPos.getX(i);
+  const vz = gPos.getZ(i);
+  const vy = heightGrid[i];
+
+  // Helling uit het hoogteraster (voor kliffen en rotswanden)
+  const ix = i % stride;
+  const iz = Math.floor(i / stride);
+  const hL = heightGrid[iz * stride + Math.max(0, ix - 1)];
+  const hR = heightGrid[iz * stride + Math.min(stride - 1, ix + 1)];
+  const hU = heightGrid[Math.max(0, iz - 1) * stride + ix];
+  const hD = heightGrid[Math.min(stride - 1, iz + 1) * stride + ix];
+  const slope = Math.hypot(hR - hL, hD - hU) / (2 * cellSize);
 
   const colA = new THREE.Color();
   const colW = new THREE.Color();
   const inTownArea = vx > -45 && vx < 45 && vz > 75 && vz < 137;
+  const snowLine = 31 + Math.sin(vx * 0.07) * Math.cos(vz * 0.06) * 3.5;
 
-  if (vy < -0.05) {
+  if (vy < -3.2) {
+    colA.copy(cDeepSea);
+    colW.copy(cDeepSea);
+  } else if (vy < -0.05) {
     colA.copy(cShallowSand);
     colW.copy(cShallowSand);
-  } else if (vy < 0.48) {
+  } else if (vy < 0.48 && slope < 0.5) {
     colA.copy(cSand);
     colW.copy(cSnowShore);
-  } else if (vy > 13.0) {
-    colA.copy(cCliffRock);
+  } else if (vy > snowLine) {
+    colA.copy(slope > 1.25 ? cSnowRock : cSnowCap);
+    colW.copy(slope > 1.25 ? cSnowRock : cSnowPure);
+  } else if (slope > 0.85 || (vy > 13.0 && slope > 0.55) || vy > snowLine - 7) {
+    colA.copy(vy > 18 ? cAlpineRock : cCliffRock);
     colW.copy(cSnowRock);
   } else if (inTownArea) {
     colA.copy(cTownLawn);
@@ -193,6 +204,8 @@ for (let i = 0; i < gPos.count; i++) {
     const hillTint = THREE.MathUtils.clamp((vy - 3.5) / 8.0, 0, 1);
     colA.lerpColors(cForestFloor, cMeadow, n1);
     colA.lerp(cHighHillGrass, hillTint * 0.55);
+    // Zachte overgang naar kliffen
+    colA.lerp(cCliffRock, THREE.MathUtils.smoothstep(slope, 0.55, 0.85) * 0.6);
     colW.lerpColors(cSnowWarm, cSnowPure, n1 * 0.6 + hillTint * 0.4);
   }
 
@@ -239,7 +252,15 @@ export function getLocalSlope(x, z, sampleDist = 1.2) {
   return Math.hypot(dxSlope, dzSlope);
 }
 
-export const waterGeo = new THREE.PlaneGeometry(540, 540, 24, 24);
+// Diepe oceaanbodem onder en rondom het eiland (zodat de horizon overal zee is)
+const seaFloor = new THREE.Mesh(
+  new THREE.PlaneGeometry(4200, 4200, 1, 1).rotateX(-Math.PI / 2),
+  new THREE.MeshToonMaterial({ color: 0x2f6f82, gradientMap: toonGradient })
+);
+seaFloor.position.y = OCEAN_FLOOR - 0.3;
+scene.add(seaFloor);
+
+export const waterGeo = new THREE.PlaneGeometry(4200, 4200, 70, 70);
 waterGeo.rotateX(-Math.PI / 2);
 export const waterMat = new THREE.MeshToonMaterial({
   color: 0x43adc4,

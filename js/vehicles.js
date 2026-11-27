@@ -1,6 +1,9 @@
 import * as THREE from 'three';
 import { scene, createOutlinedMesh, makeToonMat, pineSnowCapObjects } from './scene-setup.js';
-import { TOWN_ELEV, lakeCurve, getLakeLoopBaseElev, getLakeBridgeAtU, valleyCurve, getValleyBaseElev, getValleyBridgeAtU } from './roads.js';
+import {
+  TOWN_ELEV, lakeCurve, getLakeLoopBaseElev, getLakeBridgeAtU, valleyCurve, getValleyBaseElev, getValleyBridgeAtU,
+  ringCurve, getRingBaseElev, getRingBridgeAtU
+} from './roads.js';
 import { warmWindowMat } from './town.js';
 
 // =========================================================
@@ -528,6 +531,13 @@ spawnTrafficVehicle(buildIceCreamTruckMesh(), lakeCurve, getLakeLoopBaseElev, ge
 spawnTrafficVehicle(buildYellowTaxiMesh(), valleyCurve, getValleyBaseElev, getValleyBridgeAtU, 0.28, 1, 16.5, 2.15, false);
 spawnTrafficVehicle(buildPickupTruckMesh(0xc96b38, 'Canyon Pickup'), valleyCurve, getValleyBaseElev, getValleyBridgeAtU, 0.70, -1, 15.5, -2.15, false);
 spawnTrafficVehicle(buildCargoTruckMesh(0xa8382b, 0xede6d6, 'Rode Vrachtwagen'), valleyCurve, getValleyBaseElev, getValleyBridgeAtU, 0.42, 1, 12.0, 2.15, false);
+
+// Verkeer op de nieuwe kustweg rond het eiland
+spawnTrafficVehicle(buildCargoTruckMesh(0x2f7d6d, 0xf2ece1, 'Kust Vrachtwagen'), ringCurve, getRingBaseElev, getRingBridgeAtU, 0.08, 1, 15.0, 2.2, true);
+spawnTrafficVehicle(buildYellowTaxiMesh(), ringCurve, getRingBaseElev, getRingBridgeAtU, 0.33, -1, 20.0, -2.2, true);
+spawnTrafficVehicle(buildPickupTruckMesh(0x8a5a3c, 'Kustwacht Pickup'), ringCurve, getRingBaseElev, getRingBridgeAtU, 0.52, 1, 18.5, 2.2, true);
+spawnTrafficVehicle(buildSchoolBusMesh(), ringCurve, getRingBaseElev, getRingBridgeAtU, 0.71, -1, 14.0, -2.2, true);
+spawnTrafficVehicle(buildPickupTruckMesh(0xd9b23a, 'Gele Strand Pickup'), ringCurve, getRingBaseElev, getRingBridgeAtU, 0.90, 1, 17.0, 2.2, true);
 
 const townParkedCop = buildPoliceCruiserMesh();
 townParkedCop.root.position.set(23.5, TOWN_ELEV + 0.10, 82.8);

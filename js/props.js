@@ -38,8 +38,8 @@ const shrubMats = [
 ];
 
 // Bak gedeelde Dennenboom-templates
-const pineNeedleParts = [];
-const pineSnowParts = [];
+export const pineNeedleParts = [];
+export const pineSnowParts = [];
 for (let k = 0; k < 4; k++) {
   const r = 2.18 - k * 0.38;
   const h = 2.35 - k * 0.2;
@@ -60,14 +60,14 @@ for (let k = 0; k < 4; k++) {
   }
 }
 
-const bakedPineTrunk = createMergedToonProp(
+export const bakedPineTrunk = createMergedToonProp(
   [{ geo: new THREE.CylinderGeometry(0.28, 0.50, 2.95, 7), matrix: new THREE.Matrix4().makeTranslation(0, 1.15, 0) }],
   trunkMat,
   0.045,
   true
 );
 const bakedPineNeedles = pineMats.map((mat) => createMergedToonProp(pineNeedleParts, mat, 0.05, true));
-const bakedPineSnow = createMergedToonProp(pineSnowParts, thickSnowMat, 0.035, false);
+export const bakedPineSnow = createMergedToonProp(pineSnowParts, thickSnowMat, 0.035, false);
 
 function createPineFast(scale) {
   const g = new THREE.Group();
@@ -109,10 +109,10 @@ const birchSnowParts = [];
   birchSnowParts.push({ geo: new THREE.SphereGeometry(0.14, 5, 5), matrix: snowM });
 });
 
-const bakedBirchSkeleton = createMergedToonProp(birchSkeletonParts, birchTrunkMat, 0.038, true);
-const bakedBirchSnow = createMergedToonProp(birchSnowParts, thickSnowMat, 0, false);
+export const bakedBirchSkeleton = createMergedToonProp(birchSkeletonParts, birchTrunkMat, 0.038, true);
+export const bakedBirchSnow = createMergedToonProp(birchSnowParts, thickSnowMat, 0, false);
 
-const crownParts = [
+export const crownParts = [
   { geo: new THREE.IcosahedronGeometry(1.65, 1), matrix: new THREE.Matrix4().makeScale(1, 1.2, 1).setPosition(0, 3.85, 0) },
   { geo: new THREE.IcosahedronGeometry(1.1, 1), matrix: new THREE.Matrix4().makeTranslation(0.85, 3.35, 0.4) }
 ];
@@ -168,7 +168,7 @@ export function isInsideTownFootprint(x, z, pad = 0) {
   return x > TOWN_BOUNDS.minX - pad && x < TOWN_BOUNDS.maxX + pad && z > TOWN_BOUNDS.minZ - pad && z < TOWN_BOUNDS.maxZ + pad;
 }
 
-function isNearAnyDriveway(x, z, margin = 2.5) {
+export function isNearAnyDriveway(x, z, margin = 2.5) {
   for (const d of driveways) {
     const l2 = (d.x2 - d.x1) ** 2 + (d.z2 - d.z1) ** 2;
     const t = THREE.MathUtils.clamp(((x - d.x1) * (d.x2 - d.x1) + (z - d.z1) * (d.z2 - d.z1)) / l2, 0, 1);
@@ -177,7 +177,7 @@ function isNearAnyDriveway(x, z, margin = 2.5) {
   return false;
 }
 
-function isNearAnyRuralLot(x, z, radius = 9.2) {
+export function isNearAnyRuralLot(x, z, radius = 9.2) {
   for (const lot of ruralLots) {
     if (Math.hypot(x - lot.x, z - lot.z) < radius) return true;
   }
@@ -290,7 +290,7 @@ while (placedShrubs < 240 && shrubTries < 3600) {
   placedShrubs++;
 }
 
-const bakedRock = createMergedToonProp(
+export const bakedRock = createMergedToonProp(
   [{ geo: new THREE.DodecahedronGeometry(1.0, 0), matrix: new THREE.Matrix4().makeScale(1.1, 0.65, 0.95) }],
   stoneMat,
   0.048,

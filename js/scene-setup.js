@@ -17,7 +17,7 @@ export const skyColors = {
 scene.background = skyColors.sunny.clone();
 scene.fog = new THREE.FogExp2(0xffcfa1, 0.0020);
 
-export const camera = new THREE.PerspectiveCamera(52, window.innerWidth / window.innerHeight, 0.2, 620);
+export const camera = new THREE.PerspectiveCamera(52, window.innerWidth / window.innerHeight, 0.2, 1500);
 
 // Performance optimalisatie: powerPreference high-performance & gecapte pixelRatio (1.5)
 export const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
@@ -172,10 +172,12 @@ scene.add(sunLight);
 scene.add(sunLight.target);
 
 export const sunDisc = new THREE.Mesh(
-  new THREE.SphereGeometry(24, 20, 20),
+  new THREE.SphereGeometry(48, 20, 20),
   new THREE.MeshBasicMaterial({ color: 0xfff0c4, fog: false })
 );
-sunDisc.position.set(220, 92, -240);
+// Ver weg en meebewegend met de speler (zie main.js) zodat je de zon op het grote eiland nooit "inhaalt"
+export const SUN_DISC_OFFSET = new THREE.Vector3(470, 190, -510);
+sunDisc.position.copy(SUN_DISC_OFFSET);
 scene.add(sunDisc);
 
 // Sterrenhemel + Heldere Maan voor Nachtmodus!

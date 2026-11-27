@@ -4,6 +4,7 @@ import { getClosestNetworkRoad, WATER_LEVEL } from './roads.js';
 import { getDistToRivers, getLakeShoreRadius } from './water-lots.js';
 import { getTerrainHeight } from './terrain.js';
 import { isInsideTownFootprint } from './props.js';
+import { MOOSE_LAKE } from './landscape.js';
 
 // =========================================================
 // DIEREN IN HET WILD: KALKOENEN, HERTEN, VOSSEN,
@@ -440,9 +441,10 @@ function createSwan() {
 }
 
 function findSafeWildlifeSpot(nearTownAllowed = false, minY = 0.7, maxY = 9.0) {
-  for (let t = 0; t < 200; t++) {
-    const x = (Math.random() - 0.5) * 340;
-    const z = (Math.random() - 0.5) * 340;
+  for (let t = 0; t < 260; t++) {
+    // Het hele eiland (kust ligt op ~300-400m van het midden)
+    const x = (Math.random() - 0.5) * 600;
+    const z = 30 + (Math.random() - 0.5) * 600;
     if (!nearTownAllowed && isInsideTownFootprint(x, z, 8)) continue;
     const y = getTerrainHeight(x, z);
     if (y < minY || y > maxY) continue;
@@ -500,8 +502,8 @@ turkeyFlockCenters.forEach((fc) => {
 });
 
 // 2. Herten (9)
-for (let i = 0; i < 9; i++) {
-  const sp = findSafeWildlifeSpot(false, 0.8, 9.0);
+for (let i = 0; i < 16; i++) {
+  const sp = findSafeWildlifeSpot(false, 0.8, 12.0);
   const deer = createCartoonDeer(i % 2 === 0);
   deer.root.position.set(sp.x, sp.y, sp.z);
   const ang = Math.random() * Math.PI * 2;
@@ -519,8 +521,8 @@ for (let i = 0; i < 9; i++) {
 }
 
 // 3. Bosberen (2 — zeldzamer)
-for (let i = 0; i < 2; i++) {
-  const sp = findSafeWildlifeSpot(false, 1.5, 11.5);
+for (let i = 0; i < 4; i++) {
+  const sp = findSafeWildlifeSpot(false, 1.5, 20.0);
   const bear = createForestBear();
   bear.root.position.set(sp.x, sp.y, sp.z);
   const ang = Math.random() * Math.PI * 2;
@@ -538,8 +540,8 @@ for (let i = 0; i < 2; i++) {
 }
 
 // 4. Vossen (5), Wasberen (3 — schaarser) & Bevers (2 — schaarser)
-for (let i = 0; i < 5; i++) {
-  const sp = findSafeWildlifeSpot(false, 0.7, 9.5);
+for (let i = 0; i < 8; i++) {
+  const sp = findSafeWildlifeSpot(false, 0.7, 12.0);
   const fox = createCartoonFox();
   fox.root.position.set(sp.x, sp.y, sp.z);
   const ang = Math.random() * Math.PI * 2;
@@ -613,6 +615,26 @@ for (let i = 0; i < 8; i++) {
     centerX: sp.x,
     centerZ: sp.z,
     orbitR: 2.0 + Math.random() * 3.0,
+    orbitSpeed: 0.15 + Math.random() * 0.15,
+    phase: Math.random() * Math.PI * 2,
+    bobPhase: Math.random() * 10
+  });
+}
+
+// Een paar eenden op Moose Lake bij de lodge
+for (let i = 0; i < 4; i++) {
+  const ang = Math.random() * Math.PI * 2;
+  const rr = MOOSE_LAKE.r * (0.2 + Math.random() * 0.45);
+  const cx = MOOSE_LAKE.x + Math.cos(ang) * rr;
+  const cz = MOOSE_LAKE.z + Math.sin(ang) * rr;
+  const duck = createDuck();
+  duck.root.position.set(cx, WATER_LEVEL + 0.06, cz);
+  scene.add(duck.root);
+  ducks.push({
+    ...duck,
+    centerX: cx,
+    centerZ: cz,
+    orbitR: 1.5 + Math.random() * 2.5,
     orbitSpeed: 0.15 + Math.random() * 0.15,
     phase: Math.random() * Math.PI * 2,
     bobPhase: Math.random() * 10

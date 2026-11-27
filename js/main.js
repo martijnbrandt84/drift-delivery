@@ -4,7 +4,7 @@ import {
   starsRowEl, scoreEl, vehicleBadgeEl, gearBadgeEl, speedValEl, rpmBarEl, hijackPromptEl, bustedBannerEl,
   nightBtnEl, driftBtnEl, soundBtnEl, weatherBtnEl, xmasBtnEl, policeBtnEl, clearBtnEl, resetBtnEl
 } from './dom.js';
-import { scene, camera, renderer, setAlignedTransform, playerHeadlight, sunLight, nightSkyGroup } from './scene-setup.js';
+import { scene, camera, renderer, setAlignedTransform, playerHeadlight, sunLight, nightSkyGroup, sunDisc, SUN_DISC_OFFSET } from './scene-setup.js';
 import { WORLD_LIMIT, TOWN_ELEV, WATER_LEVEL, findNearestRoadAnywhere } from './roads.js';
 import { getTerrainHeight, waterMesh, updateWaterWaves } from './terrain.js';
 import { getDriveHeightAndWaterState } from './drive-surface.js';
@@ -28,6 +28,7 @@ import {
 import './road-meshes.js';
 import './props.js';
 import './farm.js';
+import './island-scenery.js';
 
 // =========================================================
 // OPRUIMING VAN WILDE BOSBOMEN, STRUIKEN & ROTSEN OP BEBOUWDE ZONES
@@ -1058,6 +1059,7 @@ function animate() {
   }
   if (giantStarMesh && isChristmasMode) giantStarMesh.rotation.y = elapsed * 1.4;
   if (isNightMode) nightSkyGroup.position.set(px, 0, pz);
+  else sunDisc.position.set(px + SUN_DISC_OFFSET.x, SUN_DISC_OFFSET.y, pz + SUN_DISC_OFFSET.z);
 
   if (weatherSystem.visible) {
     const posArr = weatherSystem.geometry.attributes.position.array;
