@@ -61,7 +61,7 @@ function isInClearedDevelopmentZone(x, z) {
 function purgeObstructingWildProps() {
   for (let i = destructibles.length - 1; i >= 0; i--) {
     const d = destructibles[i];
-    if ((d.kind === 'tree' || d.kind === 'shrub') && isInClearedDevelopmentZone(d.x, d.z)) {
+    if ((d.kind === 'tree' || d.kind === 'shrub') && !d.planted && isInClearedDevelopmentZone(d.x, d.z)) {
       if (d.instRefs) {
         d.mesh.scale.setScalar(0);
         syncInstancedDestructible(d);

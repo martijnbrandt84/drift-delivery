@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
 import { scene, makeToonMat, registerSeasonalMat, createOutlinedMesh } from './scene-setup.js';
 import { ruralLots } from './water-lots.js';
-import { hardColliders, registerDestructible } from './demolition.js';
+import { hardColliders, registerDestructible, markLastPlanted } from './demolition.js';
 import { getTerrainHeight } from './terrain.js';
 import { houseWindows, warmWindowMat } from './town.js';
 import { createRoadSign } from './scenery.js';
@@ -249,6 +249,7 @@ function buildCamping(lot) {
     tree.rotation.y = Math.random() * Math.PI * 2;
     scene.add(tree);
     registerDestructible(tree, w.x, groundY, w.z, 0.85 * sc, 'tree', 15, kind === 'p' ? 'Dennenboom' : 'Loofboom');
+    markLastPlanted();
   });
   const shrubSpots = [[6, 14], [13, 19.5], [-3.6, 9], [3.6, 13], [-3.6, 18], [3.6, 22], [-3.6, 25],
     [-18.5, -10], [19.5, -9], [-12, -19], [16, -19.5], [-3, -15.5], [3.5, -14.5], [-17, 13], [17, 1.5], [-9.5, -1],
@@ -263,6 +264,62 @@ function buildCamping(lot) {
     shrub.rotation.y = Math.random() * Math.PI * 2;
     scene.add(shrub);
     registerDestructible(shrub, w.x, groundY, w.z, Math.max(0.6, 0.85 * sc), 'shrub', 3, big ? 'Grote struik' : 'Struik');
+    markLastPlanted();
+  });
+
+  // Gezelligheid: klapstoeltjes rond het kampvuur, een hangmat, bloembakken bij de caravans
+  const chairCols = [0xd94e3a, 0x3f78a8, 0xf4b41a, 0x6cc04a, 0xe07ab8];
+  for (let k = 0; k < 5; k++) {
+    const a = (k / 5) * Math.PI * 2 + 1.0;
+    const chair = new THREE.Group();
+    const seat = createOutlinedMesh(new THREE.BoxGeometry(0.55, 0.08, 0.5), makeToonMat(chairCols[k]), 0.015, false);
+    seat.position.y = 0.42;
+    chair.add(seat);
+    const back = createOutlinedMesh(new THREE.BoxGeometry(0.55, 0.55, 0.08), makeToonMat(chairCols[k]), 0.015, false);
+    back.position.set(0, 0.7, -0.24);
+    back.rotation.x = -0.25;
+    chair.add(back);
+    [[-0.24, 0.2], [0.24, 0.2], [-0.24, -0.2], [0.24, -0.2]].forEach(([lx2, lz2]) => {
+      const leg = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.42, 0.04), steelMat);
+      leg.position.set(lx2, 0.21, lz2);
+      chair.add(leg);
+    });
+    const cw = toWorld(Math.cos(a) * 4.4, -7 + Math.sin(a) * 4.4);
+    chair.position.set(cw.x, groundY, cw.z);
+    chair.rotation.y = lot.yaw + Math.atan2(-Math.cos(a), -Math.sin(a));
+    scene.add(chair);
+    registerDestructible(chair, cw.x, groundY, cw.z, 0.45, 'small', 4, 'Klapstoel');
+  }
+  {
+    // Hangmat tussen twee boompaaltjes
+    const hm = new THREE.Group();
+    [-1.8, 1.8].forEach((px2) => {
+      const post = createOutlinedMesh(new THREE.CylinderGeometry(0.1, 0.12, 1.8, 6), darkWoodMat, 0.02, false);
+      post.position.set(px2, 0.9, 0);
+      hm.add(post);
+    });
+    const net = createOutlinedMesh(new THREE.BoxGeometry(3.0, 0.08, 0.9), makeToonMat(0xe8c46a), 0.015, false);
+    net.position.y = 0.95;
+    net.scale.y = 1;
+    hm.add(net);
+    const pillow = createOutlinedMesh(new THREE.BoxGeometry(0.5, 0.18, 0.6), makeToonMat(0xd94e3a), 0.015, false);
+    pillow.position.set(1.15, 1.08, 0);
+    hm.add(pillow);
+    hm.position.set(12, 0.15, -6);
+    hm.rotation.y = 0.4;
+    g.add(hm);
+  }
+  [[-14, 10], [14, 6]].forEach(([cx2, cz2]) => {
+    [-1.2, 1.2].forEach((ox) => {
+      const pot = createOutlinedMesh(new THREE.CylinderGeometry(0.28, 0.22, 0.4, 8), makeToonMat(0xb8643a), 0.015, false);
+      pot.position.set(cx2 + ox, 0.35, cz2 + 1.6);
+      g.add(pot);
+      [0xe07ab8, 0xffd23f, 0xffffff].forEach((c, k) => {
+        const bloom = new THREE.Mesh(new THREE.SphereGeometry(0.12, 6, 5), makeToonMat(c));
+        bloom.position.set(cx2 + ox - 0.1 + k * 0.1, 0.65, cz2 + 1.6 + (k % 2) * 0.08);
+        g.add(bloom);
+      });
+    });
   });
 
   // Lantaarnpaaltjes met lichtslingers rond het kampvuur

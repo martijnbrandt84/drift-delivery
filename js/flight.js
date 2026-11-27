@@ -2,7 +2,9 @@ import * as THREE from 'three';
 import { scene, makeToonMat, registerSeasonalMat, createOutlinedMesh } from './scene-setup.js';
 import { WATER_LEVEL } from './roads.js';
 import { ruralLots } from './water-lots.js';
-import { hardColliders } from './demolition.js';
+import { hardColliders, registerDestructible, markLastPlanted } from './demolition.js';
+import { createPineFast, createDeciduousTreeFast, createShrubFast } from './props.js';
+import { getClosestNetworkRoad, getDistToRivers } from './roads.js';
 import { getTerrainHeight } from './terrain.js';
 import { createRoadSign } from './scenery.js';
 import { spawnParticle } from './effects.js';
@@ -206,6 +208,40 @@ function buildAirfield() {
   const sx = lot.roadX + c * 6 + (tx / tl) * 3.5;
   const sz = lot.roadZ - s * 6 + (tz / tl) * 3.5;
   createRoadSign(sx, sz, getTerrainHeight(sx, sz), lot.yaw, ['AIRFIELD', 'Rondvluchten']);
+
+  // Bomenrijen langs beide lange zijden van het vliegveld en groepjes bij het platform
+  // (het eind van de baan blijft vrij voor het aanvliegen)
+  const plant = (lx, lz, kind) => {
+    const w = toWorld(lx, lz);
+    if (getClosestNetworkRoad(w.x, w.z).marginDist < 3.5 || getDistToRivers(w.x, w.z) < 3) return;
+    const y = getTerrainHeight(w.x, w.z);
+    if (y < WATER_LEVEL + 0.4) return;
+    let obj;
+    if (kind === 's') {
+      const sc = 0.6 + Math.random() * 0.6;
+      obj = createShrubFast(sc);
+      obj.position.set(w.x, y, w.z);
+      scene.add(obj);
+      registerDestructible(obj, w.x, y, w.z, Math.max(0.6, 0.85 * sc), 'shrub', 3, 'Struik');
+    } else {
+      const sc = 0.75 + Math.random() * 0.45;
+      obj = kind === 'p' ? createPineFast(sc) : createDeciduousTreeFast(sc);
+      obj.position.set(w.x, y, w.z);
+      obj.rotation.y = Math.random() * Math.PI * 2;
+      scene.add(obj);
+      registerDestructible(obj, w.x, y, w.z, 0.85 * sc, 'tree', 15, kind === 'p' ? 'Dennenboom' : 'Loofboom');
+    }
+    markLastPlanted();
+  };
+  for (let lz = 6; lz > -128; lz -= 6.5) {
+    [-1, 1].forEach((side) => {
+      const lx = side * (22 + Math.random() * 3) + (side > 0 && lz > -20 ? 3 : 0);
+      plant(lx, lz + (Math.random() - 0.5) * 2, Math.random() < 0.55 ? 'p' : 'd');
+      if (Math.random() < 0.6) plant(lx + side * (4 + Math.random() * 3), lz + 3, Math.random() < 0.6 ? 'p' : 'd');
+      if (Math.random() < 0.5) plant(lx - side * 2.5, lz + 1.5, 's');
+    });
+  }
+  [[-20, 9, 'd'], [-23, 4, 'p'], [-21, 13, 's'], [19, 13, 's'], [21, -18, 'd'], [17, -21, 's']].forEach(([lx, lz, k]) => plant(lx, lz, k));
 }
 buildAirfield();
 

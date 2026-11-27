@@ -4,7 +4,7 @@ import {
 } from './scene-setup.js';
 import { TOWN_ELEV } from './roads.js';
 import { ruralLots } from './water-lots.js';
-import { hardColliders, registerDestructible, destructibles } from './demolition.js';
+import { hardColliders, registerDestructible, destructibles, markLastPlanted } from './demolition.js';
 import { getTerrainHeight } from './terrain.js';
 
 // Tekst op borden: altijd net vóór het bord tekenen (geen flikkeren/wegvallen op afstand)
@@ -1539,21 +1539,6 @@ function buildGeneralStore() {
     hardColliders.push({ x: baseX + pp.x, z: baseZ + pp.z, r: 1.4 });
   }
 
-  // Hoge lantaarnpalen op de parkeerplaats
-  [[-16.5, 6.4], [16.5, 6.4], [-16.5, 15.5], [16.5, 15.5]].forEach(([lx, lz]) => {
-    const pole = createOutlinedMesh(new THREE.CylinderGeometry(0.1, 0.14, 6.5, 6), streetPostMat, 0.02, false);
-    pole.position.set(lx, 3.25, lz);
-    complexGroup.add(pole);
-    const head = createOutlinedMesh(new THREE.BoxGeometry(1.2, 0.25, 0.5), streetPostMat, 0.02, false);
-    head.position.set(lx, 6.5, lz);
-    complexGroup.add(head);
-    const lamp = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.08, 0.35), new THREE.MeshBasicMaterial({ color: 0xffe9a8 }));
-    lamp.position.set(lx, 6.35, lz);
-    complexGroup.add(lamp);
-    const lp = rl(lx, lz, yaw);
-    hardColliders.push({ x: baseX + lp.x, z: baseZ + lp.z, r: 0.35 });
-  });
-
   // Losse winkelwagentjes op de parkeerplaats (omrijdbaar)
   [[-5.5, 7.0, 0.4], [6.8, 14.2, 2.2], [-12.5, 14.0, -1.0]].forEach(([lx, lz, rot]) => {
     const lp = rl(lx, lz, yaw);
@@ -1605,19 +1590,42 @@ function buildGeneralStore() {
   addParkingRow([-13.2, -10.85, -8.5, -6.15, -3.8, 3.8, 6.15, 8.5, 10.85, 13.2], 10.8, 1.5);
   addParkingRow([-12.0, -9.65, -7.3, -4.95, 4.95, 7.3, 9.65, 12.0], 2.2, -1.5);
 
-  [
-    [-15.3, 10.8],
-    [15.3,  10.8],
-    [-14.6, 2.2],
-    [-2.4,  2.2],
-    [2.4,   2.2],
-    [14.6,  2.2]
-  ].forEach(([tx, tz]) => {
-    const island = createParkingIslandTree(1.9);
-    island.position.set(tx, 0, tz);
-    complexGroup.add(island);
+  // Plantenstroken langs de randen van de parkeerplaats (buiten de vakken), met een opening voor de inrit
+  const planterStrips = [
+    // [lx-midden, lz-midden, breedte, diepte] in ongeschaalde lokale maten
+    [-15.9, 9.6, 1.5, 19.0],
+    [15.9, 9.6, 1.5, 19.0],
+    [-10.6, 18.9, 9.4, 1.4],
+    [10.6, 18.9, 9.4, 1.4]
+  ];
+  planterStrips.forEach(([cx, cz, w, d]) => {
+    const curb = createOutlinedMesh(new THREE.BoxGeometry(w, 0.26, d), stoneMat, 0.025, false, true);
+    curb.position.set(cx, 0.13, cz);
+    complexGroup.add(curb);
+    const grass = new THREE.Mesh(new THREE.BoxGeometry(w - 0.24, 0.06, d - 0.24), blockLawnMat);
+    grass.position.set(cx, 0.28, cz);
+    complexGroup.add(grass);
+    // Lage haag over de lengte van de strook
+    const hedge = createOutlinedMesh(new THREE.BoxGeometry(Math.max(0.5, w - 0.7), 0.5, Math.max(0.5, d - 0.7)), registerSeasonalMat(0x3f6e3c, 0xe8eff4), 0.025, false);
+    hedge.position.set(cx, 0.55, cz);
+    hedge.scale.set(w > d ? 1 : 0.55, 1, w > d ? 0.55 : 1);
+    complexGroup.add(hedge);
+  });
+  // Bomen in de stroken: los in de wereld, je kunt ze omrijden
+  [[-15.9, 1.5], [-15.9, 7.0], [-15.9, 12.5], [-15.9, 17.6], [15.9, 1.5], [15.9, 7.0], [15.9, 12.5], [15.9, 17.6], [-8.2, 18.9], [8.2, 18.9]].forEach(([tx, tz]) => {
     const wp = rl(tx, tz, yaw);
-    hardColliders.push({ x: baseX + wp.x, z: baseZ + wp.z, r: 0.95 * MALL_SCALE });
+    const tree = createParkTree();
+    const ty = surfaceY + 0.3 * MALL_SCALE;
+    tree.position.set(baseX + wp.x, ty, baseZ + wp.z);
+    tree.scale.setScalar(1.15);
+    scene.add(tree);
+    registerDestructible(tree, baseX + wp.x, ty, baseZ + wp.z, 0.7, 'tree', 15, 'Parkeerboom');
+    markLastPlanted();
+  });
+  // Omrijdbare lantaarns in de zijstroken
+  [[-15.9, 4.3], [-15.9, 15.0], [15.9, 4.3], [15.9, 15.0]].forEach(([lx, lz]) => {
+    const wp = rl(lx, lz, yaw);
+    createSmashableStreetLampAt(baseX + wp.x, surfaceY + 0.3 * MALL_SCALE, baseZ + wp.z);
   });
 
   const promY = surfaceY + 0.16;

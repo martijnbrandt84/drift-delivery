@@ -39,6 +39,11 @@ export function registerDestructible(mesh, x, y, z, r, kind, crimePts = 15, labe
 // INSTANCED SLOOPBARE OBJECTEN (bossen buiten de kern):
 // een onzichtbare proxy wordt geanimeerd, de instance-matrices volgen hem.
 // =========================================================
+// Bewust geplaatst groen (camping, parkeerplaats, vliegveld) wordt niet als 'wilde' begroeiing opgeruimd
+export function markLastPlanted() {
+  destructibles[destructibles.length - 1].planted = true;
+}
+
 export function registerInstancedDestructible(instRefs, x, y, z, rotY, scale, r, kind, crimePts, label) {
   const proxy = new THREE.Object3D();
   proxy.position.set(x, y, z);
