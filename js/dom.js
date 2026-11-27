@@ -9,6 +9,9 @@ export const rpmBarEl = document.getElementById('rpm-bar');
 export const hijackPromptEl = document.getElementById('hijack-prompt');
 export const bustedBannerEl = document.getElementById('busted-banner');
 export const minimapCanvas = document.getElementById('minimap');
+export const fullmapOverlayEl = document.getElementById('fullmap-overlay');
+export const fullmapCanvas = document.getElementById('fullmap');
+export const minimapCardEl = document.getElementById('minimap-card');
 
 export const nightBtnEl = document.getElementById('night-btn');
 export const driftBtnEl = document.getElementById('drift-btn');

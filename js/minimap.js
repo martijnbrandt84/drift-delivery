@@ -1,8 +1,8 @@
 import { allRoadNetworks, TOWN_BOUNDS, WORLD_LIMIT, WATER_LEVEL } from './roads.js';
 import { SANDBAR_ISLAND, ruralLots } from './water-lots.js';
-import { LOOKOUT_HILL } from './landscape.js';
+import { LOOKOUT_HILL, MOOSE_LAKE, FJORD } from './landscape.js';
 import { getTerrainHeight } from './terrain.js';
-import { minimapCanvas } from './dom.js';
+import { minimapCanvas, fullmapCanvas, fullmapOverlayEl, minimapCardEl } from './dom.js';
 
 // =========================================================
 // MINIMAP: wegennet/meer/landmarks 1x gebakken naar een offscreen canvas, elk frame alleen uitgeknipt (goedkoop!)
@@ -35,9 +35,9 @@ function heightToMapColor(h) {
   if (h < -3.0) return [47, 127, 158];
   if (h < WATER_LEVEL + 0.05) return [74, 167, 196];
   if (h < 0.5) return [226, 200, 142];
-  if (h > 31) return [242, 245, 248];
-  if (h > 18) return [154, 143, 132];
-  const t = Math.min(1, Math.max(0, (h - 1) / 14));
+  if (h > 45) return [242, 245, 248];
+  if (h > 32) return [154, 143, 132];
+  const t = Math.min(1, Math.max(0, (h - 1) / 22));
   return [Math.round(154 - t * 38), Math.round(176 - t * 30), Math.round(106 - t * 26)];
 }
 
@@ -120,7 +120,7 @@ function bakeStaticMap() {
   // Hutten en huizen
   bctx.fillStyle = '#7a4a2a';
   ruralLots.forEach((lot) => {
-    if (lot.type === 'farm' || lot.type === 'store' || lot.type === 'diner') return;
+    if (lot.type === 'farm' || lot.type === 'store' || lot.type === 'diner' || lot.type === 'camping' || lot.type === 'sawmill' || lot.type === 'fair') return;
     if (lot.type === 'villa') {
       const v = worldToBake(lot.x, lot.z);
       bctx.fillStyle = '#f6f0e4';
@@ -180,4 +180,104 @@ export function updateMinimap(px, pz, angle, copPositions = []) {
   viewCtx.fill();
   viewCtx.stroke();
   viewCtx.restore();
+}
+
+// =========================================================
+// GROTE KAART VAN HET HELE EILAND (toets K of klik op de minimap)
+// =========================================================
+const fullCtx = fullmapCanvas.getContext('2d');
+const FULL = fullmapCanvas.width;
+// Uitsnede rond het eiland (de oceaanrand laten we grotendeels weg)
+const FULL_HALF = 400;
+const FULL_CX = 0;
+const FULL_CZ = 30;
+
+function fullToPx(x, z) {
+  return {
+    px: ((x - (FULL_CX - FULL_HALF)) / (FULL_HALF * 2)) * FULL,
+    py: ((z - (FULL_CZ - FULL_HALF)) / (FULL_HALF * 2)) * FULL
+  };
+}
+
+const placeLabels = [];
+function addLabel(text, x, z, kind = 'place') {
+  placeLabels.push({ text, x, z, kind });
+}
+addLabel('Pinewood', 0, 104, 'town');
+addLabel('Pinewood Lake', 0, -30, 'water');
+addLabel('Moose Lake', MOOSE_LAKE.x, MOOSE_LAKE.z, 'water');
+addLabel('Uitkijktoren', LOOKOUT_HILL.x, LOOKOUT_HILL.z - 14);
+{
+  const fp = FJORD.points[Math.round(FJORD.points.length * 0.55)];
+  addLabel('Fjord', fp.x, fp.z, 'water');
+}
+ruralLots.forEach((lot) => {
+  if (lot.type === 'store') addLabel('Pinewood Mall', lot.x, lot.z - 16);
+  if (lot.type === 'diner') addLabel('Diner', lot.x, lot.z - 14);
+  if (lot.type === 'farm') addLabel(lot.name ? lot.name.charAt(0) + lot.name.slice(1).toLowerCase().replace(/ (\w)/g, (m, c) => ' ' + c.toUpperCase()) : 'Boerderij', lot.x, lot.z - 36);
+  if (lot.type === 'villa') addLabel('Villa', lot.x, lot.z - 16);
+  if (lot.type === 'camping') addLabel('Camping', lot.x, lot.z + 4);
+  if (lot.type === 'sawmill') addLabel('Zagerij', lot.x, lot.z - 14);
+  if (lot.type === 'fair') addLabel('Kermis', lot.x, lot.z);
+});
+addLabel('Strand', 0, 352, 'water');
+
+let fullOpen = false;
+export function isFullMapOpen() {
+  return fullOpen;
+}
+export function toggleFullMap(force) {
+  fullOpen = force ?? !fullOpen;
+  fullmapOverlayEl.hidden = !fullOpen;
+}
+minimapCardEl.addEventListener('click', () => toggleFullMap(true));
+fullmapOverlayEl.addEventListener('click', () => toggleFullMap(false));
+
+export function updateFullMap(px, pz, angle, copPositions = []) {
+  if (!fullOpen) return;
+  // Achtergrond: dezelfde gebakken kaart, uitgesneden rond het eiland
+  const s0 = worldToBake(FULL_CX - FULL_HALF, FULL_CZ - FULL_HALF);
+  const s1 = worldToBake(FULL_CX + FULL_HALF, FULL_CZ + FULL_HALF);
+  fullCtx.clearRect(0, 0, FULL, FULL);
+  fullCtx.drawImage(bakeCanvas, s0.px, s0.py, s1.px - s0.px, s1.py - s0.py, 0, 0, FULL, FULL);
+
+  // Plaatsnamen met een lichte halo voor leesbaarheid
+  fullCtx.textAlign = 'center';
+  fullCtx.textBaseline = 'middle';
+  placeLabels.forEach((lb) => {
+    const p = fullToPx(lb.x, lb.z);
+    fullCtx.font = lb.kind === 'town' ? '900 26px system-ui, sans-serif' : lb.kind === 'water' ? 'italic 700 17px system-ui, sans-serif' : '800 16px system-ui, sans-serif';
+    fullCtx.lineWidth = 5;
+    fullCtx.strokeStyle = lb.kind === 'water' ? 'rgba(20, 60, 80, 0.55)' : 'rgba(255, 248, 238, 0.92)';
+    fullCtx.fillStyle = lb.kind === 'water' ? '#eaf8ff' : '#2a1810';
+    fullCtx.strokeText(lb.text, p.px, p.py);
+    fullCtx.fillText(lb.text, p.px, p.py);
+  });
+
+  // Sheriffs
+  fullCtx.fillStyle = '#2288ff';
+  copPositions.forEach((c) => {
+    const p = fullToPx(c.x, c.z);
+    fullCtx.beginPath();
+    fullCtx.arc(p.px, p.py, 6, 0, Math.PI * 2);
+    fullCtx.fill();
+  });
+
+  // Speler
+  const pp = fullToPx(px, pz);
+  fullCtx.save();
+  fullCtx.translate(pp.px, pp.py);
+  fullCtx.rotate(-angle);
+  fullCtx.fillStyle = '#d95d30';
+  fullCtx.strokeStyle = '#2a1810';
+  fullCtx.lineWidth = 2.5;
+  fullCtx.beginPath();
+  fullCtx.moveTo(0, 15);
+  fullCtx.lineTo(-10, -11);
+  fullCtx.lineTo(0, -5);
+  fullCtx.lineTo(10, -11);
+  fullCtx.closePath();
+  fullCtx.fill();
+  fullCtx.stroke();
+  fullCtx.restore();
 }

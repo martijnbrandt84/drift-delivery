@@ -51,7 +51,7 @@ function getRawTerrainHeight(x, z) {
         h = THREE.MathUtils.lerp(targetY, h, t);
         specialFlatBlend = Math.min(specialFlatBlend, t);
       }
-    } else if (lot.type === 'diner') {
+    } else if (lot.flatBox && lot.type !== 'farm') {
       const fb = lot.flatBox;
       const dBox = getOrientedBoxDist(x, z, lot, fb.minLX - 1, fb.maxLX + 1, fb.minLZ - 1, fb.maxLZ + 1);
       if (dBox < 16.0) {
@@ -209,7 +209,7 @@ for (let i = 0; i < gPos.count; i++) {
     colW.copy(cDeepSea);
   } else if (vy < -0.05) {
     colA.copy(cShallowSand);
-    colW.copy(cShallowSand);
+    colW.copy(cSnowShore); // in de winter ligt hier ijs/sneeuw, geen oranje zandrand
   } else if (vy < 0.48 && slope < 0.5) {
     colA.copy(cSand);
     colW.copy(cSnowShore);

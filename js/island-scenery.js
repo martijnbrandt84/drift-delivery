@@ -36,7 +36,7 @@ const CROWN_COLORS = [0xe89f38, 0xdc6a35, 0xc94a38, 0x5d8f44, 0x889e42, 0xd9b83b
 
 function isInsideSpecialLot(x, z) {
   for (const lot of ruralLots) {
-    const pad = lot.type === 'farm' ? 50 : lot.type === 'store' || lot.type === 'diner' ? 36 : lot.type === 'villa' ? 32 : 12;
+    const pad = lot.type === 'farm' ? 50 : lot.flatBox ? Math.hypot(lot.flatBox.maxLX, lot.flatBox.maxLZ) + 6 : lot.type === 'villa' ? 32 : 12;
     if (Math.hypot(x - lot.x, z - lot.z) < pad) return true;
   }
   return false;
@@ -205,6 +205,7 @@ function buildMountainBoulders() {
     const { marginDist } = getClosestNetworkRoad(x, z);
     if (marginDist < 5.5 || getDistToRivers(x, z) < 4) continue;
     if (Math.hypot(x - summitPos.x, z - summitPos.z) < 16) continue;
+    if (isInsideSpecialLot(x, z)) continue;
     const s = 0.9 + Math.random() * 1.9;
     list.push({ x, y: y + 0.1 * s, z, scale: s, rot: Math.random() * Math.PI });
     hardColliders.push({ x, z, r: s * 0.85 });

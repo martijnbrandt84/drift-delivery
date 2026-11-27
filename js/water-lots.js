@@ -1,5 +1,7 @@
 import * as THREE from 'three';
-import { lakeSamples, valleySamples, ringSamples, riverCurves, VALLEY_POND, getDistToRivers } from './roads.js';
+import { lakeSamples, valleySamples, ringSamples, outerRoadDefs, riverCurves, VALLEY_POND, getDistToRivers } from './roads.js';
+
+const timberTrailSamples = outerRoadDefs.find((d) => d.id === 'timber_trail').samples;
 
 
 
@@ -62,6 +64,45 @@ export const ruralLots = [
     noDriveway: true,
     flatElevOffset: -0.06,
     flatBox: { minLX: -19, maxLX: 19, minLZ: -12, maxLZ: 18.5, blend: 12 }
+  },
+
+  // Strandcamping aan de noordkust (tussen kustweg en strand)
+  {
+    netSamples: ringSamples,
+    near: [-112, -270],
+    outward: true,
+    dist: 30.0,
+    type: 'camping',
+    name: 'NORTH BEACH CAMPING',
+    yawOff: 0,
+    flatElevOffset: -0.05,
+    flatBox: { minLX: -22, maxLX: 22, minLZ: -20, maxLZ: 24, blend: 12 }
+  },
+
+  // Zagerij langs het Timber Trail
+  {
+    netSamples: timberTrailSamples,
+    near: [-196, -64],
+    outward: false,
+    dist: 26.0,
+    type: 'sawmill',
+    name: 'TIMBER MILL',
+    yawOff: 0,
+    flatElevOffset: -0.05,
+    flatBox: { minLX: -18, maxLX: 18, minLZ: -16, maxLZ: 20, blend: 12 }
+  },
+
+  // Herfstkermis naast de valleiweg
+  {
+    netSamples: valleySamples,
+    u: 0.085,
+    outward: true,
+    dist: 40.0,
+    type: 'fair',
+    name: 'PINEWOOD FAIR',
+    yawOff: 0,
+    flatElevOffset: -0.05,
+    flatBox: { minLX: -26, maxLX: 26, minLZ: -24, maxLZ: 34, blend: 14 }
   },
 
   // Tweede boerderij (Sunny Acres) op de oostelijke vlakte

@@ -215,7 +215,7 @@ townNightGlow.position.set(0, 8.5, 92);
 scene.add(townNightGlow);
 
 export const xmasTreeLight = new THREE.PointLight(0xffbe55, 0, 42);
-xmasTreeLight.position.set(0, 6.5, 70);
+xmasTreeLight.position.set(0, 7.5, 67);
 scene.add(xmasTreeLight);
 
 // Echte koplamp-bundel voor de auto van de speler in het donker!

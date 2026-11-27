@@ -47,8 +47,14 @@ function computeExactDriveSurface(x, z, currentY = null) {
   return { height: terrH, onAsphalt: false };
 }
 
+// Winter: bevroren meren/rivieren worden een glad rijoppervlak (ingevuld door christmas.js)
+export const iceState = { frozen: false, surfaceY: WATER_LEVEL + 0.05, isIce: () => false };
+
 export function getDriveHeightAndWaterState(x, z, currentY = null) {
   const surf = computeExactDriveSurface(x, z, currentY);
+  if (iceState.frozen && !surf.onAsphalt && surf.height < iceState.surfaceY + 0.06 && iceState.isIce(x, z)) {
+    return { height: iceState.surfaceY + 0.06, onAsphalt: false, onIce: true, inShallowWater: false, inDeepWater: false, waterDepth: 0 };
+  }
   const wDepth = surf.onAsphalt ? 0 : Math.max(0, WATER_LEVEL - surf.height);
   return {
     height: surf.height,

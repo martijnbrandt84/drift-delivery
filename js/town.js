@@ -17,6 +17,12 @@ export const stoneMat = makeToonMat(0x8d8379);
 export const warmWindowMat = new THREE.MeshBasicMaterial({ color: 0x9fc8d9 });
 export const nightLampHalos = [];
 export let giantStarMesh = null;
+// Plek van de grote dorpsspar: op het groen tussen het stadje en het meer
+export const XMAS_TREE_POS = { x: 0, z: 67 };
+const garlandMat = new THREE.MeshBasicMaterial({ color: 0xffd86b });
+const ribbonMat = makeToonMat(0xffd23f);
+const caneWhiteMat = makeToonMat(0xfaf6f0);
+const caneRedMat = makeToonMat(0xd62839);
 
 // --- Materialen ---
 const trimWhiteMat = makeToonMat(0xfff5e6);
@@ -539,12 +545,18 @@ function createGemeentehuis() {
 }
 
 function buildChristmasTownCenterpiece() {
-  const treeX = 20.6;
-  const treeZ = 99.6;
-  const baseY = TOWN_ELEV + 0.14;
+  // De grote dorpsspar staat op het groen tussen het stadje en het meer.
+  // Het hele jaar een flinke spar; in de winter met ballen, slinger, ster en cadeaus.
+  const treeX = XMAS_TREE_POS.x;
+  const treeZ = XMAS_TREE_POS.z;
+  const baseY = getTerrainHeight(treeX, treeZ) - 0.05;
 
   const treeGroup = new THREE.Group();
   treeGroup.position.set(treeX, baseY, treeZ);
+  scene.add(treeGroup);
+  const decoGroup = new THREE.Group();
+  decoGroup.position.set(treeX, baseY, treeZ);
+  christmasGroup.add(decoGroup);
 
   const trunk = createOutlinedMesh(new THREE.CylinderGeometry(0.42, 0.62, 2.1, 8), makeToonMat(0x6b3f28), 0.05);
   trunk.position.y = 1.05;
@@ -563,7 +575,9 @@ function buildChristmasTownCenterpiece() {
 
     const snowSkirt = createOutlinedMesh(new THREE.ConeGeometry(r * 0.92, h * 0.45, 9), snowLayerMat, 0.04, false);
     snowSkirt.position.y = y + h * 0.26;
+    snowSkirt.visible = false;
     treeGroup.add(snowSkirt);
+    pineSnowCapObjects.push(snowSkirt);
 
     const ornaments = 9 - tier;
     for (let o = 0; o < ornaments; o++) {
@@ -572,8 +586,19 @@ function buildChristmasTownCenterpiece() {
       const orb = new THREE.Mesh(bulbGeo, xmasBulbMats[(o + tier) % xmasBulbMats.length]);
       orb.scale.setScalar(1.3);
       orb.position.set(Math.cos(ang) * orbR, y - h * 0.28, Math.sin(ang) * orbR);
-      treeGroup.add(orb);
+      decoGroup.add(orb);
     }
+  }
+
+  // Gouden slinger die in een spiraal om de boom loopt
+  for (let k = 0; k < 70; k++) {
+    const t = k / 70;
+    const y = 1.6 + t * 7.4;
+    const r = THREE.MathUtils.lerp(2.75, 0.55, t) * 0.92;
+    const a = t * Math.PI * 2 * 3.2;
+    const bead = new THREE.Mesh(bulbGeo, garlandMat);
+    bead.position.set(Math.cos(a) * r, y, Math.sin(a) * r);
+    decoGroup.add(bead);
   }
 
   const star = createOutlinedMesh(
@@ -584,9 +609,49 @@ function buildChristmasTownCenterpiece() {
     false
   );
   star.position.y = 9.75;
-  treeGroup.add(star);
+  decoGroup.add(star);
   giantStarMesh = star;
-  christmasGroup.add(treeGroup);
+
+  // Cadeaus onder de boom
+  const giftColors = [0xd62839, 0x2d6e3e, 0x3f78a8, 0xffd23f, 0xc94a8a, 0xf6f2ea];
+  for (let k = 0; k < 9; k++) {
+    const a = (k / 9) * Math.PI * 2 + 0.3;
+    const sz = 0.55 + (k % 3) * 0.2;
+    const gift = createOutlinedMesh(new THREE.BoxGeometry(sz, sz * 0.8, sz), makeToonMat(giftColors[k % giftColors.length]), 0.025);
+    gift.position.set(Math.cos(a) * 3.3, sz * 0.4, Math.sin(a) * 3.3);
+    gift.rotation.y = a;
+    decoGroup.add(gift);
+    const ribbonA = new THREE.Mesh(new THREE.BoxGeometry(sz + 0.02, sz * 0.82, 0.1), ribbonMat);
+    ribbonA.position.copy(gift.position);
+    ribbonA.rotation.y = a;
+    decoGroup.add(ribbonA);
+    const ribbonB = ribbonA.clone();
+    ribbonB.rotation.y = a + Math.PI * 0.5;
+    decoGroup.add(ribbonB);
+  }
+
+  // Zuurstokken in een kring rondom het plein
+  for (let k = 0; k < 10; k++) {
+    const a = (k / 10) * Math.PI * 2;
+    const cane = new THREE.Group();
+    const stick = createOutlinedMesh(new THREE.CylinderGeometry(0.12, 0.12, 2.0, 8), caneWhiteMat, 0.02, false);
+    stick.position.y = 1.0;
+    cane.add(stick);
+    for (let s = 0; s < 5; s++) {
+      const band = new THREE.Mesh(new THREE.TorusGeometry(0.125, 0.04, 4, 10), caneRedMat);
+      band.rotation.x = Math.PI * 0.5 + 0.35;
+      band.position.y = 0.25 + s * 0.38;
+      cane.add(band);
+    }
+    const hook = createOutlinedMesh(new THREE.TorusGeometry(0.3, 0.12, 6, 12, Math.PI), caneRedMat, 0.02, false);
+    hook.position.set(0.3, 2.0, 0);
+    cane.add(hook);
+    cane.position.set(Math.cos(a) * 7.0, 0, Math.sin(a) * 7.0);
+    cane.rotation.y = -a;
+    decoGroup.add(cane);
+  }
+
+  hardColliders.push({ x: treeX, z: treeZ, r: 3.0 });
 }
 
 // =========================================================
@@ -1578,7 +1643,7 @@ function buildVilla(lot) {
 }
 
 ruralLots.forEach((lot) => {
-  if (lot.type === 'farm' || lot.type === 'store' || lot.type === 'diner') return;
+  if (lot.type === 'farm' || lot.type === 'store' || lot.type === 'diner' || lot.type === 'camping' || lot.type === 'sawmill' || lot.type === 'fair') return;
   if (lot.type === 'villa') {
     buildVilla(lot);
     return;

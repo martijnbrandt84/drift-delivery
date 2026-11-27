@@ -58,7 +58,8 @@
         <div><span>Gas (bouwt op)</span><b>W / ↑</b></div>
         <div><span>Handrem-drift</span><b>Spatie</b></div>
         <div><span>Auto overnemen</span><b>F</b></div>
-        <div><span>Nacht / Licht</span><b>N</b></div>
+        <div><span>Naar avond / ochtend</span><b>N</b></div>
+        <div><span>Kaart van het eiland</span><b>K</b></div>
       </div>
     </div>
   </div>
@@ -92,6 +93,17 @@
   <div id="minimap-card">
     <canvas id="minimap" width="170" height="170"></canvas>
     <span id="minimap-north">N</span>
+    <span id="minimap-hint">K = kaart</span>
+  </div>
+
+  <div id="fullmap-overlay" hidden>
+    <div id="fullmap-card">
+      <div class="fullmap-header">
+        <span class="brand-title"><span class="brand-dot"></span><span>Pinewood Island</span></span>
+        <span class="fullmap-close">K / Esc</span>
+      </div>
+      <canvas id="fullmap" width="900" height="900"></canvas>
+    </div>
   </div>
 
   <div id="busted-banner">
