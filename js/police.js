@@ -30,7 +30,7 @@ function makeSheriffTexture() {
   c.width = 768;
   c.height = 128;
   const ctx = c.getContext('2d');
-  ctx.fillStyle = '#1f3a6b';
+  ctx.fillStyle = '#23262b';
   ctx.fillRect(0, 0, 768, 128);
   // Gouden ster
   ctx.fillStyle = '#f4c430';
@@ -64,159 +64,105 @@ function buildStation() {
   g.rotation.y = lot.yaw;
   scene.add(g);
 
+  // Compact terrein: kantoor achteraan, parkeervakken ervoor tot aan de weg
   const roadEdgeLZ = lot.dist - 4.6;
   const slabH = 3.2;
-  const padMinLZ = -13;
+  const padMinLZ = -9.5;
   const padDepth = roadEdgeLZ - padMinLZ;
-  const pad = tagMap(new THREE.Mesh(new THREE.BoxGeometry(32, slabH, padDepth), makeToonMat(0x4a474c)), 'paved');
+  const pad = tagMap(new THREE.Mesh(new THREE.BoxGeometry(22, slabH, padDepth), makeToonMat(0x4a474c)), 'paved');
   pad.position.set(0, -slabH * 0.5, padMinLZ + padDepth * 0.5);
   pad.receiveShadow = true;
   g.add(pad);
 
-  const wallMat = makeToonMat(0xe9e4da);
-  const blueMat = makeToonMat(0x1f3a6b);
-  const darkMat = makeToonMat(0x2f3638);
+  // Zwart-wit, net als de politieauto's, met een gouden ster
+  const whiteMat = makeToonMat(0xf5f7fa);
+  const blackMat = makeToonMat(0x23262b);
   const lineMat = makeToonMat(0xf2ede4);
 
-  // Kantoor: wit met blauwe band, plat dak met zwaailicht
   const office = tagMap(new THREE.Group(), 'civic');
-  office.position.set(-7.5, 0.02, -6.5);
+  office.position.set(0, 0.02, -5);
   g.add(office);
-  {
-    const w = 13, h = 5.2, d = 9;
-    const plinth = createOutlinedMesh(new THREE.BoxGeometry(w + 0.6, 0.3, d + 0.6), makeToonMat(0xb9b2a6), 0.03, false, true);
-    plinth.position.y = 0.15;
-    office.add(plinth);
-    const body = createOutlinedMesh(new THREE.BoxGeometry(w, h, d), wallMat, 0.055);
-    body.position.y = h * 0.5 + 0.3;
-    office.add(body);
-    const band = new THREE.Mesh(new THREE.BoxGeometry(w + 0.04, 0.5, d + 0.04), blueMat);
-    band.position.y = 1.0;
-    office.add(band);
-    const roofEdge = createOutlinedMesh(new THREE.BoxGeometry(w + 0.5, 0.45, d + 0.5), blueMat, 0.04, false);
-    roofEdge.position.y = h + 0.5;
-    office.add(roofEdge);
-    // Bord met ster
-    const board = createOutlinedMesh(new THREE.BoxGeometry(9.6, 1.4, 0.2), blueMat, 0.03, false);
-    board.position.set(0, h - 0.6, d * 0.5 + 0.12);
-    office.add(board);
-    const text = new THREE.Mesh(new THREE.PlaneGeometry(9.3, 1.25), new THREE.MeshBasicMaterial({ map: makeSheriffTexture(), ...SIGN_OPTS }));
-    text.position.set(0, h - 0.6, d * 0.5 + 0.26);
-    office.add(text);
-    // Ramen en dubbele deur met luifel
-    [-4.4, -2.2, 2.2, 4.4].forEach((wx) => {
-      const win = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 1.4), warmWindowMat);
-      win.position.set(wx, 2.4, d * 0.5 + 0.03);
-      office.add(win);
-      houseWindows.push({ mesh: win, timer: Math.random() * 10 });
-    });
-    const door = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 2.4), warmWindowMat);
-    door.position.set(0, 1.5, d * 0.5 + 0.03);
-    office.add(door);
-    const doorFrame = createOutlinedMesh(new THREE.BoxGeometry(2.2, 2.7, 0.12), blueMat, 0.02, false);
-    doorFrame.position.set(0, 1.55, d * 0.5 - 0.02);
-    office.add(doorFrame);
-    const awning = createOutlinedMesh(new THREE.BoxGeometry(3.2, 0.18, 1.4), blueMat, 0.03, false);
-    awning.position.set(0, 3.05, d * 0.5 + 0.65);
-    awning.rotation.x = 0.2;
-    office.add(awning);
-    // Zwaailicht op het dak
-    const barBase = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.25, 0.5), darkMat);
-    barBase.position.set(0, h + 0.85, 1.5);
-    office.add(barBase);
-    const red = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.3, 0.45), new THREE.MeshBasicMaterial({ color: 0xff2a2a }));
-    red.position.set(-0.4, h + 1.1, 1.5);
-    office.add(red);
-    const blue = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.3, 0.45), new THREE.MeshBasicMaterial({ color: 0x2a6aff }));
-    blue.position.set(0.4, h + 1.1, 1.5);
-    office.add(blue);
-    lightBars.push({ red, blue });
-    // Antennemast
-    const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.08, 4, 5), darkMat);
-    mast.position.set(-5, h + 2.6, -3);
-    office.add(mast);
-  }
-
-  // Garage met vier open vakken
-  const garage = tagMap(new THREE.Group(), 'civic');
-  garage.position.set(8, 0.02, -7);
-  g.add(garage);
-  {
-    const w = 15.2, h = 4.4, d = 9;
-    const back = createOutlinedMesh(new THREE.BoxGeometry(w, h, 0.35), wallMat, 0.045);
-    back.position.set(0, h * 0.5, -d * 0.5);
-    garage.add(back);
-    for (let k = 0; k <= 4; k++) {
-      const x = -w * 0.5 + k * (w / 4);
-      const wall = createOutlinedMesh(new THREE.BoxGeometry(k === 0 || k === 4 ? 0.35 : 0.25, h, d), wallMat, 0.04);
-      wall.position.set(x, h * 0.5, 0);
-      garage.add(wall);
-    }
-    const roof = createOutlinedMesh(new THREE.BoxGeometry(w + 0.6, 0.4, d + 0.8), blueMat, 0.045);
-    roof.position.set(0, h + 0.2, 0.2);
-    garage.add(roof);
-    for (let k = 0; k < 4; k++) {
-      const bx = -w * 0.5 + (k + 0.5) * (w / 4);
-      // Opgerolde deur boven elk vak + nummer-streep
-      const door = createOutlinedMesh(new THREE.BoxGeometry(w / 4 - 0.4, 0.7, 0.2), makeToonMat(0xc9ccd2), 0.02, false);
-      door.position.set(bx, h - 0.4, d * 0.5 - 0.1);
-      garage.add(door);
-      const stripe = new THREE.Mesh(new THREE.BoxGeometry(w / 4 - 0.6, 0.12, 0.05), blueMat);
-      stripe.position.set(bx, h - 0.4, d * 0.5 + 0.02);
-      garage.add(stripe);
-      const floor = new THREE.Mesh(new THREE.BoxGeometry(w / 4 - 0.5, 0.03, d - 0.5), makeToonMat(0x8f8b85));
-      floor.position.set(bx, 0.02, 0);
-      garage.add(floor);
-      const lp = rotLocal(8 + bx, -7.2);
-      garageSpots.push({ x: lp.x, z: lp.z, yaw: lot.yaw, taken: false });
-    }
-    // Botsranden: achterwand en zijwanden, de vakken blijven vrij
-    for (let x = -7; x <= 7; x += 2.3) {
-      const p = rotLocal(8 + x, -11.4);
-      hardColliders.push({ x: p.x, z: p.z, r: 0.9 });
-    }
-    [-7.6, 7.6].forEach((x) => {
-      [-10, -7, -4].forEach((z) => {
-        const p = rotLocal(8 + x, z);
-        hardColliders.push({ x: p.x, z: p.z, r: 0.7 });
-      });
-    });
-  }
-  [-11, -4].forEach((x) => {
-    const p = rotLocal(x, -6.5);
-    hardColliders.push({ x: p.x, z: p.z, r: 4.6 });
+  const w = 13, h = 4.8, d = 8;
+  const plinth = createOutlinedMesh(new THREE.BoxGeometry(w + 0.5, 0.3, d + 0.5), makeToonMat(0x9a958d), 0.03, false, true);
+  plinth.position.y = 0.15;
+  office.add(plinth);
+  const body = createOutlinedMesh(new THREE.BoxGeometry(w, h, d), whiteMat, 0.055);
+  body.position.y = h * 0.5 + 0.3;
+  office.add(body);
+  const base = new THREE.Mesh(new THREE.BoxGeometry(w + 0.04, 1.1, d + 0.04), blackMat);
+  base.position.y = 0.85;
+  office.add(base);
+  const roofEdge = createOutlinedMesh(new THREE.BoxGeometry(w + 0.4, 0.45, d + 0.4), blackMat, 0.04, false);
+  roofEdge.position.y = h + 0.5;
+  office.add(roofEdge);
+  const board = createOutlinedMesh(new THREE.BoxGeometry(9.6, 1.3, 0.2), blackMat, 0.03, false);
+  board.position.set(0, h - 0.5, d * 0.5 + 0.12);
+  office.add(board);
+  const text = new THREE.Mesh(new THREE.PlaneGeometry(9.3, 1.16), new THREE.MeshBasicMaterial({ map: makeSheriffTexture(), ...SIGN_OPTS }));
+  text.position.set(0, h - 0.5, d * 0.5 + 0.26);
+  office.add(text);
+  [-4.6, -2.4, 2.4, 4.6].forEach((wx) => {
+    const win = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.3), warmWindowMat);
+    win.position.set(wx, 2.3, d * 0.5 + 0.03);
+    office.add(win);
+    houseWindows.push({ mesh: win, timer: Math.random() * 10 });
+  });
+  const door = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 2.3), warmWindowMat);
+  door.position.set(0, 1.5, d * 0.5 + 0.03);
+  office.add(door);
+  const doorFrame = createOutlinedMesh(new THREE.BoxGeometry(2.2, 2.6, 0.12), blackMat, 0.02, false);
+  doorFrame.position.set(0, 1.55, d * 0.5 - 0.02);
+  office.add(doorFrame);
+  const awning = createOutlinedMesh(new THREE.BoxGeometry(3.2, 0.18, 1.3), blackMat, 0.03, false);
+  awning.position.set(0, 2.95, d * 0.5 + 0.6);
+  awning.rotation.x = 0.2;
+  office.add(awning);
+  [-3.2, 3.2].forEach((x) => {
+    const p = rotLocal(x, -5);
+    hardColliders.push({ x: p.x, z: p.z, r: 4.2 });
   });
 
-  // Vlaggenmast met een blauw-witte vlag
+  // Vlaggenmast naast de ingang
   {
-    const pole = createOutlinedMesh(new THREE.CylinderGeometry(0.07, 0.1, 8, 6), makeToonMat(0xd8dadd), 0.02, false);
-    pole.position.set(-14.5, 4, 2);
+    const pole = createOutlinedMesh(new THREE.CylinderGeometry(0.07, 0.1, 7, 6), makeToonMat(0xd8dadd), 0.02, false);
+    pole.position.set(-9.5, 3.5, -0.5);
     g.add(pole);
-    const flag = new THREE.Mesh(new THREE.BoxGeometry(0.04, 1.1, 1.8), blueMat);
-    flag.position.set(-14.5, 7.3, 2.95);
+    const flag = new THREE.Mesh(new THREE.BoxGeometry(0.04, 1.0, 1.6), blackMat);
+    flag.position.set(-9.5, 6.4, 0.35);
     g.add(flag);
-    const star = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.4, 0.4), makeToonMat(0xf4c430));
-    star.position.set(-14.5, 7.3, 2.5);
+    const star = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.38, 0.38), makeToonMat(0xf4c430));
+    star.position.set(-9.5, 6.4, 0.0);
     g.add(star);
-    const p = rotLocal(-14.5, 2);
+    const p = rotLocal(-9.5, -0.5);
     hardColliders.push({ x: p.x, z: p.z, r: 0.3 });
   }
 
-  // Belijning voor de garage en bezoekersvakken bij het kantoor
+  // Vier politievakken (met 'POLITIE'-streep) en twee bezoekersvakken
+  const bayW = 3.0;
+  const bayZ = 3.2;
   for (let k = 0; k <= 4; k++) {
-    const line = new THREE.Mesh(new THREE.PlaneGeometry(0.16, 5), lineMat);
+    const line = new THREE.Mesh(new THREE.PlaneGeometry(0.16, 4.6), lineMat);
     line.rotation.x = -Math.PI / 2;
-    line.position.set(0.4 + k * 3.8, 0.02, -0.4);
+    line.position.set(-6 + k * bayW, 0.02, bayZ);
     g.add(line);
   }
-  for (let k = 0; k <= 4; k++) {
-    const line = new THREE.Mesh(new THREE.PlaneGeometry(0.16, 4), lineMat);
-    line.rotation.x = -Math.PI / 2;
-    line.position.set(-14 + k * 2.6, 0.02, 3.5);
-    g.add(line);
+  for (let k = 0; k < 4; k++) {
+    const bx = -4.5 + k * bayW;
+    const mark = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 0.35), makeToonMat(0x2a6aff));
+    mark.rotation.x = -Math.PI / 2;
+    mark.position.set(bx, 0.025, bayZ - 2.0);
+    g.add(mark);
+    const lp = rotLocal(bx, bayZ);
+    garageSpots.push({ x: lp.x, z: lp.z, yaw: lot.yaw, taken: false });
   }
+  [8.5, 10.9].forEach((x) => {
+    const line = new THREE.Mesh(new THREE.PlaneGeometry(0.16, 4.6), lineMat);
+    line.rotation.x = -Math.PI / 2;
+    line.position.set(x, 0.02, bayZ);
+    g.add(line);
+  });
 
-  const sp = rotLocal(-13, lot.dist - 2.5);
+  const sp = rotLocal(-9.5, lot.dist - 2.5);
   createRoadSign(sp.x, sp.z, surfaceY, lot.yaw, ['SHERIFF', 'Politiebureau']);
 }
 buildStation();

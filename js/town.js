@@ -744,22 +744,30 @@ const SHOP_TYPES = {
 
 const shopSignTexCache = new Map();
 function getShopSignTexture(cfg) {
-  if (shopSignTexCache.has(cfg.label)) return shopSignTexCache.get(cfg.label);
+  const aspect = cfg.aspect ?? 4;
+  const key = `${cfg.label}|${cfg.bg}|${aspect.toFixed(2)}`;
+  if (shopSignTexCache.has(key)) return shopSignTexCache.get(key);
   const canvas = document.createElement('canvas');
-  canvas.width = 384;
-  canvas.height = 96;
+  const H = 96;
+  const W = Math.max(192, Math.min(1024, Math.round(H * aspect)));
+  canvas.width = W;
+  canvas.height = H;
   const ctx = canvas.getContext('2d');
   ctx.fillStyle = cfg.bg;
-  ctx.fillRect(0, 0, 384, 96);
+  ctx.fillRect(0, 0, W, H);
   ctx.fillStyle = cfg.fg;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  const size = cfg.label.length > 8 ? 46 : 60;
+  // Zo groot mogelijk, maar altijd binnen het bord (met marge)
+  let size = 62;
   ctx.font = `900 ${size}px system-ui, sans-serif`;
-  ctx.fillText(cfg.label, 192, 52);
+  const tw = ctx.measureText ? ctx.measureText(cfg.label).width : 0;
+  if (tw > W * 0.9) size = Math.max(20, Math.floor(size * (W * 0.9) / tw));
+  ctx.font = `900 ${size}px system-ui, sans-serif`;
+  ctx.fillText(cfg.label, W / 2, H / 2 + 3);
   const tex = Object.assign(new THREE.CanvasTexture(canvas), { colorSpace: THREE.SRGBColorSpace });
   tex.needsUpdate = true;
-  shopSignTexCache.set(cfg.label, tex);
+  shopSignTexCache.set(key, tex);
   return tex;
 }
 
@@ -1217,7 +1225,7 @@ function rotateLocal(lx, lz, yaw) {
 let mallExclusionZone = null;
 
 function mallTextPlane(label, bg, fg, w, h) {
-  return new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: getShopSignTexture({ label, bg, fg, ...SIGN_MAT_OPTS }) }));
+  return new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: getShopSignTexture({ label, bg, fg, aspect: w / h }), ...SIGN_MAT_OPTS }));
 }
 
 // Winkelwagentje (los, omrijdbaar op de parkeerplaats; of in de karrenstalling)
@@ -1291,10 +1299,15 @@ function createSupermarketWing__build() {
   g.add(accent);
 
   const signBoard = createOutlinedMesh(new THREE.BoxGeometry(7.0, 0.95, 0.24), trimWhiteMat, 0.035, false);
-  signBoard.position.set(0, h + 0.38, d * 0.5 - 0.15);
+  signBoard.position.set(0, h + 0.75, d * 0.5 - 0.05);
   g.add(signBoard);
+  [-2.6, 2.6].forEach((sx) => {
+    const leg = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.5, 0.14), trimWhiteMat);
+    leg.position.set(sx, h + 0.2, d * 0.5 - 0.15);
+    g.add(leg);
+  });
   const superText = mallTextPlane('SUPERMARKET', '#2d8a4e', '#ffffff', 6.7, 0.82);
-  superText.position.set(0, h + 0.38, d * 0.5 + 0.03);
+  superText.position.set(0, h + 0.75, d * 0.5 + 0.13);
   g.add(superText);
 
   const canopy = createOutlinedMesh(new THREE.BoxGeometry(5.4, 0.26, 1.55), makeToonMat(0x236e3d), 0.038, false);
@@ -1477,11 +1490,14 @@ function createHardwareStore__build() {
   awning.position.set(0, 3.75, d * 0.5 + 0.65);
   awning.rotation.x = 0.22;
   g.add(awning);
-  const board = createOutlinedMesh(new THREE.BoxGeometry(8.2, 1.1, 0.16), green, 0.03, false);
-  board.position.set(0, 5.0, d * 0.5 + 0.1);
+  const board = createOutlinedMesh(new THREE.BoxGeometry(9.4, 1.6, 0.16), green, 0.03, false);
+  board.position.set(0, 5.05, d * 0.5 + 0.1);
   g.add(board);
-  const text = mallTextPlane('PINEWOOD HARDWARE', '#2f6b45', '#ffffff', 7.9, 0.95);
-  text.position.set(0, 5.0, d * 0.5 + 0.23);
+  const textTop = mallTextPlane('PINEWOOD', '#2f6b45', '#f4c430', 4.4, 0.55);
+  textTop.position.set(0, 5.5, d * 0.5 + 0.23);
+  g.add(textTop);
+  const text = mallTextPlane('HARDWARE', '#2f6b45', '#ffffff', 8.8, 0.85);
+  text.position.set(0, 4.85, d * 0.5 + 0.23);
   g.add(text);
   g.userData.lightSpecs = { width: w * 0.94, yPos: h - 0.2, zFront: d * 0.5 + 0.3 };
   return g;
@@ -1756,7 +1772,9 @@ function buildGeneralStore() {
   const planterStrips = [
     // [lx-midden, lz-midden, breedte, diepte] in ongeschaalde lokale maten
     [-15.9, 9.6, 1.5, 19.0],
-    [15.9, 9.6, 1.5, 19.0],
+    // Middenstrook met een doorgang naar het parkeervak van de bouwmarkt
+    [15.9, 2.6, 1.5, 5.2],
+    [15.9, 16.0, 1.5, 6.2],
     [-10.6, 18.9, 9.4, 1.4],
     [10.6, 18.9, 9.4, 1.4],
     [36.2, 9.6, 1.5, 19.0],
@@ -1776,7 +1794,7 @@ function buildGeneralStore() {
     complexGroup.add(hedge);
   });
   // Bomen in de stroken: los in de wereld, je kunt ze omrijden
-  [[-15.9, 1.5], [-15.9, 7.0], [-15.9, 12.5], [-15.9, 17.6], [15.9, 1.5], [15.9, 7.0], [15.9, 12.5], [15.9, 17.6], [-8.2, 18.9], [8.2, 18.9],
+  [[-15.9, 1.5], [-15.9, 7.0], [-15.9, 12.5], [-15.9, 17.6], [15.9, 1.5], [15.9, 17.6], [-8.2, 18.9], [8.2, 18.9],
     [36.2, 1.5], [36.2, 7.0], [36.2, 12.5], [36.2, 17.6], [21.0, 18.9], [26.5, 18.9], [32.0, 18.9]].forEach(([tx, tz]) => {
     const wp = rl(tx, tz, yaw);
     const tree = createParkTree();

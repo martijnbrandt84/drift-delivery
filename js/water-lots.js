@@ -51,9 +51,9 @@ export const ruralLots = [
   { netSamples: valleySamples, u: 0.28, outward: false, dist: 17.5, type: 'house_red', yawOff: -0.08 },
   // Politiebureau (Sheriff's Office) tussen het dorp en het vliegveld
   {
-    netSamples: valleySamples, u: 0.36, outward: true, dist: 21.0, type: 'police', yawOff: 0,
-    drivewayStopShort: 12.5, flatElevOffset: -0.05,
-    flatBox: { minLX: -16.5, maxLX: 16.5, minLZ: -14, maxLZ: 12, blend: 12 }
+    netSamples: valleySamples, u: 0.36, outward: true, dist: 18.0, type: 'police', yawOff: 0,
+    drivewayStopShort: 9.5, flatElevOffset: -0.05,
+    flatBox: { minLX: -12, maxLX: 12, minLZ: -10, maxLZ: 10, blend: 10 }
   },
 
   // Supermarkt & Pinewood Mall op het vlakke noordoostelijke stuk van de meerweg (u=0.055, vlakke weg!).

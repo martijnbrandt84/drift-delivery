@@ -213,8 +213,20 @@ function buildAirfield() {
 
   // Bomenrijen langs beide lange zijden van het vliegveld en groepjes bij het platform
   // (het eind van de baan blijft vrij voor het aanvliegen)
+  const insideOtherLot = (x, z) => ruralLots.some((o) => {
+    if (o === lot || !o.flatBox) return false;
+    const c = Math.cos(o.yaw);
+    const s = Math.sin(o.yaw);
+    const dx = x - o.x;
+    const dz = z - o.z;
+    const lx2 = dx * c - dz * s;
+    const lz2 = dx * s + dz * c;
+    const fb = o.flatBox;
+    return lx2 > fb.minLX - 5 && lx2 < fb.maxLX + 5 && lz2 > fb.minLZ - 5 && lz2 < fb.maxLZ + 8;
+  });
   const plant = (lx, lz, kind) => {
     const w = toWorld(lx, lz);
+    if (insideOtherLot(w.x, w.z)) return;
     if (getClosestNetworkRoad(w.x, w.z).marginDist < 3.5 || getDistToRivers(w.x, w.z) < 3) return;
     const y = getTerrainHeight(w.x, w.z);
     if (y < WATER_LEVEL + 0.4) return;
