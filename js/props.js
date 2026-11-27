@@ -5,7 +5,7 @@ import {
 } from './scene-setup.js';
 import { TOWN_BOUNDS, TOWN_ELEV, getClosestNetworkRoad } from './roads.js';
 import { driveways, ruralLots, getDistToRivers } from './water-lots.js';
-import { hardColliders, registerDestructible } from './demolition.js';
+import { hardColliders, registerDestructible, destructibles, markLastPlanted } from './demolition.js';
 import { getTerrainHeight, getLocalSlope } from './terrain.js';
 import { stoneMat } from './town.js';
 
@@ -333,4 +333,60 @@ for (let i = 0; i < 40; i++) {
   rock.rotation.set(0.15, Math.random() * Math.PI, 0.12);
   scene.add(rock);
   hardColliders.push({ x: rx, z: rz, r: rs * 0.85, wild: true, mesh: rock });
+}
+
+// =========================================================
+// NATUURLIJK BOSJE: plukjes rond een paar kernen, dichter en ouder in het midden, jonger en met
+// struiken aan de rand, onregelmatige onderlinge afstand (geen rijtjes of ringen) en nooit op
+// een klif, in het water of te dicht bij de weg.
+//   toWorld(lx, lz) -> {x, z}; clusters: [lx, lz, straal, aantal, aandeelDennen, dichtheid]
+//   dichtheid: <1 = dicht opeen (bosje), 1 = gewoon, >1 = open en luchtig; zonder waarde willekeurig per plukje
+//   allowed(lx, lz, x, z, y) -> extra eisen van de plek; makeDeciduous(scale) optioneel
+// =========================================================
+export function plantNaturalGrove({ toWorld, clusters, allowed = () => true, roadGap = 4, maxSlope = 0.5, makeDeciduous = null, refY = null, maxDY = 2.4 }) {
+  const trees = () => destructibles.filter((d) => d.kind === 'tree' || d.kind === 'shrub');
+  let placed = 0;
+  clusters.forEach(([cx, cz, r, n, pineShare = 0.6, density = null]) => {
+    // elk plukje een eigen dichtheid: het ene dicht, het andere open
+    const spread = density ?? (0.7 + Math.random() * 0.9);
+    let made = 0;
+    for (let attempt = 0; attempt < n * 30 && made < n; attempt++) {
+      const ang = Math.random() * Math.PI * 2;
+      const t = Math.sqrt(Math.random()) * (0.45 + 0.55 * Math.random()); // meer naar het midden
+      const lx = cx + Math.cos(ang) * r * t * (0.8 + Math.random() * 0.4);
+      const lz = cz + Math.sin(ang) * r * t;
+      const { x, z } = toWorld(lx, lz);
+      const y = getTerrainHeight(x, z);
+      if (y < 0.25) continue;
+      if (refY != null && Math.abs(y - refY) > maxDY) continue;
+      if (getLocalSlope(x, z, 1.2) > maxSlope || getLocalSlope(x, z, 3) > maxSlope) continue;
+      if (getClosestNetworkRoad(x, z).marginDist < roadGap) continue;
+      if (!allowed(lx, lz, x, z, y)) continue;
+      const edge = t > 0.62;
+      // soms staan twee bomen vlak naast elkaar (zoals in het echt), verder afstand naar dichtheid
+      const gap = Math.random() < 0.15 ? 1.7 : (edge ? 2.2 + Math.random() * 1.6 : 2.4 + Math.random() * 1.8) * spread;
+      if (trees().some((d) => Math.hypot(d.x - x, d.z - z) < gap)) continue;
+      if (edge && Math.random() < 0.3) {
+        const sc = 0.65 + Math.random() * 0.5;
+        const shrub = createShrubFast(sc);
+        shrub.position.set(x, y, z);
+        scene.add(shrub);
+        registerDestructible(shrub, x, y, z, Math.max(0.6, 0.85 * sc), 'shrub', 3, 'Shrub');
+        markLastPlanted();
+        made++;
+        continue;
+      }
+      const sc = 0.55 + 0.5 * (1 - t) + Math.random() * 0.25;
+      const isPine = Math.random() < pineShare;
+      const tree = isPine ? createPineFast(sc) : (makeDeciduous ? makeDeciduous(sc) : createDeciduousTreeFast(sc));
+      tree.position.set(x, y, z);
+      tree.rotation.y = Math.random() * Math.PI * 2;
+      scene.add(tree);
+      registerDestructible(tree, x, y, z, isPine || !makeDeciduous ? 0.85 * Math.min(sc, 1.1) : 0.7, 'tree', 15, isPine ? 'Pine tree' : 'Tree');
+      markLastPlanted();
+      made++;
+      placed++;
+    }
+  });
+  return placed;
 }

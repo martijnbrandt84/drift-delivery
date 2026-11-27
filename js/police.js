@@ -11,7 +11,7 @@ import { houseWindows, warmWindowMat } from './town.js';
 import { createRoadSign } from './scenery.js';
 import { tagMap } from './map-tags.js';
 import { setVehicleLights } from './vehicles.js';
-import { createPineFast, createDeciduousTreeFast, createShrubFast } from './props.js';
+import { createPineFast, createDeciduousTreeFast, createShrubFast, plantNaturalGrove } from './props.js';
 import { registerDestructible, markLastPlanted } from './demolition.js';
 import { getTerrainHeight } from './terrain.js';
 
@@ -181,29 +181,16 @@ function buildStation() {
     g.add(line);
   });
 
-  // Bomen rondom: links, rechts en achter het bureau
-  [[-15, -11, 'p'], [-16.5, -6, 'd'], [-15.5, -1, 'p'], [-17, 4, 'p'], [-15.5, 9, 'd'], [-19, -9, 'p'], [-19.5, 1, 'd'],
-    [15, -11, 'p'], [16.5, -5, 'd'], [15.5, 1, 'p'], [17, 7, 'd'], [19.5, -8, 'p'],
-    [-9, -14.5, 'p'], [-3, -15, 'd'], [3, -14.5, 'p'], [9, -15, 'p'], [0, -18.5, 'p'], [-12.5, -17, 'd'], [12.5, -17.5, 'p'],
-    [-13.5, 6.5, 's'], [13.5, 4.5, 's'], [-13.5, -4, 's'], [13.5, -8.5, 's']].forEach(([lx, lz, kind]) => {
-    const p = rotLocal(lx, lz);
-    const y = getTerrainHeight(p.x, p.z);
-    let obj;
-    if (kind === 's') {
-      const sc = 0.7 + Math.random() * 0.5;
-      obj = createShrubFast(sc);
-      obj.position.set(p.x, y, p.z);
-      scene.add(obj);
-      registerDestructible(obj, p.x, y, p.z, Math.max(0.6, 0.85 * sc), 'shrub', 3, 'Shrub');
-    } else {
-      const sc = 0.75 + Math.random() * 0.4;
-      obj = kind === 'p' ? createPineFast(sc) : createDeciduousTreeFast(sc);
-      obj.position.set(p.x, y, p.z);
-      obj.rotation.y = Math.random() * Math.PI * 2;
-      scene.add(obj);
-      registerDestructible(obj, p.x, y, p.z, 0.85 * sc, 'tree', 15, kind === 'p' ? 'Pine tree' : 'Tree');
-    }
-    markLastPlanted();
+  // Bos rondom in natuurlijke plukjes: links, rechts en achter het bureau (voorkant en parkeerplaats vrij)
+  plantNaturalGrove({
+    toWorld: rotLocal,
+    clusters: [
+      [-19, -4, 7, 7, 0.6, 0.8],
+      [18.5, -2, 6, 4, 0.5, 1.4],
+      [-4, -19, 8, 8, 0.7, 0.75],
+      [11, -18, 5, 3, 0.6, 1.2]
+    ],
+    allowed: (lx, lz) => (Math.abs(lx) > 13.5 || lz < -13.5) && lz < 9
   });
 
   const sp = rotLocal(-7.5, padFrontLZ + 2.0);

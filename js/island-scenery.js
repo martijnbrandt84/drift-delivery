@@ -15,7 +15,7 @@ import { houseWindows, warmWindowMat, createParkTree } from './town.js';
 import { getTerrainHeight, getLocalSlope } from './terrain.js';
 import {
   bakedPineTrunk, pineNeedleParts, bakedPineSnow, bakedBirchSkeleton, bakedBirchSnow, crownParts, bakedRock,
-  isInsideTownFootprint, isNearAnyDriveway, createPineFast, createShrubFast
+  isInsideTownFootprint, isNearAnyDriveway, createPineFast, createShrubFast, plantNaturalGrove
 } from './props.js';
 import { createMergedToonProp } from './scene-setup.js';
 import { createRoadSign } from './scenery.js';
@@ -519,8 +519,7 @@ branchRoads.forEach((road) => {
     const toWorld = (lx, lz) => ({ x: lot.x + lx * c + lz * sn, z: lot.z - lx * sn + lz * c });
     // Groene omlijsting: bomen, dennen en struiken rondom (je kunt ze omrijden)
     const greenery = [
-      // achterkant
-      [-11, -11, 'd'], [-6.5, -12, 'p'], [-2, -11.5, 'd'], [2.5, -12.5, 'p'], [7, -11, 'd'], [11, -12, 'p'],
+      // achterkant: struiken direct achter het gebouw, de bomen erachter in plukjes (zie hieronder)
       [-8.5, -9.6, 's'], [0.5, -9.6, 's'], [5.5, -9.4, 's'],
       // linkerkant (bij het terras)
       [-12, -6, 'p'], [-12.5, -1, 'd'], [-12, 4, 'p'], [-10.4, -3.5, 's'], [-10.4, 1.5, 's'], [-10.4, 6.5, 's'],
@@ -552,6 +551,12 @@ branchRoads.forEach((road) => {
         registerDestructible(obj, p.x, y, p.z, 0.7, 'tree', 15, 'Tree');
       }
       markLastPlanted();
+    });
+    plantNaturalGrove({
+      toWorld,
+      clusters: [[-7, -15, 6, 5, 0.45, 0.8], [6, -15.5, 6, 3, 0.55, 1.4]],
+      makeDeciduous: () => { const t = createParkTree(); t.scale.setScalar(1.05 + Math.random() * 0.3); return t; },
+      allowed: (lx, lz) => lz < -10.8
     });
   }
 }

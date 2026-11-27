@@ -10,7 +10,7 @@ import { getTerrainHeight, getLocalSlope } from './terrain.js';
 import { houseWindows, warmWindowMat, createLogCabin } from './town.js';
 import { createRoadSign } from './scenery.js';
 import { buildPickupTruckMesh, parkedCars } from './vehicles.js';
-import { createPineFast, createDeciduousTreeFast, createShrubFast } from './props.js';
+import { createPineFast, createDeciduousTreeFast, createShrubFast, plantNaturalGrove } from './props.js';
 import { tagMap } from './map-tags.js';
 
 // Tekst op borden: altijd net vóór het bord tekenen (geen flikkeren/wegvallen op afstand)
@@ -396,39 +396,26 @@ function buildMotel(lot) {
   });
 
   // Bos rondom (achter en opzij), open aan de wegkant
-  // Natuurlijk bos: willekeurige plekken in een brede band achter en naast het motel, met onderlinge
-  // afstand, plukjes en verschillende maten (geen rijtjes). Vrij van het terrein en de oprit.
-  const treeSpots = [];
-  for (let attempt = 0; attempt < 1500 && treeSpots.length < 26; attempt++) {
-    const lx = (Math.random() - 0.5) * 56;
-    const lz = -28 + Math.random() * 44;
-    const insideSite = lx > -17 && lx < 17 && lz > -14 && lz < 13.5;
-    const nearDrive = Math.abs(lx) < 7 && lz > 8;
-    const nearSign = Math.hypot(lx + 12.5, lz - 15.5) < 4;
-    if (insideSite || nearDrive || nearSign || lz > 16) continue;
-    if (treeSpots.some(([x, z]) => Math.hypot(x - lx, z - lz) < 3.6)) continue;
-    // niet op de klif of op een steile helling: ongeveer op de hoogte van het motelterrein en vlak genoeg
-    {
-      const tw = toWorld(lx, lz);
-      const th = getTerrainHeight(tw.x, tw.z);
-      if (Math.abs(th - (lot.roadY - 0.16)) > 2.2) continue;
-      if (getLocalSlope(tw.x, tw.z, 1.2) > 0.45 || getLocalSlope(tw.x, tw.z, 3) > 0.45) continue;
+  // Natuurlijk bos: een paar plukjes achter en naast het motel die aansluiten op het bos aan de oostkant,
+  // naar de zeekant toe dunner; niet op het terrein, de oprit, bij het bord of op de klif
+  plantNaturalGrove({
+    toWorld,
+    refY: lot.roadY - 0.16,
+    maxDY: 2.2,
+    maxSlope: 0.45,
+    clusters: [
+      [16, -24, 12, 13, 0.65, 0.75], // achter rechts: dicht, richting het bos
+      [29, -6, 10, 8, 0.55, 1.0],    // rechts, sluit aan op het bestaande bos
+      [-6, -23, 8, 5, 0.7, 1.3],     // achter midden-links: luchtiger
+      [-24, -12, 6, 3, 0.4, 1.0],    // los groepje links
+      [-27, 8, 5, 2, 0.2, 2.2]       // een paar verspreide bomen richting zee
+    ],
+    allowed: (lx, lz) => {
+      if (lx > -18 && lx < 18 && lz > -15 && lz < 14) return false;
+      if (Math.abs(lx) < 7 && lz > 8) return false;
+      if (Math.hypot(lx + 12.5, lz - 15.5) < 4) return false;
+      return lz < 15;
     }
-    // plukjes: plekken met een 'dichte' ruis vaker accepteren
-    const clump = Math.sin(lx * 0.21 + 1.3) * Math.cos(lz * 0.17 - 0.4);
-    if (clump < -0.25 && Math.random() < 0.7) continue;
-    treeSpots.push([lx, lz, Math.random() < 0.6 ? 'p' : 'd']);
-  }
-  treeSpots.forEach(([lx, lz, kind]) => {
-    const w = toWorld(lx, lz);
-    const sc = 0.55 + Math.random() * 0.5;
-    const tree = kind === 'p' ? createPineFast(sc) : createDeciduousTreeFast(sc);
-    const groundY = getTerrainHeight(w.x, w.z);
-    tree.position.set(w.x, groundY, w.z);
-    tree.rotation.y = Math.random() * Math.PI * 2;
-    scene.add(tree);
-    registerDestructible(tree, w.x, groundY, w.z, 0.85 * sc, 'tree', 15, kind === 'p' ? 'Pine tree' : 'Tree');
-    markLastPlanted();
   });
   [[-18, 11], [18.5, 9.5], [-19.5, -3], [19, 2.5], [-9.5, 14.5], [9.5, 14.8]].forEach(([lx, lz]) => {
     const w = toWorld(lx, lz);
@@ -1097,6 +1084,27 @@ function createGameStand(...args) { return tagMap(createGameStand__build(...args
 // =========================================================
 // KAMPVUUR IN HET BOS BIJ DE UITKIJKTOREN
 // =========================================================
+// Bosje in de driehoek tussen de twee wegen bij de villa (niet vol, wel beschut)
+function plantVillaJunctionGrove(lot) {
+  const c = Math.cos(lot.yaw);
+  const s = Math.sin(lot.yaw);
+  plantNaturalGrove({
+    toWorld: (lx, lz) => ({ x: lot.x + lx * c + lz * s, z: lot.z - lx * s + lz * c }),
+    roadGap: 4.5,
+    clusters: [
+      [-38, 2, 8, 8, 0.55, 0.8],
+      [-33, -10, 6, 3, 0.6, 1.5],
+      [-45, 11, 4, 2, 0.3, 1.2]
+    ],
+    // binnen de driehoek: rechts van de schuine weg (die loopt ongeveer via lx = -50 - 0,6·lz) en vrij van garage en tuin
+    allowed: (lx, lz) => lx > -50 - 0.6 * lz + 6 && !(lx > -29 && lz < 15) && lz < 16
+  });
+}
+{
+  const villaLot = ruralLots.find((l) => l.type === 'villa');
+  if (villaLot) plantVillaJunctionGrove(villaLot);
+}
+
 export function buildLookoutCampfire() {
   const tx = LOOKOUT_HILL.x;
   const tz = LOOKOUT_HILL.z;
@@ -1139,21 +1147,16 @@ export function buildLookoutCampfire() {
   g.position.set(spot.x, y, spot.z);
   g.rotation.y = -spot.ang;
   // Extra bos rondom de open plek (de kant van de toren blijft open)
-  for (let k = 0; k < 11; k++) {
-    const a = spot.ang + (k / 11 - 0.5) * Math.PI * 1.5;
-    const r = 8 + Math.random() * 4;
-    const px = spot.x + Math.cos(a) * r;
-    const pz = spot.z + Math.sin(a) * r;
-    if (getClosestNetworkRoad(px, pz).marginDist < 4) continue;
-    const py = getTerrainHeight(px, pz);
-    const sc = 0.8 + Math.random() * 0.4;
-    const isPine = Math.random() < 0.65;
-    const tree = isPine ? createPineFast(sc) : createDeciduousTreeFast(sc);
-    tree.position.set(px, py, pz);
-    tree.rotation.y = Math.random() * Math.PI * 2;
-    scene.add(tree);
-    registerDestructible(tree, px, py, pz, 0.85 * sc, 'tree', 15, isPine ? 'Pine tree' : 'Tree');
-    markLastPlanted();
+  {
+    const cl = [[-1.1, 13, 6, 5, 0.7, 0.75], [0.15, 14, 7, 4, 0.65, 1.4], [1.3, 12, 5, 3, 0.6, 1.0]].map(([da, dist, r, n, ps, dn]) => {
+      const a = spot.ang + da;
+      return [Math.cos(a) * dist, Math.sin(a) * dist, r, n, ps, dn];
+    });
+    plantNaturalGrove({
+      toWorld: (lx, lz) => ({ x: spot.x + lx, z: spot.z + lz }),
+      clusters: cl,
+      allowed: (lx, lz) => Math.hypot(lx, lz) > 7.5
+    });
   }
   scene.add(g);
   const fire = createCampfire();
