@@ -41,6 +41,7 @@ function nearestIdx(x, z, from = 0, span = N) {
 const RIVAL_VMAX = 56;
 const RIVAL_LAT = 18;
 const RIVAL_DECEL = 16;
+const RIVAL_LAP_TARGET = 29.0; // + ~1 s voor het optrekken bij de start = ~30 s per ronde
 const speedProfile = new Float32Array(N);
 {
   const look = Math.max(2, Math.round(14 / DS));
@@ -57,6 +58,11 @@ const speedProfile = new Float32Array(N);
       speedProfile[i] = Math.min(speedProfile[i], Math.sqrt(next * next + 2 * RIVAL_DECEL * DS));
     }
   }
+  // Vaste rondetijd: het profiel wordt zo geschaald dat de rivaal de ronde in ~30 seconden rijdt
+  let lapT = 0;
+  for (let i = 0; i < N; i++) lapT += DS / speedProfile[i];
+  const k = lapT / RIVAL_LAP_TARGET;
+  for (let i = 0; i < N; i++) speedProfile[i] *= k;
 }
 
 // Start/finish: een stukje voorbij de inrit van Pine Burger
@@ -311,9 +317,9 @@ export function updateRace(dt, playerVeh, carState) {
   const rivalIdx = Math.floor(race.rivalDist / DS) + START_IDX;
   if (race.rivalFinish === null || race.state === 'racing') {
     const gap = race.rivalDist - race.playerIdx * DS; // + = rivaal voor
-    const band = THREE.MathUtils.clamp(1 - gap / 600, 0.88, 1.12);
+    const band = 1; // geen inhaal-hulp meer: de rivaal rijdt altijd ~30 s
     const target = race.rivalFinish !== null ? 14 : speedProfile[wrap(rivalIdx + 4)] * band;
-    const acc = race.rivalSpeed < target ? 15 : -RIVAL_DECEL;
+    const acc = race.rivalSpeed < target ? 45 : -RIVAL_DECEL * 3;
     race.rivalSpeed = race.rivalSpeed < target ? Math.min(target, race.rivalSpeed + acc * dt) : Math.max(target, race.rivalSpeed + acc * dt);
     race.rivalDist += race.rivalSpeed * dt;
     if (race.rivalFinish === null && race.rivalDist >= L) race.rivalFinish = race.timer;

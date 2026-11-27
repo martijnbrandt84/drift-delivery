@@ -4,7 +4,7 @@ import { scene, makeToonMat, registerSeasonalMat, createOutlinedMesh } from './s
 import { ruralLots } from './water-lots.js';
 import { hardColliders, registerDestructible, markLastPlanted } from './demolition.js';
 import { getTerrainHeight } from './terrain.js';
-import { houseWindows, warmWindowMat } from './town.js';
+import { houseWindows, warmWindowMat, createLogCabin } from './town.js';
 import { createRoadSign } from './scenery.js';
 import { buildPickupTruckMesh, parkedCars } from './vehicles.js';
 import { createPineFast, createDeciduousTreeFast, createShrubFast } from './props.js';
@@ -186,17 +186,22 @@ function createCampfire() {
 function buildCamping(lot) {
   const { g, collide, toWorld } = lotFrame(lot);
   const fb = lot.flatBox;
+  const FZ = -4; // kampvuur in het midden van het terrein
 
-  const ground = tagMap(createOutlinedMesh(new THREE.BoxGeometry(34, 0.3, 26), gravelMat, 0.03, false, true), 'yard');
-  ground.position.set(0, 0.05, -6);
+  const ground = tagMap(createOutlinedMesh(new THREE.BoxGeometry(26, 0.3, 22), gravelMat, 0.03, false, true), 'yard');
+  ground.position.set(0, 0.05, -2.5);
   g.add(ground);
 
-  const office = smallCabin(5.2, 3.0, 4.0, logWallMat, roofGreenMat);
-  office.position.set(9.5, 0.1, 16.5);
-  g.add(office);
-  collide(9.5, 16.5, 3.0);
+  // Blokhut als receptie bij de ingang
+  const cabin = createLogCabin();
+  cabin.position.set(8.5, 0.05, 12.5);
+  cabin.rotation.y = -0.25;
+  g.add(cabin);
+  collide(8.5, 12.5, 3.6);
 
-  [[-15, -14, 0xe8742a, 0.3], [-8, -16.5, 0x4c8a4a, -0.2], [13.5, -15, 0x3f78a8, 0.5], [17, -4, 0xf2c23a, 1.6], [-17, -3, 0xc94a38, -1.4]].forEach(([lx, lz, col, rot]) => {
+  // Tenten in een kring rond het kampvuur
+  [[-9, -10, 0xe8742a, 0.5], [-2.5, -12.5, 0x4c8a4a, 0.1], [5, -11.5, 0x3f78a8, -0.4], [10.5, -5.5, 0xf2c23a, -1.2],
+    [-10.5, -1.5, 0xc94a38, 1.3], [9.5, 2.5, 0x8a5ac4, -1.8]].forEach(([lx, lz, col, rot]) => {
     const tent = createTent(col);
     tent.position.set(lx, 0.12, lz);
     tent.rotation.y = rot;
@@ -204,30 +209,21 @@ function buildCamping(lot) {
     collide(lx, lz, 1.6);
   });
 
-  [[-14, 10, 0x3f9fb8, 0.15], [14, 6, 0xe0762f, -0.2]].forEach(([lx, lz, col, rot]) => {
-    const car = createCaravan(col);
-    car.position.set(lx, 0.12, lz);
-    car.rotation.y = rot;
-    g.add(car);
-    collide(lx - 1.2, lz, 1.5);
-    collide(lx + 1.2, lz, 1.5);
-  });
-
   const fire = createCampfire();
-  fire.position.set(0, 0.15, -7);
+  fire.position.set(0, 0.15, FZ);
   g.add(fire);
-  collide(0, -7, 1.1);
+  collide(0, FZ, 1.1);
   for (let k = 0; k < 4; k++) {
     const a = (k / 4) * Math.PI * 2 + 0.4;
     const bench = createOutlinedMesh(new THREE.CylinderGeometry(0.28, 0.28, 2.0, 8), logWallMat, 0.025, false);
     bench.rotation.z = Math.PI * 0.5;
     bench.rotation.y = a + Math.PI * 0.5;
-    bench.position.set(Math.cos(a) * 3.0, 0.42, -7 + Math.sin(a) * 3.0);
+    bench.position.set(Math.cos(a) * 3.0, 0.42, FZ + Math.sin(a) * 3.0);
     g.add(bench);
   }
 
   // Picknicktafels (los in de wereld zodat je ze kunt aanrijden)
-  [[8, -2], [-7, 2]].forEach(([lx, lz]) => {
+  [[-5, 5], [3, 6]].forEach(([lx, lz]) => {
     const w = toWorld(lx, lz);
     const y = lot.roadY - 0.16 + 0.12;
     const t = picnicTable(lightWoodMat);
@@ -237,13 +233,16 @@ function buildCamping(lot) {
     registerDestructible(t, w.x, y, w.z, 1.1, 'small', 10, 'Picknicktafel');
   });
 
-  // Gezellig groen: boompjes rond het terrein en tussen de tenten, struiken langs de oprit
+  // Bos rondom het compacte terrein (achter en opzij), met een open inrit aan de voorkant
   const groundY = lot.roadY - 0.16 + 0.1;
-  [[-21, -18, 'd'], [-21, 5, 'p'], [21.5, -18, 'p'], [21, 12, 'd'], [-20, 16, 'd'], [4, -20.5, 'd'],
-    [-11.5, -9.5, 'd'], [9.5, -10, 'd'], [6, 10.5, 'p'], [-6.5, 11.5, 'd'], [18.5, 18, 'p'],
-    [-21, -8, 'p'], [-21.5, 14, 'p'], [21.5, -7, 'd'], [21.5, 3, 'p'], [-16, -19.5, 'p'], [12, -20.5, 'p'],
-    [-3, -19.5, 'p'], [19.5, -14, 'd'], [-5, 4.5, 'd'], [-17.5, 21, 'p'], [14.5, 22.5, 'd'], [-9, 18, 'p'],
-    [-4.5, 21.5, 'd'], [5.5, 18.5, 'p'], [16, -1, 'd']].forEach(([lx, lz, kind]) => {
+  const treeSpots = [];
+  for (let z = -15; z <= 15; z += 5) {
+    treeSpots.push([-15.5, z + (Math.random() - 0.5) * 1.5, Math.random() < 0.6 ? 'p' : 'd']);
+    treeSpots.push([15.5, z + (Math.random() - 0.5) * 1.5, Math.random() < 0.6 ? 'p' : 'd']);
+  }
+  for (let x = -11; x <= 11; x += 5.5) treeSpots.push([x + (Math.random() - 0.5) * 1.5, -16, Math.random() < 0.6 ? 'p' : 'd']);
+  treeSpots.push([-13, 17, 'p'], [-7, 15.5, 'd'], [-6.5, -7.5, 'd'], [6.5, -7, 'p'], [-1, 9.5, 'd']);
+  treeSpots.forEach(([lx, lz, kind]) => {
     const w = toWorld(lx, lz);
     const sc = 0.62 + Math.random() * 0.25;
     const tree = kind === 'p' ? createPineFast(sc) : createDeciduousTreeFast(sc);
@@ -253,10 +252,8 @@ function buildCamping(lot) {
     registerDestructible(tree, w.x, groundY, w.z, 0.85 * sc, 'tree', 15, kind === 'p' ? 'Dennenboom' : 'Loofboom');
     markLastPlanted();
   });
-  const shrubSpots = [[6, 14], [13, 19.5], [-3.6, 9], [3.6, 13], [-3.6, 18], [3.6, 22], [-3.6, 25],
-    [-18.5, -10], [19.5, -9], [-12, -19], [16, -19.5], [-3, -15.5], [3.5, -14.5], [-17, 13], [17, 1.5], [-9.5, -1],
-    [-20, 0], [20.5, 8], [-13, 17], [11, 14.5], [-7.5, -12], [7, -13.5], [-19.5, -15], [19.5, -17.5], [0.5, -19],
-    [-11, 6], [11.5, 1.5], [-15.5, 7.5], [15, 15], [8.5, 7.5], [-2.5, -11.5], [21, 17], [-21, 9]];
+  const shrubSpots = [[-13.5, -12.5], [13.5, -12], [-13.5, 2], [13.5, 7], [-7.5, -14.5], [8, -14.5], [-3.5, 13], [3.6, 15],
+    [-13, 9], [13, -3], [12.5, 16.5], [-9.5, 11.5], [0.5, -14.8]];
   shrubSpots.forEach(([lx, lz]) => {
     const w = toWorld(lx, lz);
     const big = Math.random() < 0.45;
@@ -269,7 +266,7 @@ function buildCamping(lot) {
     markLastPlanted();
   });
 
-  // Gezelligheid: klapstoeltjes rond het kampvuur, een hangmat, bloembakken bij de caravans
+  // Klapstoeltjes rond het kampvuur en een hangmat
   const chairCols = [0xd94e3a, 0x3f78a8, 0xf4b41a, 0x6cc04a, 0xe07ab8];
   for (let k = 0; k < 5; k++) {
     const a = (k / 5) * Math.PI * 2 + 1.0;
@@ -286,14 +283,13 @@ function buildCamping(lot) {
       leg.position.set(lx2, 0.21, lz2);
       chair.add(leg);
     });
-    const cw = toWorld(Math.cos(a) * 4.4, -7 + Math.sin(a) * 4.4);
+    const cw = toWorld(Math.cos(a) * 4.4, FZ + Math.sin(a) * 4.4);
     chair.position.set(cw.x, groundY, cw.z);
     chair.rotation.y = lot.yaw + Math.atan2(-Math.cos(a), -Math.sin(a));
     scene.add(chair);
     registerDestructible(chair, cw.x, groundY, cw.z, 0.45, 'small', 4, 'Klapstoel');
   }
   {
-    // Hangmat tussen twee boompaaltjes
     const hm = new THREE.Group();
     [-1.8, 1.8].forEach((px2) => {
       const post = createOutlinedMesh(new THREE.CylinderGeometry(0.1, 0.12, 1.8, 6), darkWoodMat, 0.02, false);
@@ -302,27 +298,14 @@ function buildCamping(lot) {
     });
     const net = createOutlinedMesh(new THREE.BoxGeometry(3.0, 0.08, 0.9), makeToonMat(0xe8c46a), 0.015, false);
     net.position.y = 0.95;
-    net.scale.y = 1;
     hm.add(net);
     const pillow = createOutlinedMesh(new THREE.BoxGeometry(0.5, 0.18, 0.6), makeToonMat(0xd94e3a), 0.015, false);
     pillow.position.set(1.15, 1.08, 0);
     hm.add(pillow);
-    hm.position.set(12, 0.15, -6);
-    hm.rotation.y = 0.4;
+    hm.position.set(-10, 0.15, 7);
+    hm.rotation.y = 0.3;
     g.add(hm);
   }
-  [[-14, 10], [14, 6]].forEach(([cx2, cz2]) => {
-    [-1.2, 1.2].forEach((ox) => {
-      const pot = createOutlinedMesh(new THREE.CylinderGeometry(0.28, 0.22, 0.4, 8), makeToonMat(0xb8643a), 0.015, false);
-      pot.position.set(cx2 + ox, 0.35, cz2 + 1.6);
-      g.add(pot);
-      [0xe07ab8, 0xffd23f, 0xffffff].forEach((c, k) => {
-        const bloom = new THREE.Mesh(new THREE.SphereGeometry(0.12, 6, 5), makeToonMat(c));
-        bloom.position.set(cx2 + ox - 0.1 + k * 0.1, 0.65, cz2 + 1.6 + (k % 2) * 0.08);
-        g.add(bloom);
-      });
-    });
-  });
 
   // Lantaarnpaaltjes met lichtslingers rond het kampvuur
   const ringR = 6.2;
@@ -332,7 +315,7 @@ function buildCamping(lot) {
   for (let k = 0; k < postCount; k++) {
     const a = (k / postCount) * Math.PI * 2 + 0.25;
     const px = Math.cos(a) * ringR;
-    const pz = -7 + Math.sin(a) * ringR;
+    const pz = FZ + Math.sin(a) * ringR;
     const post = createOutlinedMesh(new THREE.CylinderGeometry(0.07, 0.09, 2.8, 6), darkWoodMat, 0.02, false);
     post.position.set(px, 1.5, pz);
     g.add(post);
@@ -355,12 +338,12 @@ function buildCamping(lot) {
 
   // Stapel brandhout bij het kampvuur
   const firewood = logStack(3, 1.6, 0.18, logWallMat);
-  firewood.position.set(4.6, 0.15, -11.2);
+  firewood.position.set(4.6, 0.15, -8.6);
   g.add(firewood);
 
 
   // Kano's bij het strand
-  [[-5, fb.minLZ + 1.5, 0xd9452f], [-1.5, fb.minLZ + 2.0, 0x2f9fd0]].forEach(([lx, lz, col]) => {
+  [[-6.5, -13.2, 0xd9452f], [-3.0, -13.6, 0x2f9fd0]].forEach(([lx, lz, col]) => {
     const canoe = createOutlinedMesh(new THREE.CapsuleGeometry(0.4, 3.2, 3, 8), makeToonMat(col), 0.035);
     canoe.rotation.z = Math.PI * 0.5;
     canoe.scale.set(1, 1, 0.55);

@@ -13,7 +13,7 @@ import { hardColliders, destructibles, syncInstancedDestructible } from './demol
 import { dropTireMark, spawnParticle, particlePool, PARTICLE_POOL_SIZE, updateFireflies, updateFallingLeaves } from './effects.js';
 import {
   buildWoodyWagonMesh, buildYellowTaxiMesh, buildPickupTruckMesh, buildPoliceCruiserMesh,
-  beamConeGeo, trafficVehicles, parkedCars, policePool
+  beamConeGeo, trafficVehicles, parkedCars, policePool, setVehicleLights
 } from './vehicles.js';
 import { chimneySmokes, giantStarMesh, houseWindows, townClockHands } from './town.js';
 import { updateWildlife, notifyHorn } from './wildlife-ai.js';
@@ -36,7 +36,7 @@ import './christmas.js';
 import { updateAttractions } from './attractions.js';
 import { updateOrcas } from './orcas.js';
 import { race, startRace, cancelRace, updateRace } from './race.js';
-import { bindPolicePool, pickPursuers, startPursuit, releaseFromPursuit, sendUnitToStation, updatePolicePatrol } from './police.js';
+import { bindPolicePool, pickPursuers, startPursuit, releaseFromPursuit, markUnitLost, updatePolicePatrol } from './police.js';
 import './touch-controls.js';
 import { flight, planeIsNear, canExitPlane, enterPlane, exitPlane, setFlightKey, updateFlight, setAirfieldNight } from './flight.js';
 
@@ -158,7 +158,7 @@ function findHijackCandidate() {
   });
 
   policePool.forEach((cop, index) => {
-    if (!cop.veh.root.visible) return;
+    if (cop.state === 'lost' || !cop.veh.root.visible) return;
     const d = Math.hypot(px - cop.veh.root.position.x, pz - cop.veh.root.position.z);
     if (d < bestDist) {
       bestDist = d;
@@ -190,6 +190,7 @@ function tryHijackNearbyVehicle() {
   oldVeh.frontPivots.forEach((p) => { p.rotation.y = 0; });
   if (oldVeh.sirenLight) oldVeh.sirenLight.intensity = 0;
   parkedCars.push(oldVeh);
+  setVehicleLights(oldVeh, false); // achtergelaten auto: lichten uit
 
   if (target.source === 'traffic') {
     const tvSlot = trafficVehicles[target.index];
@@ -204,13 +205,8 @@ function tryHijackNearbyVehicle() {
     const copSlot = policePool[target.index];
     playerVeh = copSlot.veh;
     playerVeh.playerSirenOn = true;
-    const freshCop = buildPoliceCruiserMesh();
-    freshCop.body.traverse((ch) => { if (ch.geometry === beamConeGeo) ch.visible = isNightMode; });
-    freshCop.root.visible = false;
-    scene.add(freshCop.root);
-    copSlot.veh = freshCop;
-    // Er komt later een nieuwe auto uit de garage van het bureau
-    sendUnitToStation(copSlot);
+    // De politie is deze auto echt kwijt: er komt geen nieuwe voor in de plaats
+    markUnitLost(copSlot);
     addCrimeHeat(135, 'Sheriff Interceptor gestolen');
   } else if (target.source === 'parked') {
     parkedCars.splice(target.index, 1);
@@ -224,6 +220,7 @@ function tryHijackNearbyVehicle() {
   }
 
   sound.playImpact('small');
+  setVehicleLights(playerVeh, true);
   if (race.state !== 'idle' && playerVeh !== race.veh) cancelRace(null);
   carState.angle = target.yaw;
   carState.throttleHold = 0.35;
@@ -383,6 +380,8 @@ function resetToClosestRoad() {
 
 teleportToTown();
 bindPolicePool(policePool);
+// Alle geparkeerde auto's (ook die later door andere modules zijn neergezet): lichten uit
+parkedCars.forEach((v) => setVehicleLights(v, false));
 policePool.forEach((u) => { u.onBump = () => addCrimeHeat(60, 'Politieauto geraakt'); });
 window.addEventListener('pointerdown', () => sound.init(), { once: true });
 
@@ -1098,7 +1097,7 @@ function animate() {
     if (vehicleBadgeEl.textContent === 'Piper Cub') vehicleBadgeEl.textContent = playerVeh.name;
   }
 
-  const activeCops = policePool.filter((c) => c.veh.root.visible).map((c) => c.veh.root.position);
+  const activeCops = policePool.filter((c) => c.state !== 'lost' && c.veh.root.visible).map((c) => c.veh.root.position);
   const mapX = flight.active ? flight.x : px;
   const mapZ = flight.active ? flight.z : pz;
   const mapAngle = flight.active ? flight.heading : carState.angle;

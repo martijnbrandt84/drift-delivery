@@ -10,6 +10,7 @@ import { getDriveHeightAndWaterState } from './drive-surface.js';
 import { houseWindows, warmWindowMat } from './town.js';
 import { createRoadSign } from './scenery.js';
 import { tagMap } from './map-tags.js';
+import { setVehicleLights } from './vehicles.js';
 
 // =========================================================
 // POLITIEBUREAU + 4 ECHTE POLITIEAUTO'S
@@ -65,14 +66,29 @@ function buildStation() {
   scene.add(g);
 
   // Compact terrein: kantoor achteraan, parkeervakken ervoor tot aan de weg
-  const roadEdgeLZ = lot.dist - 4.6;
+  // Plein met een stoeprand rondom; een oprit verbindt het met de weg (het plein raakt de weg niet)
   const slabH = 3.2;
-  const padMinLZ = -9.5;
-  const padDepth = roadEdgeLZ - padMinLZ;
-  const pad = tagMap(new THREE.Mesh(new THREE.BoxGeometry(22, slabH, padDepth), makeToonMat(0x4a474c)), 'paved');
+  const padMinLZ = -10.5;
+  const padFrontLZ = 8.5;
+  const padW = 20;
+  const padDepth = padFrontLZ - padMinLZ;
+  const pad = tagMap(new THREE.Mesh(new THREE.BoxGeometry(padW, slabH, padDepth), makeToonMat(0x4a474c)), 'paved');
   pad.position.set(0, -slabH * 0.5, padMinLZ + padDepth * 0.5);
   pad.receiveShadow = true;
   g.add(pad);
+  const kerbMat = makeToonMat(0xbdb6aa);
+  const kerbs = [
+    [-padW / 2 + 0.2, padMinLZ + padDepth / 2, 0.4, padDepth],
+    [padW / 2 - 0.2, padMinLZ + padDepth / 2, 0.4, padDepth],
+    [0, padMinLZ + 0.2, padW, 0.4],
+    [-padW / 4 - 1.5, padFrontLZ - 0.2, padW / 2 - 3, 0.4],
+    [padW / 4 + 1.5, padFrontLZ - 0.2, padW / 2 - 3, 0.4]
+  ];
+  kerbs.forEach(([kx, kz, kw, kd]) => {
+    const kerb = createOutlinedMesh(new THREE.BoxGeometry(kw, 0.22, kd), kerbMat, 0.02, false, true);
+    kerb.position.set(kx, 0.11, kz);
+    g.add(kerb);
+  });
 
   // Zwart-wit, net als de politieauto's, met een gouden ster
   const whiteMat = makeToonMat(0xf5f7fa);
@@ -125,15 +141,15 @@ function buildStation() {
   // Vlaggenmast naast de ingang
   {
     const pole = createOutlinedMesh(new THREE.CylinderGeometry(0.07, 0.1, 7, 6), makeToonMat(0xd8dadd), 0.02, false);
-    pole.position.set(-9.5, 3.5, -0.5);
+    pole.position.set(-8.6, 3.5, -0.5);
     g.add(pole);
     const flag = new THREE.Mesh(new THREE.BoxGeometry(0.04, 1.0, 1.6), blackMat);
-    flag.position.set(-9.5, 6.4, 0.35);
+    flag.position.set(-8.6, 6.4, 0.35);
     g.add(flag);
     const star = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.38, 0.38), makeToonMat(0xf4c430));
-    star.position.set(-9.5, 6.4, 0.0);
+    star.position.set(-8.6, 6.4, 0.0);
     g.add(star);
-    const p = rotLocal(-9.5, -0.5);
+    const p = rotLocal(-8.6, -0.5);
     hardColliders.push({ x: p.x, z: p.z, r: 0.3 });
   }
 
@@ -155,14 +171,14 @@ function buildStation() {
     const lp = rotLocal(bx, bayZ);
     garageSpots.push({ x: lp.x, z: lp.z, yaw: lot.yaw, taken: false });
   }
-  [8.5, 10.9].forEach((x) => {
+  [8.6].forEach((x) => {
     const line = new THREE.Mesh(new THREE.PlaneGeometry(0.16, 4.6), lineMat);
     line.rotation.x = -Math.PI / 2;
     line.position.set(x, 0.02, bayZ);
     g.add(line);
   });
 
-  const sp = rotLocal(-9.5, lot.dist - 2.5);
+  const sp = rotLocal(-6.5, lot.dist - 2.5);
   createRoadSign(sp.x, sp.z, surfaceY, lot.yaw, ['SHERIFF', 'Politiebureau']);
 }
 buildStation();
@@ -251,8 +267,10 @@ function parkInGarage(unit) {
   setAlignedTransform(unit.veh.root, spot.x, h, spot.z, spot.yaw, 0);
   unit.veh.root.visible = true;
   unit.state = 'garage';
+  setVehicleLights(unit.veh, false);
 }
 function leaveGarage(unit) {
+  setVehicleLights(unit.veh, true);
   if (unit.garageSpot) unit.garageSpot.taken = false;
   unit.garageSpot = null;
 }
@@ -303,13 +321,11 @@ export function releaseFromPursuit(unit) {
   unit.state = 'return';
 }
 
-// Gestolen of kapot: na een tijdje staat er een nieuwe auto in de garage, die daarna weer op patrouille gaat
-export function sendUnitToStation(unit) {
+// Gestolen: de politie is deze auto echt kwijt (er komt geen nieuwe voor terug)
+export function markUnitLost(unit) {
+  if (unit.state === 'garage') leaveGarage(unit);
   unit.active = false;
-  unit.state = 'respawn';
-  unit.respawnTimer = 25;
-  unit.veh.root.visible = false;
-  sirensOff(unit);
+  unit.state = 'lost';
 }
 
 export function updatePolicePatrol(dt, elapsed, px, pz, playerVeh, carState) {

@@ -51,9 +51,9 @@ export const ruralLots = [
   { netSamples: valleySamples, u: 0.28, outward: false, dist: 17.5, type: 'house_red', yawOff: -0.08 },
   // Politiebureau (Sheriff's Office) tussen het dorp en het vliegveld
   {
-    netSamples: valleySamples, u: 0.36, outward: true, dist: 18.0, type: 'police', yawOff: 0,
-    drivewayStopShort: 9.5, flatElevOffset: -0.05,
-    flatBox: { minLX: -12, maxLX: 12, minLZ: -10, maxLZ: 10, blend: 10 }
+    netSamples: valleySamples, u: 0.36, outward: true, dist: 19.0, type: 'police', yawOff: 0,
+    drivewayStopShort: 8.5, flatElevOffset: -0.12,
+    flatBox: { minLX: -14, maxLX: 14, minLZ: -14, maxLZ: 11.5, blend: 10 }
   },
 
   // Supermarkt & Pinewood Mall op het vlakke noordoostelijke stuk van de meerweg (u=0.055, vlakke weg!).
@@ -101,10 +101,10 @@ export const ruralLots = [
     outward: false,
     dist: 22.0,
     type: 'diner',
+    drivewayStopShort: 14.6,
     yawOff: 0,
-    noDriveway: true,
     flatElevOffset: -0.06,
-    flatBox: { minLX: -31, maxLX: 19, minLZ: -18, maxLZ: 18.5, blend: 12 }
+    flatBox: { minLX: -32, maxLX: 12.5, minLZ: -19, maxLZ: 18.5, blend: 12 }
   },
 
   // Bioscoop net ten oosten van het stadje, aan de meerweg
@@ -130,9 +130,9 @@ export const ruralLots = [
     type: 'coffee',
     name: 'PINE COFFEE',
     yawOff: 0,
-    drivewayStopShort: 10.5,
-    flatElevOffset: -0.05,
-    flatBox: { minLX: -13, maxLX: 13, minLZ: -11, maxLZ: 11, blend: 12 }
+    drivewayStopShort: 8.0,
+    flatElevOffset: -0.1,
+    flatBox: { minLX: -13, maxLX: 12, minLZ: -11, maxLZ: 11, blend: 12 }
   },
 
   // Klein vliegveld met startbaan naar het westen, aan de zuidelijke verbindingsweg
@@ -159,7 +159,7 @@ export const ruralLots = [
     name: 'NORTH BEACH CAMPING',
     yawOff: 0,
     flatElevOffset: -0.05,
-    flatBox: { minLX: -22, maxLX: 22, minLZ: -20, maxLZ: 24, blend: 12 }
+    flatBox: { minLX: -16, maxLX: 16, minLZ: -16, maxLZ: 20, blend: 12 }
   },
 
   // Zagerij langs het Timber Trail
@@ -253,7 +253,7 @@ ruralLots.forEach((lot) => {
       y2: lot.y,
       z2: rs.z + rs.nz * side * (lot.dist - (lot.drivewayStopShort ?? 0)),
       halfWidth: lot.type === 'farm' ? 3.2 : lot.type === 'store' ? 4.4 : lot.type === 'cinema' ? 3.4 : lot.type === 'villa' ? 2.8 : 2.5,
-      asphalt: lot.type === 'store' || lot.type === 'cinema' || lot.type === 'airfield' || lot.type === 'coffee' || lot.type === 'police'
+      asphalt: lot.type === 'store' || lot.type === 'cinema' || lot.type === 'airfield' || lot.type === 'coffee' || lot.type === 'police' || lot.type === 'diner'
     });
   }
 });

@@ -9,7 +9,7 @@ import { waterMat, groundColorAttr, autumnVertexColors, winterVertexColors } fro
 import { iceState } from './drive-surface.js';
 import { skidMat } from './effects.js';
 import { nightLampHalos, houseWindows, warmWindowMat, dinerNightLights } from './town.js';
-import { allVehicleNightBeams } from './vehicles.js';
+import { allVehicleNightBeams, vehicleLightState } from './vehicles.js';
 import { lighthouseBeacon, lighthouseBeamPivot, lighthouseLanternMat } from './scenery.js';
 
 // =========================================================
@@ -62,7 +62,8 @@ export function applyAtmosphereSettings() {
   lighthouseLanternMat.color.setHex(isNightMode ? 0xfff4c4 : 0x9fc8d9);
   nightLampHalos.forEach((h) => { h.visible = isNightMode; });
   dinerNightLights.forEach((l) => { l.intensity = isNightMode ? 3.2 : 0; });
-  allVehicleNightBeams.forEach((b) => { b.visible = isNightMode; });
+  vehicleLightState.night = isNightMode;
+  allVehicleNightBeams.forEach((b) => { b.visible = isNightMode && b.userData.lightsOn !== false; });
 
   // Kleuren van lucht, mist, zon en water worden elke frame vloeiend bijgewerkt in updateEnvironment()
   warmWindowMat.color.setHex(isNightMode ? 0xffe38c : 0x9fc8d9);

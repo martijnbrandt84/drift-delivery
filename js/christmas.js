@@ -153,7 +153,7 @@ ruralLots.forEach((lot) => {
   else if (lot.type === 'diner') spot = at(-22, -15);
   else if (lot.type === 'villa') spot = at(6.5, 4);
   else if (lot.type === 'store') spot = at(-17, 18);
-  else if (lot.type === 'camping') spot = at(4, -2);
+  else if (lot.type === 'camping') spot = at(0, 11);
   else if (lot.type === 'fair' || lot.type === 'sawmill') spot = at(-5, 18);
   else if (lot.type === 'cinema') spot = at(11, -1.5);
   else if (lot.type === 'airfield') spot = at(-16, 4);

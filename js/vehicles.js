@@ -31,6 +31,7 @@ const beamConeMat = new THREE.MeshBasicMaterial({
   depthWrite: false
 });
 export const allVehicleNightBeams = [];
+export const vehicleLightState = { night: false };
 
 function attachHeadlightBeams(bodyGroup, frontZ, lateralOffset = 0.68) {
   [-lateralOffset, lateralOffset].forEach((lx) => {
@@ -59,6 +60,24 @@ function attachTailLights(bodyGroup, y, z, lateralOffset = 0.68) {
     const tl = new THREE.Mesh(tailLightGeo, tailLightGlow);
     tl.position.set(lx, y, z);
     bodyGroup.add(tl);
+  });
+}
+
+// Lichten aan/uit per auto: geparkeerde auto's hebben in het donker hun lichten uit
+const headLightOffMat = makeToonMat(0xd9d3bd);
+const tailLightOffMat = makeToonMat(0x6e1d1d);
+export function setVehicleLights(veh, on) {
+  if (!veh || !veh.body) return;
+  veh.lightsOn = on;
+  veh.body.traverse((ch) => {
+    if (ch.geometry === beamConeGeo) {
+      ch.userData.lightsOn = on;
+      ch.visible = on && vehicleLightState.night;
+    } else if (ch.geometry === headlightBulbGeo) {
+      ch.material = on ? headLightGlow : headLightOffMat;
+    } else if (ch.geometry === tailLightGeo) {
+      ch.material = on ? tailLightGlow : tailLightOffMat;
+    }
   });
 }
 
@@ -726,3 +745,6 @@ for (let i = 0; i < 4; i++) {
   scene.add(copMesh.root);
   policePool.push({ veh: copMesh, active: false, vx: 0, vz: 0, angle: 0, skidTimer: 0 });
 }
+
+// Geparkeerde auto's: lichten uit
+parkedCars.forEach((v) => setVehicleLights(v, false));
