@@ -155,7 +155,7 @@ function bakeStaticMap() {
   // Hutten en huizen
   bctx.fillStyle = '#7a4a2a';
   ruralLots.forEach((lot) => {
-    if (lot.type === 'farm' || lot.type === 'store' || lot.type === 'diner' || lot.type === 'camping' || lot.type === 'sawmill' || lot.type === 'fair' || lot.type === 'cinema' || lot.type === 'airfield') return;
+    if (lot.type === 'farm' || lot.type === 'store' || lot.type === 'diner' || lot.type === 'camping' || lot.type === 'sawmill' || lot.type === 'fair' || lot.type === 'cinema' || lot.type === 'airfield' || lot.type === 'coffee') return;
     if (lot.type === 'villa') {
       const v = worldToBake(lot.x, lot.z);
       bctx.fillStyle = '#f6f0e4';
@@ -256,7 +256,7 @@ addLabel('Uitkijktoren', LOOKOUT_HILL.x, LOOKOUT_HILL.z - 14);
 }
 ruralLots.forEach((lot) => {
   if (lot.type === 'store') addLabel('Pinewood Mall', lot.x, lot.z - 16);
-  if (lot.type === 'diner') addLabel('Diner', lot.x, lot.z - 14);
+  if (lot.type === 'diner') addLabel('Pine Burger', lot.x, lot.z - 16);
   if (lot.type === 'farm') addLabel(lot.name ? lot.name.charAt(0) + lot.name.slice(1).toLowerCase().replace(/ (\w)/g, (m, c) => ' ' + c.toUpperCase()) : 'Boerderij', lot.x, lot.z - 36);
   if (lot.type === 'villa') addLabel('Villa', lot.x, lot.z - 16);
   if (lot.type === 'camping') addLabel('Camping', lot.x, lot.z + 4);
@@ -264,6 +264,7 @@ ruralLots.forEach((lot) => {
   if (lot.type === 'fair') addLabel('Kermis', lot.x, lot.z);
   if (lot.type === 'cinema') addLabel('Bioscoop', lot.x + 6, lot.z - 14);
   if (lot.type === 'airfield') addLabel('Vliegveld', lot.x - 50, lot.z - 16);
+  if (lot.type === 'coffee') addLabel('Pine Coffee', lot.x, lot.z - 12);
 });
 addLabel('Strand', 0, 352, 'water');
 

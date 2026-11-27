@@ -1449,7 +1449,7 @@ function buildGeneralStore() {
   complexGroup.position.set(baseX, surfaceY, baseZ);
   complexGroup.rotation.y = yaw;
   // Iets groter dan voorheen: alles (gebouwen, parkeerplaats) 25% groter
-  complexGroup.scale.setScalar(MALL_SCALE);
+  complexGroup.scale.set(MALL_SCALE, 1.0, MALL_SCALE);
   scene.add(complexGroup);
 
   const pad = new THREE.Mesh(new THREE.BoxGeometry(33.6, slabDepthH, 19.6), storeAsphaltMat);
@@ -1651,44 +1651,9 @@ buildGeneralStore();
 // reuzenburger op het dak, drive-thru en een handvol parkeervakken
 // =========================================================
 function makeDinerSignTexture() {
-  const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 256;
-  const ctx = canvas.getContext('2d');
-  ctx.fillStyle = '#d62839';
-  ctx.fillRect(0, 0, 512, 256);
-  ctx.strokeStyle = '#ffd23f';
-  ctx.lineWidth = 18;
-  ctx.strokeRect(9, 9, 494, 238);
-  ctx.fillStyle = '#fffaf0';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.font = 'italic 900 128px system-ui, sans-serif';
-  ctx.fillText('DINER', 256, 110);
-  ctx.fillStyle = '#ffd23f';
-  ctx.font = 'bold 34px system-ui, sans-serif';
-  ctx.fillText('BURGERS · FRIES · SHAKES', 256, 205);
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.needsUpdate = true;
-  return tex;
+  return makeBurgerLogoTexture();
 }
 
-function makeOpenSignTexture() {
-  const canvas = document.createElement('canvas');
-  canvas.width = 256;
-  canvas.height = 128;
-  const ctx = canvas.getContext('2d');
-  ctx.fillStyle = '#1b2a3a';
-  ctx.fillRect(0, 0, 256, 128);
-  ctx.fillStyle = '#5ef2d6';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.font = 'bold 54px system-ui, sans-serif';
-  ctx.fillText('OPEN 24/7', 128, 66);
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.needsUpdate = true;
-  return tex;
-}
 
 const dinerCreamMat = makeToonMat(0xfdf6e3);
 const dinerRedMat = makeToonMat(0xd62839);
@@ -1700,103 +1665,6 @@ const pattyMat = makeToonMat(0x5a3220);
 const lettuceMat = makeToonMat(0x6cc04a);
 const cheeseMat = makeToonMat(0xffc83d);
 
-function createDinerBuilding() {
-  const g = new THREE.Group();
-  const w = 15.0, h = 4.0, d = 8.0;
-
-  const body = createOutlinedMesh(new THREE.BoxGeometry(w, h, d), dinerCreamMat, 0.055);
-  body.position.y = h * 0.5;
-  g.add(body);
-
-  const kick = createOutlinedMesh(new THREE.BoxGeometry(w + 0.12, 0.95, d + 0.12), dinerRedMat, 0.04, false);
-  kick.position.y = 0.48;
-  g.add(kick);
-
-  const chrome = new THREE.Mesh(new THREE.BoxGeometry(w + 0.18, 0.2, d + 0.18), dinerChromeMat);
-  chrome.position.y = 1.05;
-  g.add(chrome);
-  const chromeTop = new THREE.Mesh(new THREE.BoxGeometry(w + 0.18, 0.2, d + 0.18), dinerRedMat);
-  chromeTop.position.y = 3.25;
-  g.add(chromeTop);
-
-  // Grote ramen rondom de voorkant (lichtgevend 's nachts)
-  [-5.0, -1.7, 1.7, 5.0].forEach((wx, i) => {
-    if (i === 1 || i === 2) {
-      const pane = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 1.85), warmWindowMat);
-      pane.position.set(wx + (i === 1 ? -0.4 : 0.4), 2.15, d * 0.5 + 0.06);
-      g.add(pane);
-      houseWindows.push({ mesh: pane, timer: Math.random() * 10 });
-    } else {
-      const pane = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 1.85), warmWindowMat);
-      pane.position.set(wx, 2.15, d * 0.5 + 0.06);
-      g.add(pane);
-      houseWindows.push({ mesh: pane, timer: Math.random() * 10 });
-    }
-  });
-  [-1, 1].forEach((side) => {
-    const sidePane = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 1.85), warmWindowMat);
-    sidePane.position.set(side * (w * 0.5 + 0.06), 2.15, 0.6);
-    sidePane.rotation.y = side * Math.PI * 0.5;
-    g.add(sidePane);
-    houseWindows.push({ mesh: sidePane, timer: Math.random() * 10 });
-  });
-
-  // Glazen deur met chromen kader in het midden
-  const doorFrame = createOutlinedMesh(new THREE.BoxGeometry(1.6, 2.6, 0.16), dinerChromeMat, 0.03, false);
-  doorFrame.position.set(0, 1.3, d * 0.5 + 0.05);
-  g.add(doorFrame);
-  const doorGlass = new THREE.Mesh(new THREE.PlaneGeometry(1.25, 2.3), warmWindowMat);
-  doorGlass.position.set(0, 1.3, d * 0.5 + 0.15);
-  g.add(doorGlass);
-
-  // Overstekend plat dak
-  const roof = createOutlinedMesh(new THREE.BoxGeometry(w + 1.4, 0.4, d + 1.6), dinerTealRoofMat, 0.045);
-  roof.position.y = h + 0.2;
-  g.add(roof);
-
-  // Rood-wit gestreepte luifel over de ramen
-  const stripes = 12;
-  for (let k = 0; k < stripes; k++) {
-    const sw = (w - 0.6) / stripes;
-    const stripe = createOutlinedMesh(new THREE.BoxGeometry(sw, 0.14, 1.5), k % 2 === 0 ? dinerRedMat : dinerCreamMat, 0.02, false);
-    stripe.position.set(-w * 0.5 + 0.3 + sw * (k + 0.5), 3.45, d * 0.5 + 0.7);
-    stripe.rotation.x = 0.32;
-    g.add(stripe);
-  }
-
-  // Reuzenburger op het dak
-  const burger = new THREE.Group();
-  const bottomBun = createOutlinedMesh(new THREE.CylinderGeometry(1.5, 1.4, 0.5, 14), bunMat, 0.04);
-  bottomBun.position.y = 0.25;
-  burger.add(bottomBun);
-  const patty = createOutlinedMesh(new THREE.CylinderGeometry(1.62, 1.62, 0.42, 14), pattyMat, 0.04);
-  patty.position.y = 0.71;
-  burger.add(patty);
-  const cheese = createOutlinedMesh(new THREE.BoxGeometry(2.7, 0.1, 2.7), cheeseMat, 0.02, false);
-  cheese.position.y = 0.96;
-  cheese.rotation.y = Math.PI / 4;
-  burger.add(cheese);
-  const lettuce = createOutlinedMesh(new THREE.CylinderGeometry(1.75, 1.7, 0.16, 14), lettuceMat, 0.03, false);
-  lettuce.position.y = 1.08;
-  burger.add(lettuce);
-  const topBun = createOutlinedMesh(new THREE.SphereGeometry(1.55, 14, 8, 0, Math.PI * 2, 0, Math.PI * 0.5), bunMat, 0.045);
-  topBun.position.y = 1.16;
-  topBun.scale.y = 0.85;
-  burger.add(topBun);
-  burger.position.set(3.6, h + 0.4, -0.6);
-  g.add(burger);
-
-  // Klein "OPEN 24/7" bordje boven de deur
-  const openSign = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.95), new THREE.MeshBasicMaterial({ map: makeOpenSignTexture(), ...SIGN_MAT_OPTS }));
-  openSign.position.set(-3.8, h + 0.95, d * 0.5 + 0.55);
-  g.add(openSign);
-  const openBack = createOutlinedMesh(new THREE.BoxGeometry(2.55, 1.08, 0.12), dinerChromeMat, 0.025, false);
-  openBack.position.set(-3.8, h + 0.95, d * 0.5 + 0.47);
-  g.add(openBack);
-
-  g.userData.lightSpecs = { width: w * 0.94, yPos: h + 0.45, zFront: d * 0.5 + 0.85 };
-  return g;
-}
 
 function createDinerPylon() {
   const g = new THREE.Group();
@@ -1849,93 +1717,474 @@ function buildRoadsideDiner() {
   g.position.set(baseX, surfaceY, baseZ);
   g.rotation.y = yaw;
   scene.add(g);
-
-  // Asfalt parkeerterrein tot aan de weg + stoep/plint rond het gebouw
-  const roadEdgeLZ = lot.dist - 4.6;
-  const slabH = 3.2;
-  const padDepth = roadEdgeLZ + 2.0;
-  const pad = new THREE.Mesh(new THREE.BoxGeometry(34, slabH, padDepth), storeAsphaltMat);
-  pad.position.set(0, -slabH * 0.5, roadEdgeLZ - padDepth * 0.5);
-  pad.receiveShadow = true;
-  g.add(pad);
-  const plinth = createOutlinedMesh(new THREE.BoxGeometry(19, slabH + 0.16, 11.5), sidewalkMat, 0.04, false, true);
-  plinth.position.set(-1, -slabH * 0.5 + 0.08, -7.2);
-  g.add(plinth);
-
-  const building = createDinerBuilding();
-  building.position.set(-1, 0.16, -7.5);
-  g.add(building);
-
-  // Reclamezuil aan de weg (bord dwars op de weg zodat je het van ver ziet aankomen)
-  const pylon = createDinerPylon();
-  pylon.position.set(-15.5, 0, roadEdgeLZ - 2.2);
-  pylon.rotation.y = Math.PI * 0.5;
-  g.add(pylon);
-
-  const menuBoard = createDriveThruMenu();
-  menuBoard.position.set(10.2, 0, -6.0);
-  menuBoard.rotation.y = -Math.PI * 0.5;
-  g.add(menuBoard);
-
-  // Zes parkeervakken voor de deur
-  const bayW = 2.5;
-  const bayD = 4.0;
-  const stripeGeo = new THREE.PlaneGeometry(0.16, bayD);
-  const stopGeo = new THREE.BoxGeometry(1.55, 0.1, 0.22);
-  const rowZ = 1.6;
-  for (let k = 0; k <= 6; k++) {
-    const lx = -8.5 + k * bayW;
-    const stripe = new THREE.Mesh(stripeGeo, storeLineMat);
-    stripe.rotation.x = -Math.PI * 0.5;
-    stripe.position.set(lx, 0.02, rowZ);
-    g.add(stripe);
-    if (k < 6) {
-      const stop = new THREE.Mesh(stopGeo, wheelStopMat);
-      stop.position.set(lx + bayW * 0.5, 0.05, rowZ - bayD * 0.5 + 0.35);
-      g.add(stop);
-    }
-  }
-
-  // Picknicktafels naast de diner
-  const tableMat = registerSeasonalMat(0xd62839, 0xf2f6fb);
-  [[11.0, -11.0], [13.6, -8.0]].forEach(([tx, tz]) => {
-    const top = createOutlinedMesh(new THREE.BoxGeometry(1.8, 0.12, 0.9), tableMat, 0.025, false);
-    top.position.set(tx, 0.78, tz);
-    g.add(top);
-    [-0.65, 0.65].forEach((bz) => {
-      const bench = createOutlinedMesh(new THREE.BoxGeometry(1.8, 0.1, 0.32), tableMat, 0.02, false);
-      bench.position.set(tx, 0.45, tz + bz);
-      g.add(bench);
-    });
-    const leg = createOutlinedMesh(new THREE.BoxGeometry(0.14, 0.76, 0.6), streetPostMat, 0.02, false);
-    leg.position.set(tx, 0.38, tz);
-    g.add(leg);
-  });
-
-  g.updateMatrixWorld(true);
-  addRoofStringLights(building, building.userData.lightSpecs.width, building.userData.lightSpecs.yPos, building.userData.lightSpecs.zFront);
-
   const toWorld = (lx, lz) => {
     const w = rotateLocal(lx, lz, yaw);
     return { x: baseX + w.x, z: baseZ + w.z };
   };
-  [-6, -1, 4].forEach((cx) => {
-    const p = toWorld(cx, -7.5);
-    hardColliders.push({ x: p.x, z: p.z, r: 4.2 });
-  });
-  const pp = toWorld(-15.5, roadEdgeLZ - 2.2);
-  hardColliders.push({ x: pp.x, z: pp.z, r: 1.9 });
-  const mp = toWorld(10.2, -6.0);
-  hardColliders.push({ x: mp.x, z: mp.z, r: 0.6 });
+  const collide = (lx, lz, r) => {
+    const p = toWorld(lx, lz);
+    hardColliders.push({ x: p.x, z: p.z, r });
+  };
 
-  // Nachtgloed van het bord
-  const glow = new THREE.PointLight(0xff6a4a, 0, 30, 1.6);
-  glow.position.set(pp.x, surfaceY + 7.6, pp.z);
+  // ---- Groot asfaltplein tot aan de weg ----
+  const roadEdgeLZ = lot.dist - 4.6;
+  const slabH = 3.2;
+  const padMinLZ = -17;
+  const padDepth = roadEdgeLZ - padMinLZ;
+  const pad = new THREE.Mesh(new THREE.BoxGeometry(48, slabH, padDepth), storeAsphaltMat);
+  pad.position.set(-6, -slabH * 0.5, padMinLZ + padDepth * 0.5);
+  pad.receiveShadow = true;
+  g.add(pad);
+  const plinth = createOutlinedMesh(new THREE.BoxGeometry(17, slabH + 0.16, 11), sidewalkMat, 0.04, false, true);
+  plinth.position.set(-6, -slabH * 0.5 + 0.08, -6.5);
+  g.add(plinth);
+
+  // ---- PINE BURGER restaurant ----
+  const restaurant = createBurgerRestaurant();
+  restaurant.position.set(-6, 0.16, -6.5);
+  g.add(restaurant);
+  [-12, -6, 0].forEach((cx) => collide(cx, -6.5, 4.4));
+
+  // ---- Drive-thru baan om het restaurant (donkerder asfalt, witte randlijnen en pijlen) ----
+  const laneMat = makeToonMat(0x2f2d33, { polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
+  const lanes = [
+    [5.6, -7.5, 3.6, 17.0],   // rechts, van voren naar achter
+    [-6.0, -14.6, 26.8, 3.6], // achterlangs
+    [-17.6, -7.5, 3.6, 17.0]  // links, terug naar voren
+  ];
+  lanes.forEach(([cx, cz, w, d]) => {
+    const lane = new THREE.Mesh(new THREE.BoxGeometry(w, 0.04, d), laneMat);
+    lane.position.set(cx, 0.02, cz);
+    g.add(lane);
+  });
+  const arrowGeo = new THREE.ConeGeometry(0.55, 1.2, 3);
+  arrowGeo.rotateX(-Math.PI / 2);
+  [[5.6, -2, Math.PI], [5.6, -10, Math.PI], [-3, -14.6, -Math.PI / 2], [-11, -14.6, -Math.PI / 2], [-17.6, -10, 0], [-17.6, -2, 0]].forEach(([ax, az, rot]) => {
+    const arrow = new THREE.Mesh(arrowGeo, storeLineMat);
+    arrow.scale.y = 0.05;
+    arrow.position.set(ax, 0.06, az);
+    arrow.rotation.y = rot;
+    g.add(arrow);
+  });
+  const driveText = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 0.9), new THREE.MeshBasicMaterial({ map: getShopSignTexture({ label: 'DRIVE THRU', bg: '#2f2d33', fg: '#ffffff' }), ...SIGN_MAT_OPTS }));
+  driveText.rotation.x = -Math.PI / 2;
+  driveText.rotation.z = Math.PI / 2;
+  driveText.position.set(5.6, 0.07, 0.5);
+  g.add(driveText);
+
+  // Menubord met overkapping + speakerpaal langs de baan
+  const menuBoard = createDriveThruMenu();
+  menuBoard.scale.setScalar(1.5);
+  menuBoard.position.set(8.4, 0, -6.5);
+  menuBoard.rotation.y = -Math.PI * 0.5;
+  g.add(menuBoard);
+  collide(8.4, -6.5, 0.8);
+  const canopy = createOutlinedMesh(new THREE.BoxGeometry(2.6, 0.18, 2.0), dinerRedMat, 0.025, false);
+  canopy.position.set(8.4, 3.9, -6.5);
+  g.add(canopy);
+  const speaker = createOutlinedMesh(new THREE.BoxGeometry(0.3, 1.2, 0.3), dinerYellowMat, 0.02, false);
+  speaker.position.set(8.0, 0.6, -9.6);
+  g.add(speaker);
+
+
+  // Terrasjes met parasols (omrijdbare tafels)
+  const placeTable = (lx, lz, umbrellaHex) => {
+    const t = new THREE.Group();
+    const top = createOutlinedMesh(new THREE.CylinderGeometry(0.6, 0.6, 0.08, 12), makeToonMat(0xf6f2ea), 0.015, false);
+    top.position.y = 0.78;
+    t.add(top);
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 2.4, 6), streetPostMat);
+    leg.position.y = 1.2;
+    t.add(leg);
+    const umb = createOutlinedMesh(new THREE.ConeGeometry(1.4, 0.55, 8), makeToonMat(umbrellaHex), 0.025, false);
+    umb.position.y = 2.45;
+    t.add(umb);
+    [-0.85, 0.85].forEach((sx) => {
+      const stool = createOutlinedMesh(new THREE.CylinderGeometry(0.22, 0.22, 0.45, 8), makeToonMat(umbrellaHex), 0.015, false);
+      stool.position.set(sx, 0.23, 0);
+      t.add(stool);
+    });
+    const w = toWorld(lx, lz);
+    t.position.set(w.x, surfaceY, w.z);
+    t.rotation.y = yaw;
+    scene.add(t);
+    registerDestructible(t, w.x, surfaceY, w.z, 0.9, 'small', 8, 'Terrastafel');
+  };
+  [[-25, -9, 0xd62839], [-25, -4, 0xffd23f], [-25, 1, 0xd62839]].forEach(([lx, lz, c]) => placeTable(lx, lz, c));
+  [[12, -12, 0xd62839], [16, -12, 0xffd23f]].forEach(([lx, lz, c]) => placeTable(lx, lz, c));
+
+  // ---- Kleine speeltuin ----
+  const play = createPlayground();
+  play.position.set(-25, 0.16, 6.5);
+  g.add(play);
+  collide(-25, 6.5, 2.6);
+
+  // ---- Parkeervakken (twee rijen voor het restaurant) ----
+  const bayW = 2.5;
+  const bayD = 4.0;
+  const stripeGeo = new THREE.PlaneGeometry(0.16, bayD);
+  const stopGeo = new THREE.BoxGeometry(1.55, 0.1, 0.22);
+  [3.6, 11.6].forEach((rowZ) => {
+    for (let k = 0; k <= 7; k++) {
+      const lx = -15 + k * bayW;
+      const stripe = new THREE.Mesh(stripeGeo, storeLineMat);
+      stripe.rotation.x = -Math.PI * 0.5;
+      stripe.position.set(lx, 0.02, rowZ);
+      g.add(stripe);
+      if (k < 7) {
+        const stop = new THREE.Mesh(stopGeo, wheelStopMat);
+        stop.position.set(lx + bayW * 0.5, 0.05, rowZ - bayD * 0.5 + 0.35);
+        g.add(stop);
+      }
+    }
+  });
+
+  // ---- Reclamezuilen aan de weg ----
+  const pylon = createDinerPylon();
+  pylon.scale.setScalar(1.25);
+  pylon.position.set(-27, 0, roadEdgeLZ - 3.6);
+  pylon.rotation.y = Math.PI * 0.5;
+  g.add(pylon);
+  collide(-27, roadEdgeLZ - 3.6, 2.3);
+
+  g.updateMatrixWorld(true);
+  addRoofStringLights(restaurant, restaurant.userData.lightSpecs.width, restaurant.userData.lightSpecs.yPos, restaurant.userData.lightSpecs.zFront);
+
+  // Nachtgloed van de borden
+  [toWorld(-27, roadEdgeLZ - 3.6), toWorld(-6, 0)].forEach((p, i) => {
+    const glow = new THREE.PointLight(0xff6a4a, 0, 30, 1.6);
+    glow.position.set(p.x, surfaceY + (i === 0 ? 9 : 4.5), p.z);
+    scene.add(glow);
+    dinerNightLights.push(glow);
+  });
+}
+
+// ---- Bouwstenen voor het fastfoodplein ----
+function makeBurgerLogoTexture() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#d62839';
+  ctx.fillRect(0, 0, 512, 256);
+  // Burgericoon
+  ctx.fillStyle = '#ffd23f';
+  ctx.beginPath();
+  ctx.arc(110, 128, 86, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#e0a04a';
+  ctx.beginPath();
+  ctx.ellipse(110, 108, 56, 30, 0, Math.PI, 0);
+  ctx.fill();
+  ctx.fillStyle = '#6cc04a';
+  ctx.fillRect(54, 112, 112, 10);
+  ctx.fillStyle = '#5a3220';
+  ctx.fillRect(56, 122, 108, 16);
+  ctx.fillStyle = '#e0a04a';
+  ctx.fillRect(58, 140, 104, 16);
+  // Naam
+  ctx.fillStyle = '#ffffff';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.font = '900 64px system-ui, sans-serif';
+  ctx.fillText('PINE', 216, 96);
+  ctx.fillText('BURGER', 216, 160);
+  ctx.fillStyle = '#ffd23f';
+  ctx.font = 'bold 26px system-ui, sans-serif';
+  ctx.fillText('DRIVE THRU · 24/7', 218, 216);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.needsUpdate = true;
+  return tex;
+}
+
+function makeCoffeeLogoTexture() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#f6f2ea';
+  ctx.fillRect(0, 0, 256, 256);
+  ctx.fillStyle = '#1f6b45';
+  ctx.beginPath();
+  ctx.arc(128, 128, 120, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(84, 88, 70, 72);
+  ctx.beginPath();
+  ctx.arc(164, 120, 18, -Math.PI / 2, Math.PI / 2);
+  ctx.lineWidth = 9;
+  ctx.strokeStyle = '#ffffff';
+  ctx.stroke();
+  ctx.textAlign = 'center';
+  ctx.font = '900 30px system-ui, sans-serif';
+  ctx.fillText('PINE COFFEE', 128, 200);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.needsUpdate = true;
+  return tex;
+}
+
+function createBurgerRestaurant() {
+  const g = new THREE.Group();
+  const w = 15.0, h = 4.8, d = 9.0;
+  const body = createOutlinedMesh(new THREE.BoxGeometry(w, h, d), makeToonMat(0xfdf6ec), 0.055);
+  body.position.y = h * 0.5;
+  g.add(body);
+  const base = createOutlinedMesh(new THREE.BoxGeometry(w + 0.12, 1.0, d + 0.12), dinerRedMat, 0.04, false);
+  base.position.y = 0.5;
+  g.add(base);
+  // Brede rode dakrand met gele streep en het logo
+  const roofBand = createOutlinedMesh(new THREE.BoxGeometry(w + 0.8, 1.5, d + 0.8), dinerRedMat, 0.05);
+  roofBand.position.y = h + 0.6;
+  g.add(roofBand);
+  const yellowStripe = new THREE.Mesh(new THREE.BoxGeometry(w + 0.84, 0.22, d + 0.84), dinerYellowMat);
+  yellowStripe.position.y = h - 0.05;
+  g.add(yellowStripe);
+  const logo = new THREE.Mesh(new THREE.PlaneGeometry(5.2, 2.6), new THREE.MeshBasicMaterial({ map: makeBurgerLogoTexture(), ...SIGN_MAT_OPTS }));
+  logo.position.set(0, h + 0.9, d * 0.5 + 0.46);
+  g.add(logo);
+  // Grote glazen pui met gele kozijnen en de entree
+  [-5.2, -1.9, 1.9, 5.2].forEach((wx) => {
+    const glass = new THREE.Mesh(new THREE.PlaneGeometry(2.8, 2.6), warmWindowMat);
+    glass.position.set(wx, 2.2, d * 0.5 + 0.06);
+    g.add(glass);
+    houseWindows.push({ mesh: glass, timer: Math.random() * 10 });
+  });
+  const entrance = createOutlinedMesh(new THREE.BoxGeometry(1.6, 3.2, 0.2), dinerYellowMat, 0.03, false);
+  entrance.position.set(0, 1.6, d * 0.5 + 0.1);
+  g.add(entrance);
+  const door = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 2.7), warmWindowMat);
+  door.position.set(0, 1.4, d * 0.5 + 0.22);
+  g.add(door);
+  // Opvallende gele vin met het logo-icoon boven de entree (eigen merkteken)
+  const fin = createOutlinedMesh(new THREE.BoxGeometry(0.5, 3.4, 1.6), dinerYellowMat, 0.04);
+  fin.position.set(w * 0.5 - 1.4, h + 2.6, d * 0.5 - 0.6);
+  g.add(fin);
+  const finDisc = createOutlinedMesh(new THREE.CylinderGeometry(0.9, 0.9, 0.6, 16), dinerRedMat, 0.03, false);
+  finDisc.rotation.z = Math.PI / 2;
+  finDisc.position.set(w * 0.5 - 1.4, h + 4.0, d * 0.5 - 0.6);
+  g.add(finDisc);
+  // Afhaalloket achterop met gele luifel
+  const pickup = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 1.2), warmWindowMat);
+  pickup.position.set(4.0, 1.8, -d * 0.5 - 0.06);
+  pickup.rotation.y = Math.PI;
+  g.add(pickup);
+  const pickAwn = createOutlinedMesh(new THREE.BoxGeometry(2.6, 0.15, 1.2), dinerYellowMat, 0.025, false);
+  pickAwn.position.set(4.0, 2.75, -d * 0.5 - 0.6);
+  g.add(pickAwn);
+  // De reuzenburger blijft het herkenningspunt op het dak
+  const burger = new THREE.Group();
+  const bottomBun = createOutlinedMesh(new THREE.CylinderGeometry(1.5, 1.4, 0.5, 14), bunMat, 0.04);
+  bottomBun.position.y = 0.25;
+  burger.add(bottomBun);
+  const patty = createOutlinedMesh(new THREE.CylinderGeometry(1.62, 1.62, 0.42, 14), pattyMat, 0.04);
+  patty.position.y = 0.71;
+  burger.add(patty);
+  const lettuce = createOutlinedMesh(new THREE.CylinderGeometry(1.75, 1.7, 0.16, 14), lettuceMat, 0.03, false);
+  lettuce.position.y = 1.0;
+  burger.add(lettuce);
+  const topBun = createOutlinedMesh(new THREE.SphereGeometry(1.55, 14, 8, 0, Math.PI * 2, 0, Math.PI * 0.5), bunMat, 0.045);
+  topBun.position.y = 1.08;
+  topBun.scale.y = 0.85;
+  burger.add(topBun);
+  burger.position.set(-4.5, h + 1.35, -0.8);
+  g.add(burger);
+  g.userData.lightSpecs = { width: w * 0.94, yPos: h - 0.2, zFront: d * 0.5 + 0.5 };
+  return g;
+}
+
+function createCoffeeKiosk() {
+  const g = new THREE.Group();
+  const greenMat = makeToonMat(0x1f6b45);
+  const body = createOutlinedMesh(new THREE.BoxGeometry(6.4, 3.4, 4.6), makeToonMat(0xf6f2ea), 0.045);
+  body.position.y = 1.7;
+  g.add(body);
+  const lower = createOutlinedMesh(new THREE.BoxGeometry(6.5, 1.1, 4.7), greenMat, 0.03, false);
+  lower.position.y = 0.55;
+  g.add(lower);
+  const roof = createOutlinedMesh(new THREE.BoxGeometry(7.2, 0.35, 5.4), greenMat, 0.04);
+  roof.position.y = 3.6;
+  g.add(roof);
+  for (let k = 0; k < 8; k++) {
+    const stripe = createOutlinedMesh(new THREE.BoxGeometry(0.78, 0.12, 1.2), k % 2 ? makeToonMat(0xf6f2ea) : greenMat, 0.015, false);
+    stripe.position.set(-2.75 + k * 0.78, 2.7, 2.85);
+    stripe.rotation.x = 0.3;
+    g.add(stripe);
+  }
+  const win = new THREE.Mesh(new THREE.PlaneGeometry(4.6, 1.3), warmWindowMat);
+  win.position.set(0, 1.9, 2.32);
+  g.add(win);
+  houseWindows.push({ mesh: win, timer: Math.random() * 10 });
+  // Drive-thru loket aan de zijkant
+  const side = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 1.1), warmWindowMat);
+  side.position.set(3.22, 1.9, 0);
+  side.rotation.y = Math.PI / 2;
+  g.add(side);
+  // Rond logobord op het dak
+  const logo = new THREE.Mesh(new THREE.CircleGeometry(1.25, 24), new THREE.MeshBasicMaterial({ map: makeCoffeeLogoTexture(), ...SIGN_MAT_OPTS }));
+  logo.position.set(0, 4.95, 0.3);
+  g.add(logo);
+  const logoBack = createOutlinedMesh(new THREE.CylinderGeometry(1.35, 1.35, 0.25, 24), greenMat, 0.03, false);
+  logoBack.rotation.x = Math.PI / 2;
+  logoBack.position.set(0, 4.95, 0.12);
+  g.add(logoBack);
+  return g;
+}
+
+function createCoffeePylon() {
+  const g = new THREE.Group();
+  const pole = createOutlinedMesh(new THREE.BoxGeometry(0.35, 5.5, 0.35), makeToonMat(0x1f6b45), 0.03);
+  pole.position.y = 2.75;
+  g.add(pole);
+  const tex = makeCoffeeLogoTexture();
+  [1, -1].forEach((side) => {
+    const face = new THREE.Mesh(new THREE.CircleGeometry(1.3, 24), new THREE.MeshBasicMaterial({ map: tex, ...SIGN_MAT_OPTS }));
+    face.position.set(0, 6.4, side * 0.2);
+    if (side < 0) face.rotation.y = Math.PI;
+    g.add(face);
+  });
+  const ring = createOutlinedMesh(new THREE.CylinderGeometry(1.42, 1.42, 0.3, 24), makeToonMat(0x1f6b45), 0.03, false);
+  ring.rotation.x = Math.PI / 2;
+  ring.position.y = 6.4;
+  g.add(ring);
+  return g;
+}
+
+function createPlayground() {
+  const g = new THREE.Group();
+  const deck = createOutlinedMesh(new THREE.BoxGeometry(2.0, 0.2, 2.0), dinerYellowMat, 0.025, false);
+  deck.position.y = 1.6;
+  g.add(deck);
+  [[-0.9, -0.9], [0.9, -0.9], [-0.9, 0.9], [0.9, 0.9]].forEach(([px, pz]) => {
+    const post = createOutlinedMesh(new THREE.BoxGeometry(0.16, 2.8, 0.16), dinerRedMat, 0.02, false);
+    post.position.set(px, 1.4, pz);
+    g.add(post);
+  });
+  const roof = createOutlinedMesh(new THREE.ConeGeometry(1.6, 0.9, 4), makeToonMat(0x3f78a8), 0.03, false);
+  roof.position.y = 3.2;
+  roof.rotation.y = Math.PI / 4;
+  g.add(roof);
+  const slide = createOutlinedMesh(new THREE.BoxGeometry(0.9, 0.12, 3.2), makeToonMat(0x6cc04a), 0.02, false);
+  slide.position.set(0, 0.9, 2.3);
+  slide.rotation.x = 0.55;
+  g.add(slide);
+  const ladder = createOutlinedMesh(new THREE.BoxGeometry(0.8, 1.7, 0.1), dinerRedMat, 0.015, false);
+  ladder.position.set(0, 0.85, -1.1);
+  ladder.rotation.x = -0.2;
+  g.add(ladder);
+  const sand = new THREE.Mesh(new THREE.BoxGeometry(5, 0.06, 6), makeToonMat(0xe6c284));
+  sand.position.set(0, 0.03, 0.8);
+  g.add(sand);
+  return g;
+}
+
+export const dinerNightLights = [];
+buildRoadsideDiner();
+
+// PINE COFFEE: losse drive-thru koffiekiosk aan de Prairie Road bij Moose Lake
+function buildCoffeeStop() {
+  const lot = ruralLots.find((l) => l.type === 'coffee');
+  if (!lot) return;
+  const { x: baseX, z: baseZ, yaw } = lot;
+  const surfaceY = lot.roadY - 0.02;
+  const g = new THREE.Group();
+  g.position.set(baseX, surfaceY, baseZ);
+  g.rotation.y = yaw;
+  scene.add(g);
+  const toWorld = (lx, lz) => {
+    const w = rotateLocal(lx, lz, yaw);
+    return { x: baseX + w.x, z: baseZ + w.z };
+  };
+  const collide = (lx, lz, r) => {
+    const p = toWorld(lx, lz);
+    hardColliders.push({ x: p.x, z: p.z, r });
+  };
+  const roadEdgeLZ = lot.dist - 4.6;
+  const slabH = 3.2;
+  const padMinLZ = -10;
+  const padDepth = roadEdgeLZ - padMinLZ;
+  const pad = new THREE.Mesh(new THREE.BoxGeometry(24, slabH, padDepth), storeAsphaltMat);
+  pad.position.set(0, -slabH * 0.5, padMinLZ + padDepth * 0.5);
+  pad.receiveShadow = true;
+  g.add(pad);
+
+  const kiosk = createCoffeeKiosk();
+  kiosk.position.set(-2, 0.16, -4);
+  g.add(kiosk);
+  collide(-2, -4, 3.4);
+
+  // Drive-thru baan langs het zijloket, met pijlen
+  const laneMat = makeToonMat(0x2f2d33, { polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
+  const lane = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.04, 17), laneMat);
+  lane.position.set(3.6, 0.02, -1.5);
+  g.add(lane);
+  const arrowGeo = new THREE.ConeGeometry(0.55, 1.2, 3);
+  arrowGeo.rotateX(-Math.PI / 2);
+  [[3.6, 4.5], [3.6, -7]].forEach(([ax, az]) => {
+    const arrow = new THREE.Mesh(arrowGeo, storeLineMat);
+    arrow.scale.y = 0.05;
+    arrow.position.set(ax, 0.06, az);
+    arrow.rotation.y = Math.PI;
+    g.add(arrow);
+  });
+
+  // Groen-wit terrasje (omrijdbaar), met uitzicht richting het meer
+  const placeTable = (lx, lz, hex) => {
+    const t = new THREE.Group();
+    const top = createOutlinedMesh(new THREE.CylinderGeometry(0.6, 0.6, 0.08, 12), makeToonMat(0xf6f2ea), 0.015, false);
+    top.position.y = 0.78;
+    t.add(top);
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 2.4, 6), streetPostMat);
+    leg.position.y = 1.2;
+    t.add(leg);
+    const umb = createOutlinedMesh(new THREE.ConeGeometry(1.4, 0.55, 8), makeToonMat(hex), 0.025, false);
+    umb.position.y = 2.45;
+    t.add(umb);
+    [-0.85, 0.85].forEach((sx) => {
+      const stool = createOutlinedMesh(new THREE.CylinderGeometry(0.22, 0.22, 0.45, 8), makeToonMat(hex), 0.015, false);
+      stool.position.set(sx, 0.23, 0);
+      t.add(stool);
+    });
+    const w = toWorld(lx, lz);
+    t.position.set(w.x, surfaceY, w.z);
+    t.rotation.y = yaw;
+    scene.add(t);
+    registerDestructible(t, w.x, surfaceY, w.z, 0.9, 'small', 8, 'Terrastafel');
+  };
+  [[-8.5, -5, 0x2f7a4e], [-8.5, 0, 0xf6f2ea], [-8.5, 5, 0x2f7a4e]].forEach(([lx, lz, c]) => placeTable(lx, lz, c));
+
+  // Drie parkeervakjes
+  const stripeGeo = new THREE.PlaneGeometry(0.16, 4.0);
+  for (let k = 0; k <= 3; k++) {
+    const stripe = new THREE.Mesh(stripeGeo, storeLineMat);
+    stripe.rotation.x = -Math.PI * 0.5;
+    stripe.position.set(-6 + k * 2.5, 0.02, 5);
+    g.add(stripe);
+  }
+
+  // Ronde koffiezuil aan de weg
+  const coffeePylon = createCoffeePylon();
+  coffeePylon.position.set(-10, 0, roadEdgeLZ - 2.2);
+  coffeePylon.rotation.y = Math.PI * 0.5;
+  g.add(coffeePylon);
+  collide(-10, roadEdgeLZ - 2.2, 0.8);
+
+  // Een paar geplante boompjes rondom
+  [[-11.5, -9], [11, -9], [11, 3]].forEach(([lx, lz]) => {
+    const p = toWorld(lx, lz);
+    const tree = createParkTree();
+    tree.position.set(p.x, surfaceY, p.z);
+    scene.add(tree);
+    registerDestructible(tree, p.x, surfaceY, p.z, 0.7, 'tree', 15, 'Boom');
+    markLastPlanted();
+  });
+
+  const p = toWorld(-2, 0);
+  const glow = new THREE.PointLight(0x7fe0a0, 0, 26, 1.6);
+  glow.position.set(p.x, surfaceY + 4.5, p.z);
   scene.add(glow);
   dinerNightLights.push(glow);
 }
-export const dinerNightLights = [];
-buildRoadsideDiner();
+buildCoffeeStop();
 
 // =========================================================
 // PINEWOOD CINEMA: art-deco filmtheater met luifel vol lampjes,
@@ -2423,7 +2672,7 @@ function buildVilla(lot) {
 }
 
 ruralLots.forEach((lot) => {
-  if (lot.type === 'farm' || lot.type === 'store' || lot.type === 'diner' || lot.type === 'camping' || lot.type === 'sawmill' || lot.type === 'fair' || lot.type === 'cinema' || lot.type === 'airfield') return;
+  if (lot.type === 'farm' || lot.type === 'store' || lot.type === 'diner' || lot.type === 'camping' || lot.type === 'sawmill' || lot.type === 'fair' || lot.type === 'cinema' || lot.type === 'airfield' || lot.type === 'coffee') return;
   if (lot.type === 'villa') {
     buildVilla(lot);
     return;

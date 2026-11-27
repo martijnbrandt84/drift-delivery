@@ -54,7 +54,7 @@ function addPumpkin(x, z, scale = 1) {
 ruralLots.forEach((lot) => {
   if (lot.type === 'farm' || lot.type === 'store') return;
   if (lot.type === 'diner') {
-    [[9.5, -12.5], [10.3, -13.2], [14.8, -10.6]].forEach(([lx, lz]) => {
+    [[-22.5, -13.5], [-23.3, -12.8], [13.0, -13.2]].forEach(([lx, lz]) => {
       const w = lotLocalToWorld(lot, lx, lz);
       addPumpkin(w.x, w.z, 1.1);
     });
@@ -67,7 +67,7 @@ ruralLots.forEach((lot) => {
     });
     return;
   }
-  if (lot.type === 'camping' || lot.type === 'sawmill' || lot.type === 'fair' || lot.type === 'airfield') return;
+  if (lot.type === 'camping' || lot.type === 'sawmill' || lot.type === 'fair' || lot.type === 'airfield' || lot.type === 'coffee') return;
   if (lot.type === 'villa') {
     [[-2.8, 0.6], [2.8, 0.6], [-3.3, 1.2]].forEach(([lx, lz]) => {
       const w = lotLocalToWorld(lot, lx, lz);

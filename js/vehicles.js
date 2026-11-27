@@ -557,8 +557,7 @@ const dinerLot = ruralLots.find((l) => l.type === 'diner');
 if (dinerLot) {
   const c = Math.cos(dinerLot.yaw);
   const s = Math.sin(dinerLot.yaw);
-  [[-7.25, buildYellowTaxiMesh()], [0.25, buildPickupTruckMesh(0xc94a38, 'Rode Diner Pickup')]].forEach(([lx, veh]) => {
-    const lz = 1.6;
+  [[-8.75, 3.6, buildYellowTaxiMesh()], [1.25, 11.6, buildPickupTruckMesh(0xc94a38, 'Rode Diner Pickup')]].forEach(([lx, lz, veh]) => {
     veh.root.position.set(dinerLot.x + lx * c + lz * s, dinerLot.roadY + 0.08, dinerLot.z - lx * s + lz * c);
     veh.root.rotation.y = dinerLot.yaw + Math.PI;
     scene.add(veh.root);

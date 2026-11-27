@@ -77,7 +77,7 @@ export const ruralLots = [
     yawOff: 0,
     noDriveway: true,
     flatElevOffset: -0.06,
-    flatBox: { minLX: -19, maxLX: 19, minLZ: -12, maxLZ: 18.5, blend: 12 }
+    flatBox: { minLX: -31, maxLX: 19, minLZ: -18, maxLZ: 18.5, blend: 12 }
   },
 
   // Bioscoop net ten oosten van het stadje, aan de meerweg
@@ -92,6 +92,20 @@ export const ruralLots = [
     drivewayStopShort: 16.5,
     flatElevOffset: -0.05,
     flatBox: { minLX: -15, maxLX: 15, minLZ: -14, maxLZ: 16, blend: 12 }
+  },
+
+  // PINE COFFEE: losse drive-thru koffiekiosk aan de Prairie Road, met uitzicht op Moose Lake
+  {
+    netSamples: outerRoadDefs.find((d) => d.id === 'prairie_road').samples,
+    near: [170, 130],
+    outward: false,
+    dist: 17.0,
+    type: 'coffee',
+    name: 'PINE COFFEE',
+    yawOff: 0,
+    drivewayStopShort: 10.5,
+    flatElevOffset: -0.05,
+    flatBox: { minLX: -13, maxLX: 13, minLZ: -11, maxLZ: 11, blend: 12 }
   },
 
   // Klein vliegveld met startbaan naar het westen, aan de zuidelijke verbindingsweg
@@ -212,7 +226,7 @@ ruralLots.forEach((lot) => {
       y2: lot.y,
       z2: rs.z + rs.nz * side * (lot.dist - (lot.drivewayStopShort ?? 0)),
       halfWidth: lot.type === 'farm' ? 3.2 : lot.type === 'store' ? 4.4 : lot.type === 'cinema' ? 3.4 : lot.type === 'villa' ? 2.8 : 2.5,
-      asphalt: lot.type === 'store' || lot.type === 'cinema' || lot.type === 'airfield'
+      asphalt: lot.type === 'store' || lot.type === 'cinema' || lot.type === 'airfield' || lot.type === 'coffee'
     });
   }
 });

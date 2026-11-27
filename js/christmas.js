@@ -150,13 +150,14 @@ ruralLots.forEach((lot) => {
   const at = (lx, lz) => ({ x: lot.x + lx * c + lz * s, z: lot.z - lx * s + lz * c });
   let spot = null;
   if (lot.type === 'farm') spot = at(-12, 1);
-  else if (lot.type === 'diner') spot = at(13.5, -13.5);
+  else if (lot.type === 'diner') spot = at(-22, -15);
   else if (lot.type === 'villa') spot = at(6.5, 4);
   else if (lot.type === 'store') spot = at(-17, 18);
   else if (lot.type === 'camping') spot = at(4, -2);
   else if (lot.type === 'fair' || lot.type === 'sawmill') spot = at(-5, 18);
   else if (lot.type === 'cinema') spot = at(11, -1.5);
   else if (lot.type === 'airfield') spot = at(-16, 4);
+  else if (lot.type === 'coffee') spot = at(9, -7);
   else spot = at(3.6, 6.2);
   placeSnowman(spot.x, spot.z, lot.yaw, snowmanIdx++);
 });
