@@ -62,13 +62,14 @@ function getRawTerrainHeight(x, z) {
         specialFlatBlend = Math.min(specialFlatBlend, t);
       }
     } else if (lot.type === 'farm') {
-      const fb = lot.flatBox;
+      const fb = lot.terrainBox ?? lot.flatBox;
       const dBox = getOrientedBoxDist(x, z, lot, fb.minLX - 1, fb.maxLX + 1, fb.minLZ - 2, fb.maxLZ + 1.5);
-      const outer = lot.blendOuter ?? 22.0;
+      const targetY = lot.raiseYard ? lot.y - 0.08 : Math.min(lot.y - 0.08, lot.roadY - 0.18);
+      // Afgraven (land hoger dan het erf): lange, flauwe helling. Ophogen (lager land): kort talud, zodat
+      // het erf geen grote aarden wal de omgeving (of een rivieroever) in duwt
+      const outer = h > targetY ? (lot.blendOuter ?? 22.0) : 14.0;
       if (dBox < outer) {
         const t = THREE.MathUtils.smoothstep(dBox, 0.0, outer);
-        // Opgehoogd erf (raiseYard): ligt op lot.y in plaats van op weghoogte, minder diep in de heuvel
-        const targetY = lot.raiseYard ? lot.y - 0.08 : Math.min(lot.y - 0.08, lot.roadY - 0.18);
         h = THREE.MathUtils.lerp(targetY, h, t);
         specialFlatBlend = Math.min(specialFlatBlend, t);
       }
@@ -114,7 +115,7 @@ function getRawTerrainHeight(x, z) {
     // Ligt de weg hoger dan het land (aanloop naar een brug), dan loopt het talud breder en flauwer uit:
     // geen losse dijken in het landschap
     const raise = rs.y - 0.24 - h;
-    const outer = raise > 0.5 ? 16.5 + Math.min(14.0, raise * 3.0) : 16.5;
+    const outer = raise > 0.5 ? 16.5 + Math.min(8.0, raise * 2.0) : 16.5;
     if (marginDist < outer) {
       const roadBlend = THREE.MathUtils.smoothstep(marginDist, 2.2, outer);
       const roadAdjustedH = THREE.MathUtils.lerp(rs.y - 0.24, h, roadBlend);

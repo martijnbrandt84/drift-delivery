@@ -213,9 +213,10 @@ export const ruralLots = [
     name: 'PINEWOOD FARM',
     variant: 'corn',
     yawOff: 0,
-    flatElevOffset: 1.2,
-    raiseYard: true,
+    flatElevOffset: -0.04,
     blendOuter: 36,
+    // Alleen het erf met de gebouwen wordt vlak gemaakt; de akkers ervoor volgen de natuurlijke glooiing
+    terrainBox: { minLX: -40, maxLX: 40, minLZ: -40, maxLZ: 2 },
     flatBox: { minLX: -40, maxLX: 40, minLZ: -40, maxLZ: 36, blend: 15.0 }
   }
 ];

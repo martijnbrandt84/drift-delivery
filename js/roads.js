@@ -65,7 +65,7 @@ function getRawLakeLoopElev(u) {
   if (dJEast < 0.05) h = THREE.MathUtils.lerp(4.0, h, THREE.MathUtils.smoothstep(dJEast, 0.018, 0.05));
 
   const dJWest = Math.abs(cyclicDiff(u, U_JUNCTION_WEST));
-  if (dJWest < 0.05) h = THREE.MathUtils.lerp(3.5, h, THREE.MathUtils.smoothstep(dJWest, 0.018, 0.05));
+  if (dJWest < 0.05) h = THREE.MathUtils.lerp(2.4, h, THREE.MathUtils.smoothstep(dJWest, 0.018, 0.05));
 
   const dTown = Math.abs(cyclicDiff(u, 0.50));
   if (dTown < 0.14) h = THREE.MathUtils.lerp(TOWN_ELEV, h, THREE.MathUtils.smoothstep(dTown, 0.085, 0.14));
@@ -133,8 +133,45 @@ export const valleyCurve = new THREE.CatmullRomCurve3(valleyWaypoints, false, 'c
 export const VALLEY_BRIDGE = { name: 'Meadow Brook Bridge', uCenter: 0.60, uHalfSpan: 0.042, archHeight: 1.40 };
 // Houten brug over Bear Creek (vervangt de oude rode hangbrug bij de boerderij)
 // (midden precies boven de rivier, die de weg bij u=0,868 kruist; overspant water plus de afgegraven oevers)
-export const VALLEY_CREEK_BRIDGE = { name: 'Bear Creek Bridge', uCenter: 0.868, uHalfSpan: 0.034, archHeight: 1.5, deckY: 3.4 };
+export const VALLEY_CREEK_BRIDGE = { name: 'Bear Creek Bridge', uCenter: 0.868, uHalfSpan: 0.034, archHeight: 1.5, deckY: 2.4 };
 export const VALLEY_BRIDGES = [VALLEY_BRIDGE, VALLEY_CREEK_BRIDGE];
+
+// Westelijk deel van de valleiweg (voorbij het dorp, langs boerderij en rivier) volgt het natuurlijke land,
+// gladgestreken, in plaats van een vast golfprofiel: dan hoeft het land er niet omheen opgehoogd te worden.
+const VALLEY_NAT_N = 700;
+const valleyNatural = (() => {
+  const raw = new Float64Array(VALLEY_NAT_N + 1);
+  for (let i = 0; i <= VALLEY_NAT_N; i++) {
+    const p = valleyCurve.getPointAt(i / VALLEY_NAT_N);
+    raw[i] = getNaturalGroundBase(p.x, p.z);
+  }
+  const L = valleyCurve.getLength();
+  const radius = Math.max(1, Math.round(28 / (L / VALLEY_NAT_N)));
+  let cur = raw;
+  for (let pass = 0; pass < 3; pass++) {
+    const next = new Float64Array(VALLEY_NAT_N + 1);
+    for (let i = 0; i <= VALLEY_NAT_N; i++) {
+      let sum = 0;
+      let n = 0;
+      for (let k = -radius; k <= radius; k++) {
+        const j = i + k;
+        if (j < 0 || j > VALLEY_NAT_N) continue;
+        sum += cur[j];
+        n++;
+      }
+      next[i] = sum / n;
+    }
+    cur = next;
+  }
+  for (let i = 0; i <= VALLEY_NAT_N; i++) cur[i] = Math.max(cur[i] + 0.6, 1.8);
+  return cur;
+})();
+function valleyNaturalAt(u) {
+  const f = THREE.MathUtils.clamp(u, 0, 1) * VALLEY_NAT_N;
+  const i = Math.floor(f);
+  const t = f - i;
+  return valleyNatural[i] + (valleyNatural[Math.min(VALLEY_NAT_N, i + 1)] - valleyNatural[i]) * t;
+}
 
 function getRawValleyElev(u) {
   const seMountainPass = Math.exp(-(((u - 0.19) / 0.105) ** 2)) * 7.8;
@@ -142,6 +179,8 @@ function getRawValleyElev(u) {
   const waves = Math.sin(u * Math.PI * 5) * 0.95;
 
   let midWave = 2.2 + seMountainPass + swPineSummit + waves;
+  // Vanaf voorbij het dorp: het natuurlijke land volgen (geen kunstmatige golven en heuveltop meer)
+  midWave = THREE.MathUtils.lerp(midWave, valleyNaturalAt(u), THREE.MathUtils.smoothstep(u, 0.63, 0.71));
 
   const dSouthLink = Math.abs(u - 0.445);
   if (dSouthLink < 0.09) midWave = THREE.MathUtils.lerp(3.0, midWave, THREE.MathUtils.smoothstep(dSouthLink, 0.03, 0.09));

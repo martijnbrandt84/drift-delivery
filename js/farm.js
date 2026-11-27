@@ -458,26 +458,34 @@ function buildCropField(baseX, baseY, baseZ, yaw, centerLX, centerLZ, width, dep
   const patchCenterZ = baseZ + centerOff.z;
   const patchY = Math.max(baseY - 0.15, getTerrainHeight(patchCenterX, patchCenterZ));
 
-  const soilSlab = createOutlinedMesh(
-    new THREE.BoxGeometry(fieldWidth + 2.6, 0.55, fieldDepth + 2.6),
-    crop === 'corn' ? dirtFieldMat : stubbleFieldMat,
-    0.03,
-    false,
-    true
+  // Akkergrond als een kleed over het terrein: volgt de glooiing, zweeft nergens en wordt nergens doorgestoken
+  const drape = (w, d, segW, segD, lift, offLX = 0) => {
+    const geo = new THREE.PlaneGeometry(w, d, segW, segD);
+    geo.rotateX(-Math.PI / 2);
+    const pos = geo.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      const lx = centerLX + offLX + pos.getX(i);
+      const lz = centerLZ + pos.getZ(i);
+      const o = localToWorld(lx, lz, yaw);
+      const wx = baseX + o.x;
+      const wz = baseZ + o.z;
+      pos.setXYZ(i, wx, getTerrainHeight(wx, wz) + lift, wz);
+    }
+    geo.computeVertexNormals();
+    return geo;
+  };
+  const soil = new THREE.Mesh(
+    drape(fieldWidth + 2.6, fieldDepth + 2.6, Math.ceil((fieldWidth + 2.6) / 2), Math.ceil((fieldDepth + 2.6) / 2), 0.07),
+    crop === 'corn' ? dirtFieldMat : stubbleFieldMat
   );
-  soilSlab.position.set(patchCenterX, patchY - 0.22, patchCenterZ);
-  soilSlab.rotation.y = yaw;
-  scene.add(soilSlab);
+  soil.receiveShadow = true;
+  scene.add(soil);
 
-  // Ploegvoren (samengevoegd tot 1 mesh)
+  // Ploegvoren (samengevoegd tot 1 mesh), ook over het terrein gedrapeerd
   const furrowGeos = [];
-  const furrowBase = new THREE.BoxGeometry(0.38, 0.06, fieldDepth + 1.4);
   for (let c = 0; c < cols; c += crop === 'corn' ? 1 : 2) {
     const relX = (c - (cols - 1) * 0.5) * spacing;
-    const fOff = localToWorld(centerLX + relX, centerLZ, yaw);
-    const g = furrowBase.clone();
-    g.applyMatrix4(new THREE.Matrix4().makeRotationY(yaw).setPosition(baseX + fOff.x, patchY + 0.06, baseZ + fOff.z));
-    furrowGeos.push(g);
+    furrowGeos.push(drape(0.38, fieldDepth + 1.4, 1, Math.ceil((fieldDepth + 1.4) / 2), 0.11, relX));
   }
   if (furrowGeos.length) scene.add(new THREE.Mesh(BufferGeometryUtils.mergeGeometries(furrowGeos), furrowMat));
 
@@ -493,7 +501,7 @@ function buildCropField(baseX, baseY, baseZ, yaw, centerLX, centerLZ, width, dep
       const off = localToWorld(lx, lz, yaw);
       const wx = baseX + off.x;
       const wz = baseZ + off.z;
-      const wy = Math.max(patchY + 0.04, getTerrainHeight(wx, wz));
+      const wy = getTerrainHeight(wx, wz) + 0.07;
       const rot = yaw + (Math.random() - 0.5) * 0.65;
       const sc = 0.88 + Math.random() * 0.34;
       dummy.position.set(wx, wy, wz);
