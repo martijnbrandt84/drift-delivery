@@ -358,11 +358,11 @@ function addInstanced(geo, mat, matrices, castShadow = false) {
 // en staat hij na een tijdje weer recht (als je uit de buurt bent).
 // =========================================================
 const CROP_CELL = 3;
-const cropFields = [];
+export const cropFields = [];
 const cropDummy = new THREE.Object3D();
 const cropParticlePos = new THREE.Vector3();
 
-function registerCropField(plants, meshes) {
+function registerCropField(plants, meshes, crop = 'corn') {
   if (!plants.length) return;
   let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
   const grid = new Map();
@@ -374,7 +374,7 @@ function registerCropField(plants, meshes) {
     grid.get(key).push(i);
   });
   cropFields.push({
-    plants, meshes, grid, minX, maxX, minZ, maxZ,
+    plants, meshes, grid, minX, maxX, minZ, maxZ, crop,
     flatTimer: new Float32Array(plants.length),
     flattened: []
   });
@@ -514,7 +514,7 @@ function buildCropField(baseX, baseY, baseZ, yaw, centerLX, centerLZ, width, dep
         addInstanced(bakedWheatStalks.mergedOut, outlineMat, matrices),
         addInstanced(bakedWheatHeads.mergedMain, wheatHeadMat, matrices)
       ];
-  registerCropField(plants, meshes.filter(Boolean));
+  registerCropField(plants, meshes.filter(Boolean), crop);
 }
 
 // =========================================================

@@ -3,6 +3,8 @@ import { SANDBAR_ISLAND, ruralLots } from './water-lots.js';
 import { LOOKOUT_HILL, MOOSE_LAKE, FOX_LAKE } from './landscape.js';
 import { getTerrainHeight } from './terrain.js';
 import { minimapCanvas, fullmapCanvas, fullmapOverlayEl, minimapCardEl } from './dom.js';
+import { destructibles } from './demolition.js';
+import { cropFields } from './farm.js';
 
 // =========================================================
 // MINIMAP: wegennet/meer/landmarks 1x gebakken naar een offscreen canvas, elk frame alleen uitgeknipt (goedkoop!)
@@ -64,6 +66,39 @@ function bakeStaticMap() {
   tctx.putImageData(img, 0, 0);
   bctx.imageSmoothingEnabled = true;
   bctx.drawImage(terrainCanvas, 0, 0, BAKE_PX, BAKE_PX);
+
+  // Bos: elke boom als donkergroene vlek, zodat bospercelen zich als op een echte kaart aftekenen
+  bctx.fillStyle = 'rgba(62, 112, 58, 0.55)';
+  destructibles.forEach((d) => {
+    if (d.kind !== 'tree') return;
+    const { px, py } = worldToBake(d.x, d.z);
+    bctx.beginPath();
+    bctx.arc(px, py, 5.2, 0, Math.PI * 2);
+    bctx.fill();
+  });
+  bctx.fillStyle = 'rgba(40, 84, 44, 0.45)';
+  destructibles.forEach((d) => {
+    if (d.kind !== 'tree') return;
+    const { px, py } = worldToBake(d.x, d.z);
+    bctx.beginPath();
+    bctx.arc(px, py, 2.2, 0, Math.PI * 2);
+    bctx.fill();
+  });
+
+  // Akkerland: mais (geelgroen) en tarwe (goudgeel) als gestreepte velden
+  cropFields.forEach((field) => {
+    bctx.fillStyle = field.crop === 'wheat' ? '#e6c35a' : '#c8c25a';
+    field.plants.forEach((p) => {
+      const { px, py } = worldToBake(p.x, p.z);
+      bctx.fillRect(px - 1.6, py - 1.6, 3.2, 3.2);
+    });
+    bctx.fillStyle = field.crop === 'wheat' ? 'rgba(170, 128, 40, 0.5)' : 'rgba(110, 120, 40, 0.5)';
+    field.plants.forEach((p, i) => {
+      if (i % 3) return;
+      const { px, py } = worldToBake(p.x, p.z);
+      bctx.fillRect(px - 0.6, py - 0.6, 1.2, 1.2);
+    });
+  });
 
   bctx.lineJoin = 'round';
   bctx.lineCap = 'round';
@@ -131,13 +166,20 @@ function bakeStaticMap() {
     bctx.fillRect(px - 3, py - 3, 6, 6);
   });
 }
-bakeStaticMap();
+// De kaart wordt pas gebakken bij het eerste frame: dan staan alle bomen en akkers er al
+let mapBaked = false;
+function ensureBaked() {
+  if (mapBaked) return;
+  mapBaked = true;
+  bakeStaticMap();
+}
 
 const VIEW_RANGE = 130; // zichtbare wereldstraal op de minimap
 const viewCtx = minimapCanvas.getContext('2d');
 const outSize = minimapCanvas.width;
 
 export function updateMinimap(px, pz, angle, copPositions = []) {
+  ensureBaked();
   const center = worldToBake(px, pz);
   const srcHalf = VIEW_RANGE * SCALE;
 
@@ -237,6 +279,7 @@ fullmapOverlayEl.addEventListener('click', () => toggleFullMap(false));
 
 export function updateFullMap(px, pz, angle, copPositions = []) {
   if (!fullOpen) return;
+  ensureBaked();
   // Achtergrond: dezelfde gebakken kaart, uitgesneden rond het eiland
   const s0 = worldToBake(FULL_CX - FULL_HALF, FULL_CZ - FULL_HALF);
   const s1 = worldToBake(FULL_CX + FULL_HALF, FULL_CZ + FULL_HALF);

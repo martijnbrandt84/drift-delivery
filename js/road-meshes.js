@@ -143,35 +143,41 @@ function renderRoadSampleRuns(sampleArray, isClosed, halfW, showYellowCenter = t
     asphaltMesh.receiveShadow = true;
     scene.add(asphaltMesh);
 
-    let edgeSub = [];
-    const flushEdge = () => {
-      if (edgeSub.length >= 2) {
-        [-halfW + 0.58, halfW - 0.58].forEach((sideOff) => {
-          allWhiteLineGeos.push(createUpwardStripGeometry(sampleArray, edgeSub, 0.18, 0.105, sideOff).toNonIndexed());
-        });
-      }
-      edgeSub = [];
-    };
-
-    for (let k = 0; k < run.length; k++) {
-      const s = sampleArray[run[k]];
-      if (isInsideIntersection(s.x, s.z, -0.4)) flushEdge();
-      else edgeSub.push(run[k]);
-    }
-    flushEdge();
-
-    if (showYellowCenter) {
-      for (let k = 2; k < run.length - 3; k += 4) {
-        const sMid = sampleArray[run[k + 1]];
-        if (isInsideIntersection(sMid.x, sMid.z, 1.2)) continue;
-        const subRun = [run[k], run[k + 1], run[k + 2]];
-        [-0.26, 0.26].forEach((centerOff) => {
-          allDashOutlineGeos.push(createUpwardStripGeometry(sampleArray, subRun, 0.17, 0.102, centerOff).toNonIndexed());
-          allYellowDashGeos.push(createUpwardStripGeometry(sampleArray, subRun, 0.12, 0.112, centerOff).toNonIndexed());
-        });
-      }
-    }
   });
+
+  // Markering (witte zijlijnen + gele middenstreep) over de héle weg, ook over bruggen,
+  // zodat de strepen gewoon doorlopen over de hangbrug en de stenen bruggen.
+  const all = [];
+  for (let i = 0; i < total; i++) all.push(i);
+  if (isClosed) all.push(0);
+
+  let edgeSub = [];
+  const flushEdge = () => {
+    if (edgeSub.length >= 2) {
+      [-halfW + 0.58, halfW - 0.58].forEach((sideOff) => {
+        allWhiteLineGeos.push(createUpwardStripGeometry(sampleArray, edgeSub, 0.18, 0.105, sideOff).toNonIndexed());
+      });
+    }
+    edgeSub = [];
+  };
+  for (let k = 0; k < all.length; k++) {
+    const s = sampleArray[all[k]];
+    if (isInsideIntersection(s.x, s.z, -0.4)) flushEdge();
+    else edgeSub.push(all[k]);
+  }
+  flushEdge();
+
+  if (showYellowCenter) {
+    for (let k = 2; k < all.length - 3; k += 4) {
+      const sMid = sampleArray[all[k + 1]];
+      if (isInsideIntersection(sMid.x, sMid.z, 1.2)) continue;
+      const subRun = [all[k], all[k + 1], all[k + 2]];
+      [-0.26, 0.26].forEach((centerOff) => {
+        allDashOutlineGeos.push(createUpwardStripGeometry(sampleArray, subRun, 0.17, 0.102, centerOff).toNonIndexed());
+        allYellowDashGeos.push(createUpwardStripGeometry(sampleArray, subRun, 0.12, 0.112, centerOff).toNonIndexed());
+      });
+    }
+  }
 }
 
 const drivewayMat = registerSeasonalMat(0xd6a772, 0xdce6f0);
@@ -257,20 +263,20 @@ function buildCompleteRoadSystem() {
 }
 buildCompleteRoadSystem();
 
-function buildSingleBridgeFromCurve(curve, isClosed, uCenter, uHalfSpan, elevFn, bridgeInfoFn, halfWidth) {
-  const plankLightMat = registerSeasonalMat(0xc47d46, 0xd8c3b0);
-  const plankAltMat = registerSeasonalMat(0xb36c38, 0xc7b09d);
-  const beamDarkMat = makeToonMat(0x78411f);
-  const stonePierMat = makeToonMat(0x8c8177);
-  const stoneCapMat = registerSeasonalMat(0xaba095, 0xf0f6fc);
-  const lanternMat = new THREE.MeshBasicMaterial({ color: 0xffe899 });
+// Stenen boogbrug: natuurstenen dek met asfalt erop (de wegmarkering loopt automatisch door),
+// lage stenen borstweringen met lichtere afdekstenen, lantaarns en echte bogen tussen de pijlers.
+const bridgeStoneMat = registerSeasonalMat(0xa39686, 0xc9c4bd);
+const bridgeStoneDarkMat = makeToonMat(0x857868);
+const bridgeCapMat = registerSeasonalMat(0xcfc4b4, 0xf2f6fb);
+const bridgeLanternMat = new THREE.MeshBasicMaterial({ color: 0xffe899 });
 
+function buildSingleBridgeFromCurve(curve, isClosed, uCenter, uHalfSpan, elevFn, bridgeInfoFn, halfWidth) {
   const bridgeGroup = new THREE.Group();
-  const numPlanks = 20;
+  const numSegs = 20;
   const bSamples = [];
 
-  for (let s = 0; s <= numPlanks; s++) {
-    let u = uCenter - uHalfSpan + (s / numPlanks) * (uHalfSpan * 2);
+  for (let s = 0; s <= numSegs; s++) {
+    let u = uCenter - uHalfSpan + (s / numSegs) * (uHalfSpan * 2);
     if (isClosed) u = ((u % 1) + 1) % 1;
     const pt = curve.getPointAt(u);
     const tan = curve.getTangentAt(u);
@@ -284,28 +290,31 @@ function buildSingleBridgeFromCurve(curve, isClosed, uCenter, uHalfSpan, elevFn,
     bSamples.push({ x: pt.x, y: baseY + bInf.archY, z: pt.z, tx, tz, nx, nz });
   }
 
+  // Landhoofden
   [bSamples[0], bSamples[bSamples.length - 1]].forEach((endS) => {
     const abut = new THREE.Group();
     setAlignedTransform(abut, endS.x, endS.y, endS.z, Math.atan2(endS.tx, endS.tz), 0);
-
-    const wall = createOutlinedMesh(new THREE.BoxGeometry((halfWidth + 0.85) * 2, 3.4, 1.6), stonePierMat, 0.055, false, true);
-    wall.position.y = -1.64;
+    const wallH = Math.max(3.4, endS.y + 3.2);
+    const wall = createOutlinedMesh(new THREE.BoxGeometry((halfWidth + 1.0) * 2, wallH, 2.0), bridgeStoneDarkMat, 0.055, false, true);
+    wall.position.y = -wallH * 0.5 + 0.02;
     abut.add(wall);
-
-    [-halfWidth - 0.55, halfWidth + 0.55].forEach((sideX) => {
-      const pil = createOutlinedMesh(new THREE.BoxGeometry(1.1, 1.45, 1.4), stonePierMat, 0.05);
-      pil.position.set(sideX, 0.72, 0);
+    [-halfWidth - 0.65, halfWidth + 0.65].forEach((sideX) => {
+      const pil = createOutlinedMesh(new THREE.BoxGeometry(1.0, 1.4, 1.2), bridgeStoneMat, 0.045);
+      pil.position.set(sideX, 0.7, 0);
       abut.add(pil);
-      const cap = createOutlinedMesh(new THREE.BoxGeometry(1.3, 0.26, 1.6), stoneCapMat, 0.045, false);
-      cap.position.set(sideX, 1.52, 0);
+      const cap = createOutlinedMesh(new THREE.BoxGeometry(1.25, 0.24, 1.45), bridgeCapMat, 0.035, false);
+      cap.position.set(sideX, 1.5, 0);
       abut.add(cap);
+      const lamp = createOutlinedMesh(new THREE.BoxGeometry(0.36, 0.44, 0.36), bridgeLanternMat, 0.03, false, false);
+      lamp.position.set(sideX, 1.88, 0);
+      abut.add(lamp);
       hardColliders.push({ x: endS.x + endS.nx * sideX, z: endS.z + endS.nz * sideX, r: 0.7 });
     });
-
     bridgeGroup.add(abut);
   });
 
-  for (let i = 0; i < numPlanks; i++) {
+  // Dek (steen + asfalt) en borstweringen per segment
+  for (let i = 0; i < numSegs; i++) {
     const s0 = bSamples[i];
     const s1 = bSamples[i + 1];
     const dx = s1.x - s0.x;
@@ -314,65 +323,74 @@ function buildSingleBridgeFromCurve(curve, isClosed, uCenter, uHalfSpan, elevFn,
     const horizLen = Math.hypot(dx, dz);
     const spanLen = Math.hypot(horizLen, dy);
 
-    const segHolder = new THREE.Group();
-    setAlignedTransform(segHolder, (s0.x + s1.x) * 0.5, (s0.y + s1.y) * 0.5 + 0.09, (s0.z + s1.z) * 0.5, Math.atan2(dx, dz), -Math.atan2(dy, horizLen));
+    const seg = new THREE.Group();
+    setAlignedTransform(seg, (s0.x + s1.x) * 0.5, (s0.y + s1.y) * 0.5, (s0.z + s1.z) * 0.5, Math.atan2(dx, dz), -Math.atan2(dy, horizLen));
 
-    const plank = createOutlinedMesh(new THREE.BoxGeometry((halfWidth + 0.45) * 2, 0.28, spanLen * 1.04), i % 2 === 0 ? plankLightMat : plankAltMat, 0.04, false, true);
-    plank.position.y = -0.14;
-    segHolder.add(plank);
-    bridgeGroup.add(segHolder);
+    const deck = createOutlinedMesh(new THREE.BoxGeometry((halfWidth + 0.75) * 2, 0.7, spanLen * 1.03), bridgeStoneMat, 0.04, false, true);
+    deck.position.y = 0.055 - 0.35;
+    seg.add(deck);
+    const asphalt = new THREE.Mesh(new THREE.BoxGeometry((halfWidth - 0.1) * 2, 0.06, spanLen * 1.04), asphaltMat);
+    asphalt.position.y = 0.06;
+    asphalt.receiveShadow = true;
+    seg.add(asphalt);
+
+    [-1, 1].forEach((side) => {
+      const wall = createOutlinedMesh(new THREE.BoxGeometry(0.55, 0.85, spanLen * 1.02), bridgeStoneMat, 0.035, false);
+      wall.position.set(side * (halfWidth + 0.45), 0.48, 0);
+      seg.add(wall);
+      const cap = createOutlinedMesh(new THREE.BoxGeometry(0.7, 0.16, spanLen * 1.03), bridgeCapMat, 0.025, false);
+      cap.position.set(side * (halfWidth + 0.45), 0.98, 0);
+      seg.add(cap);
+    });
+    bridgeGroup.add(seg);
+
+    // Borstwering ook als botsrand, zodat je niet zomaar van de brug af rijdt
+    if (i % 3 === 1) {
+      const mx = (s0.x + s1.x) * 0.5;
+      const mz = (s0.z + s1.z) * 0.5;
+      [-1, 1].forEach((side) => {
+        hardColliders.push({ x: mx + s0.nx * side * (halfWidth + 0.55), z: mz + s0.nz * side * (halfWidth + 0.55), r: 0.55 });
+      });
+    }
   }
 
-  const postSteps = [3, 7, 10, 13, 17];
-  [-halfWidth - 0.22, halfWidth + 0.22].forEach((railSide) => {
-    for (let p = 0; p < postSteps.length; p++) {
-      const ps = bSamples[postSteps[p]];
-      const px = ps.x + ps.nx * railSide;
-      const pz = ps.z + ps.nz * railSide;
-
-      const postHolder = new THREE.Group();
-      setAlignedTransform(postHolder, px, ps.y + 0.09, pz, Math.atan2(ps.tx, ps.tz), 0);
-
-      const post = createOutlinedMesh(new THREE.BoxGeometry(0.42, 1.85, 0.42), beamDarkMat, 0.045);
-      post.position.y = 0.88;
-      postHolder.add(post);
-
-      if (p === 2) {
-        const lantern = createOutlinedMesh(new THREE.BoxGeometry(0.42, 0.48, 0.42), lanternMat, 0.035, false, false);
-        lantern.position.y = 2.05;
-        postHolder.add(lantern);
-      }
-
-      bridgeGroup.add(postHolder);
-      hardColliders.push({ x: px, z: pz, r: 0.45 });
-
-      if (p === 1 || p === 3) {
-        // Pijler reikt altijd tot onder de rivierbedding, ook bij hogere brugdekken
-        const pierLen = Math.max(5.4, ps.y + 3.2);
-        const pier = createOutlinedMesh(new THREE.CylinderGeometry(0.85, 1.2, pierLen, 8), stonePierMat, 0.05, false);
-        pier.position.set(px - Math.sign(railSide) * ps.nx * 0.75, ps.y - 0.05 - pierLen * 0.5, pz - Math.sign(railSide) * ps.nz * 0.75);
-        bridgeGroup.add(pier);
-      }
-
-      if (p < postSteps.length - 1) {
-        const ns = bSamples[postSteps[p + 1]];
-        const nxPos = ns.x + ns.nx * railSide;
-        const nzPos = ns.z + ns.nz * railSide;
-        const dx = nxPos - px;
-        const dz = nzPos - pz;
-        const dy = ns.y - ps.y;
-        const hDist = Math.hypot(dx, dz);
-        const totalSpan = Math.hypot(hDist, dy);
-
-        [1.62, 0.85].forEach((barH) => {
-          const barHolder = new THREE.Group();
-          setAlignedTransform(barHolder, (px + nxPos) * 0.5, (ps.y + ns.y) * 0.5 + barH, (pz + nzPos) * 0.5, Math.atan2(dx, dz), -Math.atan2(dy, hDist));
-          barHolder.add(createOutlinedMesh(new THREE.BoxGeometry(0.24, 0.22, totalSpan), beamDarkMat, 0.038, false));
-          bridgeGroup.add(barHolder);
-        });
-      }
-    }
+  // Twee pijlers in het water en stenen bogen aan beide zijkanten
+  const pierIdx = [Math.round(numSegs / 3), Math.round((numSegs * 2) / 3)];
+  pierIdx.forEach((pi) => {
+    const ps = bSamples[pi];
+    const pierLen = Math.max(4.0, ps.y + 3.2);
+    const pier = new THREE.Group();
+    setAlignedTransform(pier, ps.x, ps.y - 0.3 - pierLen * 0.5, ps.z, Math.atan2(ps.tx, ps.tz), 0);
+    pier.add(createOutlinedMesh(new THREE.BoxGeometry((halfWidth + 0.6) * 2, pierLen, 1.6), bridgeStoneDarkMat, 0.05, false));
+    // Puntige ijsbreker richting stroming
+    [-1, 1].forEach((side) => {
+      const nose = createOutlinedMesh(new THREE.CylinderGeometry(0.8, 0.8, pierLen, 3), bridgeStoneDarkMat, 0.04, false);
+      nose.position.set(side * (halfWidth + 0.9), 0, 0);
+      nose.rotation.y = side > 0 ? Math.PI / 6 : -Math.PI / 6;
+      pier.add(nose);
+    });
+    bridgeGroup.add(pier);
   });
+
+  // Bogen: halve ringen tussen landhoofd/pijlers, zichtbaar aan beide kanten van de brug
+  const archPoints = [0, pierIdx[0], pierIdx[1], numSegs];
+  for (let k = 0; k < archPoints.length - 1; k++) {
+    const a0 = bSamples[archPoints[k]];
+    const a1 = bSamples[archPoints[k + 1]];
+    const mx = (a0.x + a1.x) * 0.5;
+    const mz = (a0.z + a1.z) * 0.5;
+    const span = Math.hypot(a1.x - a0.x, a1.z - a0.z);
+    const topY = Math.min(a0.y, a1.y) - 0.35;
+    const radius = span * 0.5;
+    [-1, 1].forEach((side) => {
+      const arch = new THREE.Group();
+      setAlignedTransform(arch, mx + a0.nx * side * (halfWidth + 0.5), topY - radius * 0.55, mz + a0.nz * side * (halfWidth + 0.5), Math.atan2(a1.x - a0.x, a1.z - a0.z) + Math.PI * 0.5, 0);
+      const ring = createOutlinedMesh(new THREE.TorusGeometry(radius, 0.42, 6, 18, Math.PI), bridgeStoneMat, 0.035, false);
+      ring.scale.y = 0.55;
+      arch.add(ring);
+      bridgeGroup.add(arch);
+    });
+  }
 
   scene.add(bridgeGroup);
 }
@@ -380,7 +398,6 @@ function buildSingleBridgeFromCurve(curve, isClosed, uCenter, uHalfSpan, elevFn,
 function buildSuspensionBridge(curve, isClosed, uCenter, uHalfSpan, elevFn, bridgeInfoFn, opts = {}) {
   const halfWidth = MAIN_HALF_WIDTH;
   const deckMat = makeToonMat(0x464349);
-  const edgeStripeMat = new THREE.MeshBasicMaterial({ color: 0xfff8eb });
   const goldenRedMat = registerSeasonalMat(0xc83e2b, 0xd94e3a);
   const cableMat = makeToonMat(0xd94e3a);
   const stoneBaseMat = makeToonMat(0x857b72);
@@ -440,11 +457,7 @@ function buildSuspensionBridge(curve, isClosed, uCenter, uHalfSpan, elevFn, brid
     deck.position.y = -0.17;
     segHolder.add(deck);
 
-    [-halfWidth + 0.45, halfWidth - 0.45].forEach((lx) => {
-      const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.04, spanLen * 0.98), edgeStripeMat);
-      stripe.position.set(lx, 0.02, 0);
-      segHolder.add(stripe);
-    });
+    // (wegmarkering wordt door het wegennet zelf over het dek doorgetrokken)
 
     bridgeGroup.add(segHolder);
   }

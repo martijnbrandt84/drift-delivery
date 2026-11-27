@@ -47,10 +47,24 @@ function computeExactDriveSurface(x, z, currentY = null) {
   return { height: terrH, onAsphalt: false };
 }
 
+// Berijdbare plankieren/pieren (bijv. de pier bij de camping): { x1, z1, x2, z2, halfWidth, y }
+export const walkways = [];
+
 // Winter: bevroren meren/rivieren worden een glad rijoppervlak (ingevuld door christmas.js)
 export const iceState = { frozen: false, surfaceY: WATER_LEVEL + 0.05, isIce: () => false };
 
 export function getDriveHeightAndWaterState(x, z, currentY = null) {
+  for (let i = 0; i < walkways.length; i++) {
+    const w = walkways[i];
+    const lx = w.x2 - w.x1;
+    const lz = w.z2 - w.z1;
+    const l2 = lx * lx + lz * lz;
+    const t = ((x - w.x1) * lx + (z - w.z1) * lz) / l2;
+    if (t < 0 || t > 1) continue;
+    if (Math.hypot(x - (w.x1 + lx * t), z - (w.z1 + lz * t)) <= w.halfWidth) {
+      return { height: w.y + 0.1, onAsphalt: false, inShallowWater: false, inDeepWater: false, waterDepth: 0 };
+    }
+  }
   const surf = computeExactDriveSurface(x, z, currentY);
   if (iceState.frozen && !surf.onAsphalt && surf.height < iceState.surfaceY + 0.06 && iceState.isIce(x, z)) {
     return { height: iceState.surfaceY + 0.06, onAsphalt: false, onIce: true, inShallowWater: false, inDeepWater: false, waterDepth: 0 };

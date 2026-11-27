@@ -30,6 +30,7 @@ import './props.js';
 import { updateCrops, updateCows } from './farm.js';
 import './island-scenery.js';
 import './autumn.js';
+import './village-extras.js';
 import './christmas.js';
 import { updateAttractions } from './attractions.js';
 import { updateOrcas } from './orcas.js';
