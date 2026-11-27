@@ -63,7 +63,7 @@ function onDown(e) {
   // Tikknoppen reageren direct bij aanraken
   tapButtons.forEach((b) => {
     if (!hit(b.el, p.x, p.y, 6)) return;
-    if (b.action) b.action();
+    if (b.action) { p.pendingAction = b; } // bv. fullscreen: pas bij loslaten (vereiste van de browser)
     else { sendKey(b.code, true); sendKey(b.code, false); }
     b.el.classList.add('down');
     setTimeout(() => b.el.classList.remove('down'), 140);
@@ -79,8 +79,11 @@ function onMove(e) {
   refresh();
 }
 function onUp(e) {
-  if (!activePointers.has(e.pointerId)) return;
+  const p = activePointers.get(e.pointerId);
+  if (!p) return;
   activePointers.delete(e.pointerId);
+  // Acties die een 'echte' gebruikersactie nodig hebben (fullscreen) bij het loslaten uitvoeren
+  if (e.type === 'pointerup' && p.pendingAction && hit(p.pendingAction.el, e.clientX, e.clientY, 10)) p.pendingAction.action();
   refresh();
 }
 
@@ -98,9 +101,13 @@ function toggleFullscreen() {
     showHint('Fullscreen: use “Add to Home Screen” in your browser menu');
     return;
   }
-  Promise.resolve(req.call(el, { navigationUI: 'hide' }))
-    .then(() => screen.orientation?.lock?.('landscape'))
-    .catch(() => {});
+  try {
+    Promise.resolve(req.call(el, { navigationUI: 'hide' }))
+      .then(() => screen.orientation?.lock?.('landscape'))
+      .catch(() => showHint('Fullscreen is blocked here — try “Add to Home Screen”'));
+  } catch (err) {
+    showHint('Fullscreen is blocked here — try “Add to Home Screen”');
+  }
 }
 
 let hintEl = null;
@@ -177,6 +184,7 @@ if (isTouch) {
   const collapseBtn = document.getElementById('collapse-btn');
   const cardBody = document.getElementById('card-body');
   if (collapseBtn && cardBody && !cardBody.classList.contains('collapsed')) collapseBtn.click();
+  document.getElementById('menu-card')?.classList.add('tc-menu');
 
   // Staand scherm: vriendelijke hint om te draaien (blokkeert niets)
   const checkOrientation = () => {

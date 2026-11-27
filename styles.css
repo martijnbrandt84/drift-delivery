@@ -650,3 +650,34 @@ body.touch #busted-banner { font-size: 1.3rem; padding: 12px 18px; max-width: 90
   pointer-events: auto;
 }
 .fullmap-chip:active { transform: translateY(1px); }
+
+/* ---------- Touch: vaste indeling zonder overlap ----------
+   linksboven: menuknop + minimap | midden boven: knoppenrij, daaronder meldingen
+   rechtsboven: sterren + snelheid | onder: sturen links, pedalen rechts, instap-knop in het midden */
+body.touch #menu-card.tc-menu { width: auto; min-width: 0; border-width: 2px; border-radius: 10px; box-shadow: 0 2px 0 var(--ink); }
+body.touch #menu-card.tc-menu .brand-title { display: none; }
+body.touch #menu-card.tc-menu .card-header { padding: 2px; border-bottom: none; }
+body.touch #menu-card.tc-menu #collapse-btn { font-size: 0.62rem; padding: 4px 8px; }
+body.touch #menu-card.tc-menu #card-body:not(.collapsed) { width: min(280px, 88vw); }
+body.touch #minimap-card { top: calc(36px + env(safe-area-inset-top, 0px)); }
+body.touch #top-right-hud { gap: 0; }
+body.touch #toast-pill {
+  position: fixed;
+  top: calc(32px + env(safe-area-inset-top, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: min(46vw, 320px);
+  text-align: center;
+  z-index: 30;
+}
+body.touch .wanted-pill { margin: 0; }
+body.touch #speedo-card { top: calc(34px + env(safe-area-inset-top, 0px)); }
+body.touch #race-hud { top: calc(58px + env(safe-area-inset-top, 0px)); }
+body.touch #hijack-prompt { bottom: calc(14px + env(safe-area-inset-bottom, 0px)); max-width: 38vw; text-align: center; }
+/* Staand scherm: knoppenrij naast het menu i.p.v. in het midden (anders botst hij met de sterren) */
+@media (orientation: portrait) {
+  body.touch #tc-actions { left: calc(64px + env(safe-area-inset-left, 0px)); transform: none; }
+  body.touch #toast-pill { top: calc(132px + env(safe-area-inset-top, 0px)); max-width: 80vw; }
+  body.touch #race-hud { top: calc(96px + env(safe-area-inset-top, 0px)); }
+  body.touch #hijack-prompt { bottom: calc(150px + env(safe-area-inset-bottom, 0px)); max-width: 80vw; }
+}
