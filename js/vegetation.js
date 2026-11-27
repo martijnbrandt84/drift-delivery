@@ -7,7 +7,7 @@ import { ruralLots } from './water-lots.js';
 import { ISLAND_CENTER, getIslandPolar, getCoastRadius, MOOSE_LAKE, FOX_LAKE } from './landscape.js';
 import { destructibles, registerInstancedDestructible } from './demolition.js';
 import { getTerrainHeight, getLocalSlope } from './terrain.js';
-import { isInsideTownFootprint, isNearAnyDriveway } from './props.js';
+import { isInsideTownFootprint, isNearAnyDriveway, isInsideAnyLotArea, bakedPineTrunk, pineNeedleParts, bakedPineSnow } from './props.js';
 
 // =========================================================
 // MEER VARIATIE IN HET GROEN — in de stijl van Pinewood:
@@ -145,6 +145,9 @@ const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 // =========================================================
 const mapleTrunkMat = makeToonMat(0x5b3a26);
 const mapleCrownMat = makeToonMat(0xffffff);
+const pineTintMat = makeToonMat(0xffffff);
+const PINE_TINTS = [0x2f5e41, 0x3d6e49, 0x264d36, 0x2c5a4c, 0x35664a].map((c) => new THREE.Color(c));
+const bakedPineTinted = createMergedToonProp(pineNeedleParts, pineTintMat, 0.05, true);
 const MAPLE_COLORS = [0xc8322a, 0xd8482a, 0xe8702a, 0xb52a2e, 0xe09030].map((c) => new THREE.Color(c));
 const bakedMapleTrunk = createMergedToonProp([
   { geo: new THREE.CylinderGeometry(0.22, 0.42, 2.8, 7), matrix: M4().makeTranslation(0, 1.4, 0) },
@@ -416,6 +419,24 @@ for (let a = 0; a < 30000 && flowers.length < 900; a++) {
   }
 }
 
+// Bos rond Moose Lake: beschutting voor de elanden. De oeverstrook (tot ~7 m van het water) blijft open
+// zodat ze aan de waterkant kunnen grazen; daarachter een dicht, natuurlijk bos van dennen en esdoorns.
+const moosePines = [];
+for (let a = 0; a < 6000 && moosePines.length < 85; a++) {
+  const ang = Math.random() * Math.PI * 2;
+  const rr = MOOSE_LAKE.r + 7 + Math.sqrt(Math.random()) * 34;
+  const x = MOOSE_LAKE.x + Math.cos(ang) * rr;
+  const z = MOOSE_LAKE.z + Math.sin(ang) * rr;
+  if (getClosestNetworkRoad(x, z).marginDist < 5) continue;
+  if (isInsideTownFootprint(x, z, 4) || isInsideAnyLotArea(x, z, 5) || isNearAnyDriveway(x, z, 3)) continue;
+  const y = getTerrainHeight(x, z);
+  if (y < WATER_LEVEL + 0.6 || getLocalSlope(x, z) > 0.8) continue;
+  if (!isFree(x, z, 2.6)) continue;
+  occupy(x, z, 1.4);
+  if (Math.random() < 0.2 && maples.length < 95) maples.push(baseItem(x, z, 0.8 + Math.random() * 0.35, { color: pick(MAPLE_COLORS) }));
+  else moosePines.push(baseItem(x, z, 0.75 + Math.random() * 0.5, { color: pick(PINE_TINTS) }));
+}
+
 // ---------- Bouwen ----------
 {
   const trunk = buildSet(bakedMapleTrunk, maples, { castShadow: true });
@@ -425,6 +446,16 @@ for (let a = 0; a < 30000 && flowers.length < 900; a++) {
     if (crown.out) deciduousFoliageObjects.push(crown.out);
   }
   registerSets(maples, [trunk, crown], 0.6, 'tree', 15, 'Maple');
+}
+{
+  const trunk = buildSet(bakedPineTrunk, moosePines, { castShadow: true });
+  const needles = buildSet(bakedPineTinted, moosePines, { material: pineTintMat, colors: PINE_TINTS, castShadow: true });
+  const snow = buildSet(bakedPineSnow, moosePines, { outline: false });
+  if (snow) {
+    snow.main.visible = false;
+    pineSnowCapObjects.push(snow.main);
+  }
+  registerSets(moosePines, [trunk, needles, snow], 0.85, 'tree', 15, 'Pine tree');
 }
 {
   const trunk = buildSet(bakedOakTrunk, oaks, { castShadow: true });
@@ -478,6 +509,6 @@ clearable.push({ items: tufts, sets: [buildSet(bakedTuft, tufts, { material: gra
 void pineSnowCapObjects;
 
 export const vegetationStats = {
-  maples: maples.length, oaks: oaks.length, deads: deads.length, ferns: ferns.length, logs: logs.length,
+  maples: maples.length, moosePines: moosePines.length, oaks: oaks.length, deads: deads.length, ferns: ferns.length, logs: logs.length,
   stumps: stumps.length, mushrooms: mushrooms.length, reeds: reeds.length, tufts: tufts.length, flowers: flowers.length
 };

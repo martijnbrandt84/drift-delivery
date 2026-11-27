@@ -3030,6 +3030,105 @@ function buildVilla(lot) {
     registerDestructible(tree, tx, ty, tz, kind === 'cypress' ? 0.45 : 0.7, 'tree', 15, 'Garden tree');
     markLastPlanted();
   });
+  // Voortuin: poort aan het begin van de oprijlaan (ruim van de weg), lage haagjes langs de oprijlaan,
+  // klassieke lantaarnpalen en grote stenen bakken met boompjes (los en omrijdbaar)
+  {
+    const pillarMat = makeToonMat(0xd9cdb8);
+    const ironMat = makeToonMat(0x23262b);
+    const lampMat = new THREE.MeshBasicMaterial({ color: 0xffe08a });
+    const at = (lx, lz) => {
+      const p = rotateLocal(lx, lz, lot.yaw);
+      const x = vx + p.x;
+      const z = vz + p.z;
+      return { x, z, y: getTerrainHeight(x, z) };
+    };
+    // Poort (villa-lokaal z 23 = 13,5 m van het kavelmidden; de weg ligt ~17 m van het midden)
+    [-1, 1].forEach((side) => {
+      const p = at(side * 3.9, 23.0);
+      const pillar = createOutlinedMesh(new THREE.BoxGeometry(0.9, 2.4, 0.9), pillarMat, 0.03, false);
+      pillar.position.set(p.x, p.y + 1.2, p.z);
+      scene.add(pillar);
+      const cap = createOutlinedMesh(new THREE.BoxGeometry(1.1, 0.2, 1.1), pillarMat, 0.02, false);
+      cap.position.set(p.x, p.y + 2.5, p.z);
+      scene.add(cap);
+      const lamp = createOutlinedMesh(new THREE.BoxGeometry(0.35, 0.45, 0.35), lampMat, 0.015, false);
+      lamp.position.set(p.x, p.y + 2.85, p.z);
+      scene.add(lamp);
+      hardColliders.push({ x: p.x, z: p.z, r: 0.6 });
+      // Open hekdeur langs de binnenkant van de oprijlaan
+      const gate = new THREE.Group();
+      for (let k = 0; k < 7; k++) {
+        const bar = new THREE.Mesh(new THREE.BoxGeometry(0.05, 1.8, 0.05), ironMat);
+        bar.position.set(0, 0.95, -k * 0.3);
+        gate.add(bar);
+      }
+      [0.25, 1.75].forEach((by) => {
+        const rail = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.07, 1.9), ironMat);
+        rail.position.set(0, by, -0.9);
+        gate.add(rail);
+      });
+      const q = at(side * 3.35, 22.5);
+      gate.position.set(q.x, q.y, q.z);
+      gate.rotation.y = lot.yaw - side * 0.12;
+      scene.add(gate);
+      // Laag muurtje van de pilaar opzij
+      const wall = createOutlinedMesh(new THREE.BoxGeometry(5.0, 0.8, 0.5), pillarMat, 0.025, false);
+      const wp = at(side * 6.9, 23.0);
+      wall.position.set(wp.x, wp.y + 0.4, wp.z);
+      wall.rotation.y = lot.yaw;
+      scene.add(wall);
+      [5.0, 7.0, 8.8].forEach((wx) => {
+        const cp = at(side * wx, 23.0);
+        hardColliders.push({ x: cp.x, z: cp.z, r: 0.6 });
+      });
+    });
+    // Lage buxushaagjes langs de oprijlaan tussen poort en voorplein
+    [-1, 1].forEach((side) => {
+      const h = createOutlinedMesh(new THREE.BoxGeometry(0.55, 0.55, 5.6), hedgeMat, 0.02, false);
+      const p = at(side * 3.7, 19.2);
+      h.position.set(p.x, p.y + 0.28, p.z);
+      h.rotation.y = lot.yaw;
+      scene.add(h);
+    });
+    // Klassieke lantaarnpalen bij het voorplein
+    [[-7.6, 17.4], [7.6, 17.4], [-7.6, 7.2], [7.6, 7.2]].forEach(([lx, lz]) => {
+      const p = at(lx, lz);
+      const lampPost = new THREE.Group();
+      const pole = createOutlinedMesh(new THREE.CylinderGeometry(0.07, 0.1, 2.6, 8), ironMat, 0.015, false);
+      pole.position.y = 1.3;
+      lampPost.add(pole);
+      const head = createOutlinedMesh(new THREE.BoxGeometry(0.34, 0.42, 0.34), lampMat, 0.015, false);
+      head.position.y = 2.75;
+      lampPost.add(head);
+      const roofCap = new THREE.Mesh(new THREE.ConeGeometry(0.3, 0.22, 4), ironMat);
+      roofCap.position.y = 3.06;
+      roofCap.rotation.y = Math.PI / 4;
+      lampPost.add(roofCap);
+      lampPost.position.set(p.x, p.y, p.z);
+      scene.add(lampPost);
+      registerDestructible(lampPost, p.x, p.y, p.z, 0.35, 'small', 4, 'Garden lantern');
+    });
+    // Grote stenen bakken met boompjes aan weerszijden van het voorplein
+    [[-8.4, 12.6], [8.4, 12.6], [-8.4, 15.4], [8.4, 15.4]].forEach(([lx, lz]) => {
+      const p = at(lx, lz);
+      const planter = new THREE.Group();
+      const box = createOutlinedMesh(new THREE.BoxGeometry(1.3, 0.75, 1.3), pillarMat, 0.025, false);
+      box.position.y = 0.38;
+      planter.add(box);
+      const soil = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.05, 1.1), makeToonMat(0x4a3424));
+      soil.position.y = 0.77;
+      planter.add(soil);
+      const tree = createGardenTree('round');
+      tree.scale.setScalar(0.55);
+      tree.position.y = 0.75;
+      planter.add(tree);
+      planter.position.set(p.x, p.y, p.z);
+      planter.rotation.y = lot.yaw;
+      scene.add(planter);
+      registerDestructible(planter, p.x, p.y, p.z, 0.75, 'small', 6, 'Tree planter');
+    });
+  }
+
   // Losse garage links naast de villa, met een geplaveide oprit naar het voorplein
   {
     const gp = rotateLocal(-20.5, 0, lot.yaw);

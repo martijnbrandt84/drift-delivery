@@ -727,18 +727,19 @@ if (dinerLot) {
   parkedCars.push(racer);
 }
 
-// Zwarte sportwagen in de garage van de villa
+// Zwarte sportwagen voor de garage van de villa
 {
   const villaLot = ruralLots.find((l) => l.type === 'villa');
   if (villaLot) {
     const car = buildSportsCarMesh(0x1d1d22, 'Villa Gran Turismo', 1);
     const c = Math.cos(villaLot.yaw);
     const s = Math.sin(villaLot.yaw);
-    // In het open vak van de garage links naast de villa (villa staat 9,5 m achter het kavelmidden)
-    const lx = -22.5;
-    const lz = -9.5 - 0.4;
-    car.root.position.set(villaLot.x + lx * c + lz * s, villaLot.y + 0.25, villaLot.z - lx * s + lz * c);
-    car.root.rotation.y = villaLot.yaw;
+    // Voor de garage op de geplaveide oprit (villa staat 9,5 m achter het kavelmidden)
+    car.isRaceCar = false; // dit is geen raceauto: instappen start geen race
+    const lx = -20.5;
+    const lz = -9.5 + 6.6;
+    car.root.position.set(villaLot.x + lx * c + lz * s, villaLot.y + 0.32, villaLot.z - lx * s + lz * c);
+    car.root.rotation.y = villaLot.yaw + 0.35;
     scene.add(car.root);
     parkedCars.push(car);
   }
