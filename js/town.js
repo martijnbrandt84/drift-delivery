@@ -17,6 +17,8 @@ export const stoneMat = makeToonMat(0x8d8379);
 export const warmWindowMat = new THREE.MeshBasicMaterial({ color: 0x9fc8d9 });
 export const nightLampHalos = [];
 export let giantStarMesh = null;
+// Wijzers van de klok op het gemeentehuis (volgen de speltijd)
+export const townClockHands = [];
 // Plek van de grote dorpsspar: op het groen tussen het stadje en het meer
 export const XMAS_TREE_POS = { x: 0, z: 67 };
 const garlandMat = new THREE.MeshBasicMaterial({ color: 0xffd86b });
@@ -522,11 +524,34 @@ function createGemeentehuis() {
   const clockFace = new THREE.Mesh(new THREE.CircleGeometry(0.78, 16), clockFaceMat);
   clockFace.position.set(0, h + 1.95, 1.48);
   g.add(clockFace);
-  [[0, 0.36, 0.11], [0.26, 0, 0.09]].forEach(([hx, hy, hl]) => {
-    const hand = new THREE.Mesh(new THREE.BoxGeometry(hl, 0.08, 0.03), clockHandMat);
-    hand.position.set(hx * 0.5, h + 1.95 + hy * 0.5, 1.52);
-    g.add(hand);
-  });
+  // Donkere rand en 12 uurstreepjes
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(0.8, 0.06, 6, 24), clockHandMat);
+  rim.position.set(0, h + 1.95, 1.5);
+  g.add(rim);
+  for (let k = 0; k < 12; k++) {
+    const a = (k / 12) * Math.PI * 2;
+    const tick = new THREE.Mesh(new THREE.BoxGeometry(k % 3 === 0 ? 0.07 : 0.04, k % 3 === 0 ? 0.17 : 0.11, 0.02), clockHandMat);
+    tick.position.set(Math.sin(a) * 0.64, h + 1.95 + Math.cos(a) * 0.64, 1.5);
+    tick.rotation.z = -a;
+    g.add(tick);
+  }
+  // Echte wijzers die om het midden draaien (bijgewerkt met de speltijd, zie main.js)
+  const makeHand = (len, thick) => {
+    const pivot = new THREE.Group();
+    pivot.position.set(0, h + 1.95, 1.52);
+    const bar = new THREE.Mesh(new THREE.BoxGeometry(thick, len, 0.03), clockHandMat);
+    bar.position.y = len * 0.5 - 0.06;
+    pivot.add(bar);
+    g.add(pivot);
+    return pivot;
+  };
+  const hourHand = makeHand(0.4, 0.075);
+  const minuteHand = makeHand(0.6, 0.05);
+  hourHand.position.z += 0.01;
+  const hub = new THREE.Mesh(new THREE.CircleGeometry(0.06, 10), clockHandMat);
+  hub.position.set(0, h + 1.95, 1.545);
+  g.add(hub);
+  townClockHands.push({ hour: hourHand, minute: minuteHand });
 
   const spire = createOutlinedMesh(new THREE.ConeGeometry(1.55, 3.4, 4), registerSeasonalMat(0x475666, 0xdce8f5), 0.05);
   spire.position.set(0, h + 4.75, 0.4);
@@ -843,6 +868,20 @@ function createNamedShop(type, width, height, depth) {
   return g;
 }
 
+// Klein pleintje tussen de panden: gras, boom en een bankje
+function createPocketPark(x, z, rotY) {
+  const lawn = createOutlinedMesh(new THREE.BoxGeometry(4.3, 0.2, 6.0), blockLawnMat, 0.02, false, true);
+  lawn.position.set(x, TOWN_ELEV + 0.18, z);
+  lawn.rotation.y = rotY;
+  scene.add(lawn);
+  const tree = createParkTree();
+  tree.position.set(x, TOWN_ELEV + 0.28, z);
+  scene.add(tree);
+  hardColliders.push({ x, z, r: 0.6 });
+  const fwd = { x: Math.sin(rotY), z: Math.cos(rotY) };
+  createBench(x + fwd.x * 2.2, z + fwd.z * 2.2, rotY + Math.PI);
+}
+
 function placeNamedShop(x, z, rotY, type, w, h, d) {
   const shop = createNamedShop(type, w, h, d);
   shop.position.set(x, TOWN_ELEV + 0.14, z);
@@ -855,7 +894,9 @@ function placeNamedShop(x, z, rotY, type, w, h, d) {
 // =========================================================
 // APPARTEMENTENGEBOUWEN: 4 verdiepingen met balkons, entree-luifel en watertoren op het dak
 // =========================================================
-function createApartmentBuilding(width, floors, depth, wallHex, trimHex, withTower = true) {
+function createApartmentBuilding(width, floors, depth, wallHex, trimHex, withTower = true, opts = {}) {
+  floors = Math.min(3, floors);
+  const roofType = opts.roof ?? 'flat';
   const g = new THREE.Group();
   const floorH = 3.0;
   const h = floors * floorH + 0.6;
@@ -870,12 +911,34 @@ function createApartmentBuilding(width, floors, depth, wallHex, trimHex, withTow
     band.position.y = f * floorH + 0.3;
     g.add(band);
   }
-  const parapet = createOutlinedMesh(new THREE.BoxGeometry(width + 0.3, 0.6, depth + 0.3), trimMat, 0.04, false);
-  parapet.position.y = h + 0.2;
-  g.add(parapet);
-  const roofFill = new THREE.Mesh(new THREE.BoxGeometry(width - 0.2, 0.1, depth - 0.2), makeToonMat(0x5a5a60));
-  roofFill.position.y = h + 0.45;
-  g.add(roofFill);
+  if (roofType === 'gable') {
+    // Puntdak met dakkapel: oud houten appartementenpand
+    const rShape = new THREE.Shape();
+    rShape.moveTo(-(width * 0.5 + 0.4), 0);
+    rShape.lineTo(0, 2.2);
+    rShape.lineTo(width * 0.5 + 0.4, 0);
+    rShape.closePath();
+    const rGeo = new THREE.ExtrudeGeometry(rShape, { depth: depth + 0.6, bevelEnabled: false });
+    rGeo.translate(0, 0, -(depth + 0.6) * 0.5);
+    const roof = createOutlinedMesh(rGeo, registerSeasonalMat(opts.roofHex ?? 0x5a4a44, 0xf2f6fb), 0.05);
+    roof.position.y = h;
+    g.add(roof);
+    const dormer = createOutlinedMesh(new THREE.BoxGeometry(1.4, 1.0, 1.2), wallMat, 0.03, false);
+    dormer.position.set(0, h + 0.9, depth * 0.5 - 0.6);
+    g.add(dormer);
+    const dGlass = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 0.6), warmWindowMat);
+    dGlass.position.set(0, h + 0.9, depth * 0.5 + 0.01);
+    g.add(dGlass);
+    houseWindows.push({ mesh: dGlass, timer: Math.random() * 10 });
+    withTower = false;
+  } else {
+    const parapet = createOutlinedMesh(new THREE.BoxGeometry(width + 0.3, 0.6, depth + 0.3), trimMat, 0.04, false);
+    parapet.position.y = h + 0.2;
+    g.add(parapet);
+    const roofFill = new THREE.Mesh(new THREE.BoxGeometry(width - 0.2, 0.1, depth - 0.2), makeToonMat(0x5a5a60));
+    roofFill.position.y = h + 0.45;
+    g.add(roofFill);
+  }
 
   const cols = Math.max(2, Math.floor(width / 2.1));
   const colStep = width / cols;
@@ -888,8 +951,19 @@ function createApartmentBuilding(width, floors, depth, wallHex, trimHex, withTow
       glass.position.set(wx, wy, depth * 0.5 + 0.06);
       g.add(glass);
       houseWindows.push({ mesh: glass, timer: Math.random() * 10 });
+      // Erkers: uitstekende raamkasten over de verdiepingen
+      if (opts.bays && f > 0 && (c === 0 || c === cols - 1)) {
+        const bay = createOutlinedMesh(new THREE.BoxGeometry(1.4, 2.0, 0.7), wallMat, 0.03, false);
+        bay.position.set(wx, wy - 0.1, depth * 0.5 + 0.35);
+        g.add(bay);
+        const bayGlass = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 1.2), warmWindowMat);
+        bayGlass.position.set(wx, wy, depth * 0.5 + 0.71);
+        g.add(bayGlass);
+        houseWindows.push({ mesh: bayGlass, timer: Math.random() * 10 });
+        continue;
+      }
       // Balkons op de verdiepingen, om en om
-      if (f > 0 && (c + f) % 2 === 0) {
+      if (!opts.noBalconies && f > 0 && (c + f) % 2 === 0) {
         const slab = createOutlinedMesh(new THREE.BoxGeometry(1.5, 0.14, 0.9), trimMat, 0.02, false);
         slab.position.set(wx, wy - 0.95, depth * 0.5 + 0.45);
         g.add(slab);
@@ -935,14 +1009,15 @@ function createApartmentBuilding(width, floors, depth, wallHex, trimHex, withTow
     cap.position.y = 3.8;
     tower.add(cap);
     tower.position.set(width * 0.22, h + 0.5, -depth * 0.15);
+    tower.scale.setScalar(Math.min(1, width / 8));
     g.add(tower);
   }
   g.userData.lightSpecs = { width: width * 0.94, yPos: h + 0.4, zFront: depth * 0.5 + 0.2 };
   return g;
 }
 
-function placeApartment(x, z, rotY, width, floors, depth, wallHex, trimHex, withTower = true) {
-  const apt = createApartmentBuilding(width, floors, depth, wallHex, trimHex, withTower);
+function placeApartment(x, z, rotY, width, floors, depth, wallHex, trimHex, withTower = true, opts = {}) {
+  const apt = createApartmentBuilding(width, floors, depth, wallHex, trimHex, withTower, opts);
   apt.position.set(x, TOWN_ELEV + 0.14, z);
   apt.rotation.y = rotY;
   scene.add(apt);
@@ -1062,29 +1137,33 @@ function buildPinewoodTown() {
   placeNamedShop(-37.05, 89.05,  Math.PI / 2, 'grocery', 4.6, 5.8, 6.0);
   placeNamedShop(-37.05, 93.65,  Math.PI / 2, 'laundry', 4.6, 5.2, 6.0);
   placeRowHouseHelper(-37.4, 98.2,  Math.PI / 2, 4.5, 4.4, 5.0, 0xe3b857, false);
-  placeRowHouseHelper(-37.4, 102.7, Math.PI / 2, 4.5, 4.6, 5.0, 0x6792ab, true);
-  placeApartment(-37.3, 109.45, Math.PI / 2, 9.0, 4, 9.0, 0xb5654a, 0xe8dcc8, true);
+  // Pleintje als adempauze in de rij
+  createPocketPark(-37.4, 102.7, Math.PI / 2);
+  placeApartment(-37.3, 108.4, Math.PI / 2, 6.8, 3, 7.2, 0xb5654a, 0xe8dcc8, true);
+  placeRowHouseHelper(-37.4, 113.9, Math.PI / 2, 3.6, 4.2, 5.0, 0x84a876, false);
 
   createSeamlessBlockBase(32.05, 42.6, 84.75, 116.1, SW, courtyardPaverMat);
   placeCornerLamps(32.05, 42.6, 84.75, 116.1, 1.0);
 
   placeShopHelper(37.05, 89.05,  -Math.PI / 2, 4.6, 6.0, 6.0, 0x4d728f, 0xd95d30, 0x293f52);
   placeShopHelper(37.05, 93.65,  -Math.PI / 2, 4.6, 5.3, 6.0, 0xd49a45, 0xfff3de, 0x73501c);
-  placeRowHouseHelper(37.4, 98.2,  -Math.PI / 2, 4.5, 4.5, 5.0, 0x7a9e7e, true);
+  createPocketPark(37.4, 98.2, -Math.PI / 2);
   placeRowHouseHelper(37.4, 102.7, -Math.PI / 2, 4.5, 4.3, 5.0, 0xc9966b, false);
-  placeApartment(37.3, 109.45, -Math.PI / 2, 9.0, 4, 9.0, 0x6b8aa6, 0xf2ece0, false);
+  placeApartment(37.3, 108.4, -Math.PI / 2, 6.8, 2, 7.2, 0x6b8aa6, 0xf2ece0, false, { roof: 'gable', roofHex: 0x3d4b5c });
+  placeRowHouseHelper(37.4, 113.9, -Math.PI / 2, 3.6, 4.4, 5.0, 0xe3b857, true);
 
   // ---- Twee nieuwe blokken ten zuiden van Oak Street, langs de doorgetrokken lanen ----
   createSeamlessBlockBase(-44.0, -32.05, 116.05, 134.85, SW, courtyardPaverMat);
   placeCornerLamps(-44.0, -32.05, 116.05, 134.85, 1.0);
-  placeApartment(-38.0, 121.4, Math.PI / 2, 8.5, 4, 9.2, 0xd9b26a, 0x7a5a3a, true);
-  placeApartment(-38.0, 130.6, Math.PI / 2, 7.4, 3, 9.2, 0x7a9e7e, 0xf2ece0, false);
+  placeApartment(-37.8, 120.05, Math.PI / 2, 6.5, 2, 7.0, 0xe3cfa8, 0x7a5a3a, false, { roof: 'gable', roofHex: 0x8a3a2a, noBalconies: true });
+  placeRowHouseHelper(-37.4, 125.4, Math.PI / 2, 4.2, 4.5, 5.0, 0xd66853, false);
+  placeApartment(-37.8, 130.85, Math.PI / 2, 6.5, 3, 7.0, 0x9a5a44, 0xe8dcc8, true);
 
   createSeamlessBlockBase(32.05, 44.0, 116.05, 134.85, SW, courtyardPaverMat);
   placeCornerLamps(32.05, 44.0, 116.05, 134.85, 1.0);
-  placeApartment(38.0, 121.4, -Math.PI / 2, 8.5, 3, 9.2, 0xc4705a, 0xf2ece0, false);
-  placeNamedShop(37.6, 129.0, -Math.PI / 2, 'pizza', 4.4, 5.4, 6.0);
-  placeRowHouseHelper(38.0, 133.0, -Math.PI / 2, 3.4, 4.4, 5.0, 0x5b83a1, true);
+  placeApartment(37.8, 120.0, -Math.PI / 2, 6.6, 3, 7.0, 0x7a9e7e, 0xf2ece0, true, { bays: true, noBalconies: true });
+  placeNamedShop(37.6, 125.7, -Math.PI / 2, 'pizza', 4.4, 5.4, 6.0);
+  placeRowHouseHelper(37.8, 130.0, -Math.PI / 2, 3.8, 4.4, 5.0, 0x5b83a1, true);
 
   [
     [-14.0, 85.95],

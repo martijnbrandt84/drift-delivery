@@ -75,7 +75,10 @@ function getRawTerrainHeight(x, z) {
       const padR = lot.padRadius ?? 8.8;
       const blendR = lot.blendRadius ?? 18.0;
       if (dLot < blendR) {
-        h = THREE.MathUtils.lerp(lot.y, h, THREE.MathUtils.smoothstep(dLot, padR, blendR));
+        const t = THREE.MathUtils.smoothstep(dLot, padR, blendR);
+        h = THREE.MathUtils.lerp(lot.y, h, t);
+        // Het huisperceel blijft vlak, ook vlak naast een (oplopende) weg
+        specialFlatBlend = Math.min(specialFlatBlend, t);
       }
     }
   }

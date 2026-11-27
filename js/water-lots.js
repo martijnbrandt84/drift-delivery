@@ -1,8 +1,10 @@
 import * as THREE from 'three';
-import { lakeSamples, valleySamples, ringSamples, outerRoadDefs, riverCurves, VALLEY_POND, getDistToRivers } from './roads.js';
+import { lakeSamples, valleySamples, ringSamples, outerRoadDefs, streetSampleSets, riverCurves, VALLEY_POND, getDistToRivers } from './roads.js';
 
 const timberTrailSamples = outerRoadDefs.find((d) => d.id === 'timber_trail').samples;
 const foxRoadSamples = outerRoadDefs.find((d) => d.id === 'fox_lake_road').samples;
+const westAveSamples = streetSampleSets.find((s) => s.def.id === 'west_ave').samples;
+const eastAveSamples = streetSampleSets.find((s) => s.def.id === 'east_ave').samples;
 
 
 
@@ -48,6 +50,14 @@ export const ruralLots = [
   { netSamples: ringSamples, near: [40, -262], outward: true, dist: 18.0, type: 'house_blue', yawOff: 0.06 },
   { netSamples: ringSamples, near: [302, 95], outward: false, dist: 17.5, type: 'house_yellow', yawOff: -0.05 },
   { netSamples: ringSamples, near: [262, 125], outward: true, dist: 17.0, type: 'cabin', yawOff: 0.0, tag: 'moose_lodge' },
+  // Vrijstaande huizen met voortuin langs de doorgetrokken dorpslanen (overgang dorp -> platteland)
+  { netSamples: westAveSamples, near: [-28, 145], outward: true, dist: 13.5, type: 'house_blue', yawOff: 0, flatElevOffset: -0.22, padRadius: 9.5 },
+  { netSamples: westAveSamples, near: [-28, 145], outward: false, dist: 13.5, type: 'house_yellow', yawOff: 0, flatElevOffset: -0.22, padRadius: 9.5 },
+  { netSamples: westAveSamples, near: [-28, 157], outward: true, dist: 13.5, type: 'cabin', yawOff: 0, flatElevOffset: -0.22, padRadius: 9.5 },
+  { netSamples: eastAveSamples, near: [28, 145], outward: true, dist: 13.5, type: 'house_red', yawOff: 0, flatElevOffset: -0.22, padRadius: 9.5 },
+  { netSamples: eastAveSamples, near: [28, 145], outward: false, dist: 13.5, type: 'house_blue', yawOff: 0, flatElevOffset: -0.22, padRadius: 9.5 },
+  { netSamples: eastAveSamples, near: [28, 151], outward: true, dist: 13.5, type: 'house_yellow', yawOff: 0, flatElevOffset: -0.22, padRadius: 9.5 },
+
   // Huizen langs de nieuwe Fox Lake Road
   { netSamples: foxRoadSamples, near: [140, -27], outward: true, dist: 17.5, type: 'house_blue', yawOff: 0.05 },
   { netSamples: foxRoadSamples, near: [192, -45], outward: true, dist: 17.5, type: 'cabin', yawOff: -0.05 },

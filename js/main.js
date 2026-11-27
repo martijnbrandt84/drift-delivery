@@ -15,13 +15,13 @@ import {
   buildWoodyWagonMesh, buildYellowTaxiMesh, buildPickupTruckMesh, buildPoliceCruiserMesh,
   beamConeGeo, trafficVehicles, parkedCars, policePool
 } from './vehicles.js';
-import { chimneySmokes, giantStarMesh, houseWindows } from './town.js';
+import { chimneySmokes, giantStarMesh, houseWindows, townClockHands } from './town.js';
 import { turkeys, deerList, foxes, ducks } from './wildlife.js';
 import { lighthouseBeamPivot, lighthouseBeamMat } from './scenery.js';
 import { updateMinimap, updateFullMap, toggleFullMap, isFullMapOpen } from './minimap.js';
 import {
   isNightMode, weatherIndex, isChristmasMode, driftModeIdx, DRIFT_MODES, weatherSystem, WEATHER_COUNT,
-  showToast, toggleNightMode, toggleWeather, toggleChristmasLandscape, cycleDriftMode, updateEnvironment, sunDirection, sunDiscHeight
+  showToast, toggleNightMode, toggleWeather, toggleChristmasLandscape, cycleDriftMode, updateEnvironment, sunDirection, sunDiscHeight, timeOfDay
 } from './ui-controls.js';
 
 // Side-effect only modules: bouwen de scene op bij import (wegen/bruggen, stadje, bomen/struiken/rotsen, boerderij).
@@ -1033,6 +1033,11 @@ function animate() {
   }
   if (giantStarMesh && isChristmasMode) giantStarMesh.rotation.y = elapsed * 1.4;
   updateEnvironment(dt);
+  townClockHands.forEach((c) => {
+    const hours = timeOfDay % 12;
+    c.hour.rotation.z = -(hours / 12) * Math.PI * 2;
+    c.minute.rotation.z = -((timeOfDay % 1)) * Math.PI * 2;
+  });
   updateAttractions(elapsed, dt, isNightMode);
   updateOrcas(elapsed, dt, px, pz);
   updateCrops(px, pz, carState.vx, carState.vz, dt);
