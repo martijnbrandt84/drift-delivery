@@ -34,6 +34,8 @@ import './village-extras.js';
 import './christmas.js';
 import { updateAttractions } from './attractions.js';
 import { updateOrcas } from './orcas.js';
+import { race, startRace, cancelRace, updateRace } from './race.js';
+import './touch-controls.js';
 import { flight, planeIsNear, canExitPlane, enterPlane, exitPlane, setFlightKey, updateFlight, setAirfieldNight } from './flight.js';
 
 // =========================================================
@@ -244,11 +246,13 @@ function tryHijackNearbyVehicle() {
   }
 
   sound.playImpact('small');
+  if (race.state !== 'idle' && playerVeh !== race.veh) cancelRace(null);
   carState.angle = target.yaw;
   carState.throttleHold = 0.35;
   carState.vx = Math.sin(target.yaw) * 10.0;
   carState.vz = Math.cos(target.yaw) * 10.0;
   vehicleBadgeEl.textContent = playerVeh.name;
+  if (playerVeh.isRaceCar) startRace(playerVeh, carState);
 }
 
 const honkRings = [];
@@ -690,6 +694,9 @@ function animate() {
 
   updateFlight(dt, elapsed);
   setAirfieldNight(isNightMode);
+  if (!flight.active) updateRace(dt, playerVeh, carState);
+  else if (race.state !== 'idle') cancelRace('Race afgebroken');
+  document.body.classList.toggle('flying', flight.active);
   const hijackCand = flight.active ? null : findHijackCandidate();
   if (flight.active && canExitPlane()) {
     hijackPromptEl.textContent = '[F] Uitstappen';

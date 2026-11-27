@@ -509,6 +509,97 @@ export function buildPoliceCruiserMesh() {
   };
 }
 
+// Lage sportwagen met spoiler en racestrepen (raceauto voor de Ronde van Pinewood)
+export function buildSportsCarMesh(paintHex = 0xd62839, label = 'Pine Racer GT', number = 7) {
+  const root = new THREE.Group();
+  const body = new THREE.Group();
+  root.add(body);
+  const paint = makeToonMat(paintHex);
+  const white = makeToonMat(0xf6f2ea);
+  const dark = makeToonMat(0x1d1d22);
+
+  const lower = createOutlinedMesh(new THREE.BoxGeometry(2.1, 0.55, 4.4), paint, 0.05);
+  lower.position.y = 0.62;
+  body.add(lower);
+  // Spitse neus
+  const nose = createOutlinedMesh(new THREE.BoxGeometry(1.9, 0.32, 0.9), paint, 0.04);
+  nose.position.set(0, 0.52, 2.45);
+  nose.rotation.x = 0.18;
+  body.add(nose);
+  // Lage cabine iets naar achteren
+  const cabin = createOutlinedMesh(new THREE.BoxGeometry(1.6, 0.5, 1.75), paint, 0.045);
+  cabin.position.set(0, 1.12, -0.35);
+  body.add(cabin);
+  const glass = new THREE.Mesh(new THREE.BoxGeometry(1.42, 0.36, 1.82), winBlueMat);
+  glass.position.set(0, 1.12, -0.35);
+  body.add(glass);
+  const windshield = new THREE.Mesh(new THREE.BoxGeometry(1.42, 0.5, 0.1), winBlueMat);
+  windshield.position.set(0, 1.05, 0.62);
+  windshield.rotation.x = -0.75;
+  body.add(windshield);
+  // Twee witte racestrepen over de lengte
+  [-0.28, 0.28].forEach((sx) => {
+    const st = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.04, 4.42), white);
+    st.position.set(sx, 0.91, 0);
+    body.add(st);
+    const st2 = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.04, 1.76), white);
+    st2.position.set(sx, 1.38, -0.35);
+    body.add(st2);
+  });
+  // Startnummer op de deuren
+  const numCanvas = document.createElement('canvas');
+  numCanvas.width = 128;
+  numCanvas.height = 128;
+  const nctx = numCanvas.getContext('2d');
+  nctx.fillStyle = '#ffffff';
+  nctx.beginPath();
+  nctx.arc(64, 64, 60, 0, Math.PI * 2);
+  nctx.fill();
+  nctx.fillStyle = '#1d1d22';
+  nctx.font = '900 76px system-ui, sans-serif';
+  nctx.textAlign = 'center';
+  nctx.textBaseline = 'middle';
+  nctx.fillText(String(number), 64, 70);
+  const numMat = new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(numCanvas), transparent: true, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 });
+  [-1, 1].forEach((side) => {
+    const disc = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 0.62), numMat);
+    disc.position.set(side * 1.08, 0.66, 0.1);
+    disc.rotation.y = side * Math.PI / 2;
+    body.add(disc);
+  });
+  // Spoiler
+  const wing = createOutlinedMesh(new THREE.BoxGeometry(2.0, 0.08, 0.5), dark, 0.03, false);
+  wing.position.set(0, 1.32, -2.05);
+  body.add(wing);
+  [-0.7, 0.7].forEach((sx) => {
+    const strut = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.42, 0.18), dark);
+    strut.position.set(sx, 1.08, -2.0);
+    body.add(strut);
+  });
+  const splitter = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.08, 0.3), dark);
+  splitter.position.set(0, 0.36, 2.75);
+  body.add(splitter);
+
+  attachHeadlightBulbs(body, 0.66, 2.62, 0.62);
+  attachHeadlightBeams(body, 2.6, 0.62);
+  attachTailLights(body, 0.7, -2.2, 0.66);
+
+  const { wheels, frontPivots } = buildSteerableWheels(root, [
+    { x: -1.04, y: 0.42, z: 1.4, front: true },
+    { x: 1.04, y: 0.42, z: 1.4, front: true },
+    { x: -1.04, y: 0.42, z: -1.4, front: false },
+    { x: 1.04, y: 0.42, z: -1.4, front: false }
+  ]);
+
+  return {
+    root, body, wheels, frontPivots,
+    name: label,
+    isRaceCar: true,
+    radius: 1.5, rearAxleZ: -1.4, trackHalfW: 0.98,
+    stats: { baseSpeed: 44, maxSpeed: 74, baseAccel: 52, peakAccel: 100, turnRate: 3.05, driftGripMod: 0.86, mass: 1.0 }
+  };
+}
+
 export const parkedCars = [];
 export const trafficVehicles = [];
 
@@ -563,6 +654,13 @@ if (dinerLot) {
     scene.add(veh.root);
     parkedCars.push(veh);
   });
+  const racer = buildSportsCarMesh(0xd62839, 'Pine Racer GT', 7);
+  const rlx = -3.75;
+  const rlz = 11.6;
+  racer.root.position.set(dinerLot.x + rlx * c + rlz * s, dinerLot.roadY + 0.08, dinerLot.z - rlx * s + rlz * c);
+  racer.root.rotation.y = dinerLot.yaw;
+  scene.add(racer.root);
+  parkedCars.push(racer);
 }
 
 const townParkedCop = buildPoliceCruiserMesh();
