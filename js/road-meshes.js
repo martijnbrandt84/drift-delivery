@@ -6,7 +6,7 @@ import {
 } from './scene-setup.js';
 import {
   MAIN_HALF_WIDTH, lakeSamples, valleySamples, streetSampleSets, INTERSECTIONS,
-  isInsideIntersection, LAKE_BRIDGES, lakeCurve, getLakeLoopBaseElev, getLakeBridgeAtU,
+  isInsideIntersection, allRoadNetworks, LAKE_BRIDGES, lakeCurve, getLakeLoopBaseElev, getLakeBridgeAtU,
   valleyCurve, VALLEY_BRIDGES, getValleyBaseElev, getValleyBridgeAtU, outerRoadDefs
 } from './roads.js';
 import { driveways } from './water-lots.js';
@@ -100,6 +100,112 @@ const allWhiteLineGeos = [];
 const allYellowDashGeos = [];
 const allDashOutlineGeos = [];
 
+// =========================================================
+// KRUISPUNTANALYSE: per splitsing bepalen welke weg doorloopt en welke er eindigt,
+// zodat de markering bij T-splitsingen netjes doorloopt (met stopstreep op de zijweg).
+// =========================================================
+const junctionInfo = INTERSECTIONS.map((inter) => {
+  const roads = [];
+  allRoadNetworks.forEach((net) => {
+    let best = -1;
+    let bestD = Infinity;
+    net.samples.forEach((s, i) => {
+      const d = Math.hypot(s.x - inter.x, s.z - inter.z);
+      if (d < bestD) { bestD = d; best = i; }
+    });
+    if (bestD > inter.r) return;
+    const n = net.samples.length;
+    const isEnd = !net.isClosed && (best < 18 || best > n - 19);
+    roads.push({ id: net.id, net, idx: best, isEnd, halfWidth: net.halfWidth });
+  });
+  const through = roads.filter((r) => !r.isEnd);
+  const branches = roads.filter((r) => r.isEnd);
+  const info = { inter, kind: 'other', through: null, branches: [] };
+  if (through.length === 1 && branches.length >= 1) {
+    info.kind = 't';
+    const t = through[0];
+    const c = t.net.samples[t.idx];
+    info.through = { id: t.id, cx: c.x, cz: c.z, tx: c.tx, tz: c.tz, nx: c.nx, nz: c.nz, halfWidth: t.halfWidth, y: c.y };
+    branches.forEach((b) => {
+      // Richting van de zijweg, weg van het kruispunt
+      const n = b.net.samples.length;
+      const farIdx = b.idx < n / 2 ? Math.min(n - 1, b.idx + 14) : Math.max(0, b.idx - 14);
+      const far = b.net.samples[farIdx];
+      let ax = far.x - c.x;
+      let az = far.z - c.z;
+      const al = Math.hypot(ax, az) || 1;
+      ax /= al;
+      az /= al;
+      const side = Math.sign(ax * c.nx + az * c.nz) || 1;
+      info.branches.push({ id: b.id, ax, az, side, halfWidth: b.halfWidth });
+    });
+  }
+  return info;
+});
+
+// Mag er op dit punt van deze weg markering liggen?
+// kind: 'edge' (met sideOff = zijde t.o.v. de weg-normaal) of 'center'
+function markingAllowed(s, kind, sideOff = 0) {
+  for (let k = 0; k < junctionInfo.length; k++) {
+    const j = junctionInfo[k];
+    const dx = s.x - j.inter.x;
+    const dz = s.z - j.inter.z;
+    if (dx * dx + dz * dz > (j.inter.r + 6) * (j.inter.r + 6)) continue;
+    if (j.kind !== 't') {
+      // Kruising of hoek: zoals voorheen, markering stopt rond het middelpunt
+      const pad = kind === 'center' ? 1.2 : -0.4;
+      if (Math.hypot(dx, dz) < j.inter.r + pad) return false;
+      continue;
+    }
+    const t = j.through;
+    const ox = s.x - t.cx;
+    const oz = s.z - t.cz;
+    if (s.roadId === t.id) {
+      if (kind === 'center') continue; // middenstreep loopt door
+      // Zijlijn alleen onderbreken in de monding van een zijweg aan die kant
+      const sideSign = Math.sign(sideOff) * Math.sign(s.nx * t.nx + s.nz * t.nz || 1);
+      const along = Math.abs(ox * t.tx + oz * t.tz);
+      for (const b of j.branches) {
+        if (b.side === sideSign && along < b.halfWidth + 1.4) return false;
+      }
+      continue;
+    }
+    if (j.branches.some((b) => b.id === s.roadId)) {
+      // Zijweg: markering stopt aan de rand van de hoofdweg (middenstreep iets eerder, vóór de stopstreep)
+      const perp = Math.abs(ox * t.nx + oz * t.nz);
+      const limit = t.halfWidth + (kind === 'center' ? 2.0 : 0.3);
+      if (perp < limit) return false;
+    }
+  }
+  return true;
+}
+
+// Witte stopstreep over de aankomende rijstrook van elke zijweg
+const stopLineGeos = [];
+junctionInfo.forEach((j) => {
+  if (j.kind !== 't') return;
+  const t = j.through;
+  j.branches.forEach((b) => {
+    const dist = t.halfWidth + 1.0;
+    const px = t.cx + b.ax * dist;
+    const pz = t.cz + b.az * dist;
+    // Aankomstrichting = naar het kruispunt toe; rijstrookzijde zoals het verkeer rijdt
+    const dirX = -b.ax;
+    const dirZ = -b.az;
+    const laneX = -dirZ;
+    const laneZ = dirX;
+    const w = b.halfWidth - 0.75;
+    const geo = new THREE.PlaneGeometry(w, 0.5);
+    geo.rotateX(-Math.PI / 2);
+    const yaw = Math.atan2(laneX, laneZ) - Math.PI / 2;
+    geo.rotateY(yaw);
+    geo.translate(px + laneX * (w * 0.5 + 0.2), j.inter.y + 0.108, pz + laneZ * (w * 0.5 + 0.2));
+    const flat = geo.toNonIndexed();
+    flat.deleteAttribute('uv');
+    stopLineGeos.push(flat);
+  });
+});
+
 function renderRoadSampleRuns(sampleArray, isClosed, halfW, showYellowCenter = true) {
   const runs = [];
   let currentRun = [];
@@ -151,26 +257,25 @@ function renderRoadSampleRuns(sampleArray, isClosed, halfW, showYellowCenter = t
   for (let i = 0; i < total; i++) all.push(i);
   if (isClosed) all.push(0);
 
-  let edgeSub = [];
-  const flushEdge = () => {
-    if (edgeSub.length >= 2) {
-      [-halfW + 0.58, halfW - 0.58].forEach((sideOff) => {
-        allWhiteLineGeos.push(createUpwardStripGeometry(sampleArray, edgeSub, 0.18, 0.105, sideOff).toNonIndexed());
-      });
+  // Linker- en rechterzijlijn apart, zodat bij een T-splitsing alleen de kant van de zijweg onderbroken wordt
+  [-halfW + 0.58, halfW - 0.58].forEach((sideOff) => {
+    let sub = [];
+    const flush = () => {
+      if (sub.length >= 2) allWhiteLineGeos.push(createUpwardStripGeometry(sampleArray, sub, 0.18, 0.105, sideOff).toNonIndexed());
+      sub = [];
+    };
+    for (let k = 0; k < all.length; k++) {
+      const s = sampleArray[all[k]];
+      if (!markingAllowed(s, 'edge', sideOff)) flush();
+      else sub.push(all[k]);
     }
-    edgeSub = [];
-  };
-  for (let k = 0; k < all.length; k++) {
-    const s = sampleArray[all[k]];
-    if (isInsideIntersection(s.x, s.z, -0.4)) flushEdge();
-    else edgeSub.push(all[k]);
-  }
-  flushEdge();
+    flush();
+  });
 
   if (showYellowCenter) {
     for (let k = 2; k < all.length - 3; k += 4) {
       const sMid = sampleArray[all[k + 1]];
-      if (isInsideIntersection(sMid.x, sMid.z, 1.2)) continue;
+      if (!markingAllowed(sMid, 'center')) continue;
       const subRun = [all[k], all[k + 1], all[k + 2]];
       [-0.26, 0.26].forEach((centerOff) => {
         allDashOutlineGeos.push(createUpwardStripGeometry(sampleArray, subRun, 0.17, 0.102, centerOff).toNonIndexed());
@@ -188,8 +293,10 @@ function buildCompleteRoadSystem() {
   streetSampleSets.forEach((st) => renderRoadSampleRuns(st.samples, false, st.def.halfWidth, st.def.dashedCenter));
   outerRoadDefs.forEach((def) => renderRoadSampleRuns(def.samples, def.isClosed, MAIN_HALF_WIDTH, true));
 
-  INTERSECTIONS.forEach((inter) => {
-    const radius = inter.r * 0.78;
+  INTERSECTIONS.forEach((inter, ii) => {
+    // Bij een T-splitsing blijft de asfaltschijf binnen de hoofdweg (geen ronde vlek over de berm)
+    const isT = junctionInfo[ii].kind === 't';
+    const radius = isT ? junctionInfo[ii].through.halfWidth - 0.15 : inter.r * 0.78;
     const dOut = new THREE.Mesh(new THREE.CylinderGeometry(radius + 0.48, radius + 0.58, 0.36, 24), outlineRoadMat);
     dOut.position.set(inter.x, inter.y - 0.15, inter.z);
     scene.add(dOut);
@@ -205,6 +312,7 @@ function buildCompleteRoadSystem() {
     scene.add(dAsph);
   });
 
+  stopLineGeos.forEach((geo) => allWhiteLineGeos.push(geo));
   if (allWhiteLineGeos.length) scene.add(new THREE.Mesh(BufferGeometryUtils.mergeGeometries(allWhiteLineGeos), whiteEdgeMat));
   if (allDashOutlineGeos.length) scene.add(new THREE.Mesh(BufferGeometryUtils.mergeGeometries(allDashOutlineGeos), outlineRoadMat));
   if (allYellowDashGeos.length) scene.add(new THREE.Mesh(BufferGeometryUtils.mergeGeometries(allYellowDashGeos), yellowStripeMat));
