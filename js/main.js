@@ -36,6 +36,7 @@ import './christmas.js';
 import { updateAttractions } from './attractions.js';
 import { updateOrcas } from './orcas.js';
 import { race, startRace, cancelRace, updateRace } from './race.js';
+import { bindPolicePool, pickPursuers, startPursuit, releaseFromPursuit, sendUnitToStation, updatePolicePatrol } from './police.js';
 import './touch-controls.js';
 import { flight, planeIsNear, canExitPlane, enterPlane, exitPlane, setFlightKey, updateFlight, setAirfieldNight } from './flight.js';
 
@@ -107,42 +108,17 @@ function updateWantedHUD(flashPhase = false) {
   scoreEl.textContent = `${Math.floor(chaosScore)} PTS`;
 }
 
-function spawnPoliceUnitNearPlayer(unit) {
-  const spawnAngle = Math.random() * Math.PI * 2;
-  const testX = playerVeh.root.position.x + Math.cos(spawnAngle) * 68;
-  const testZ = playerVeh.root.position.z + Math.sin(spawnAngle) * 68;
-  const rs = findNearestRoadAnywhere(testX, testZ);
-
-  const sx = rs.x;
-  const sz = rs.z;
-  const sy = getDriveHeightAndWaterState(sx, sz).height;
-
-  unit.veh.root.position.set(sx, sy, sz);
-  unit.angle = Math.atan2(playerVeh.root.position.x - sx, playerVeh.root.position.z - sz);
-  unit.vx = 0;
-  unit.vz = 0;
-  unit.active = true;
-  unit.veh.root.visible = true;
-}
-
+// Politie: vier echte auto's vanaf het bureau (zie police.js). Niemand wordt meer naast de speler neergezet.
 function syncPoliceUnitsWithStars() {
   const desiredCops = wantedStars === 0 ? 0 : Math.min(policePool.length, Math.ceil(wantedStars * 0.85));
-  let activeCount = policePool.filter((c) => c.active).length;
-
+  const active = policePool.filter((c) => c.active);
   if (desiredCops === 0) {
-    policePool.forEach((c) => {
-      c.active = false;
-      c.veh.root.visible = false;
-      c.veh.sirenLight.intensity = 0;
-    });
+    active.forEach((c) => releaseFromPursuit(c));
     return;
   }
-
-  for (const unit of policePool) {
-    if (activeCount < desiredCops && !unit.active) {
-      spawnPoliceUnitNearPlayer(unit);
-      activeCount++;
-    }
+  if (active.length < desiredCops) {
+    const p = playerVeh.root.position;
+    pickPursuers(policePool, desiredCops - active.length, p.x, p.z).forEach((c) => startPursuit(c));
   }
 }
 
@@ -182,7 +158,7 @@ function findHijackCandidate() {
   });
 
   policePool.forEach((cop, index) => {
-    if (!cop.active) return;
+    if (!cop.veh.root.visible) return;
     const d = Math.hypot(px - cop.veh.root.position.x, pz - cop.veh.root.position.z);
     if (d < bestDist) {
       bestDist = d;
@@ -233,7 +209,8 @@ function tryHijackNearbyVehicle() {
     freshCop.root.visible = false;
     scene.add(freshCop.root);
     copSlot.veh = freshCop;
-    copSlot.active = false;
+    // Er komt later een nieuwe auto uit de garage van het bureau
+    sendUnitToStation(copSlot);
     addCrimeHeat(135, 'Sheriff Interceptor gestolen');
   } else if (target.source === 'parked') {
     parkedCars.splice(target.index, 1);
@@ -405,6 +382,8 @@ function resetToClosestRoad() {
 }
 
 teleportToTown();
+bindPolicePool(policePool);
+policePool.forEach((u) => { u.onBump = () => addCrimeHeat(60, 'Politieauto geraakt'); });
 window.addEventListener('pointerdown', () => sound.init(), { once: true });
 
 nightBtnEl.addEventListener('click', toggleNightMode);
@@ -776,6 +755,9 @@ function animate() {
     }
   });
 
+  // --- 3b. Politie op patrouille / terug naar de route / garage ---
+  updatePolicePatrol(dt, elapsed, px, pz, playerVeh, carState);
+
   // --- 4. GTA Politie-Achtervolging AI ---
   let anyCopClose = false;
   let closestCopDist = Infinity;
@@ -799,10 +781,6 @@ function animate() {
 
     if (distToPlayer < closestCopDist) closestCopDist = distToPlayer;
     if (distToPlayer < 55) anyCopClose = true;
-    if (distToPlayer > 165) {
-      spawnPoliceUnitNearPlayer(cop);
-      return;
-    }
 
     const desiredAngle = Math.atan2(toTargetX, toTargetZ);
     let angDiff = desiredAngle - cop.angle;
@@ -1120,7 +1098,7 @@ function animate() {
     if (vehicleBadgeEl.textContent === 'Piper Cub') vehicleBadgeEl.textContent = playerVeh.name;
   }
 
-  const activeCops = policePool.filter((c) => c.active).map((c) => c.veh.root.position);
+  const activeCops = policePool.filter((c) => c.veh.root.visible).map((c) => c.veh.root.position);
   const mapX = flight.active ? flight.x : px;
   const mapZ = flight.active ? flight.z : pz;
   const mapAngle = flight.active ? flight.heading : carState.angle;

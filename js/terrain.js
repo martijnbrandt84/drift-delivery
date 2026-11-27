@@ -46,7 +46,7 @@ function getRawTerrainHeight(x, z) {
   for (const lot of ruralLots) {
     if (Math.abs(x - lot.x) > lot.terrainReach || Math.abs(z - lot.z) > lot.terrainReach) continue;
     if (lot.type === 'store') {
-      const dBox = getOrientedBoxDist(x, z, lot, -22.8, 22.8, -18.8, 24.6);
+      const dBox = getOrientedBoxDist(x, z, lot, -20.5, 38.3, -15.0, 19.5);
       if (dBox < 18.0) {
         const t = THREE.MathUtils.smoothstep(dBox, 0.0, 18.0);
         const targetY = lot.roadY - 0.16;
@@ -139,8 +139,9 @@ function getRawTerrainHeight(x, z) {
     const islandH = THREE.MathUtils.lerp(1.15, -0.62, THREE.MathUtils.smoothstep(dIsland, SANDBAR_ISLAND.r * 0.45, SANDBAR_ISLAND.r + 9.0));
     h = Math.max(h, islandH);
   }
-  const fordProj = THREE.MathUtils.clamp(((x - 24) * 24 + (z - 6) * 4) / (24 * 24 + 16), 0, 1);
-  const fordDist = Math.hypot(x - (24 + fordProj * 24), z - (6 + fordProj * 4));
+  const FORD = getFord();
+  const fordProj = THREE.MathUtils.clamp(((x - FORD.ax) * FORD.dx + (z - FORD.az) * FORD.dz) / FORD.len2, 0, 1);
+  const fordDist = Math.hypot(x - (FORD.ax + fordProj * FORD.dx), z - (FORD.az + fordProj * FORD.dz));
   if (fordDist < 7.5) {
     h = Math.max(h, THREE.MathUtils.lerp(-0.56, -1.5, THREE.MathUtils.smoothstep(fordDist, 3.5, 7.5)));
   }
@@ -257,6 +258,19 @@ groundGeo.computeVertexNormals();
 const terrainMesh = new THREE.Mesh(groundGeo, new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: toonGradient }));
 terrainMesh.receiveShadow = true;
 scene.add(terrainMesh);
+
+// Ondiepe doorwaadplaats: van het vuurtoreneiland recht naar de oostoever van het meer
+// (lui berekend: het terrein wordt al bij het laden van modules gebakken)
+var fordCache;
+function getFord() {
+  if (fordCache) return fordCache;
+  const ang = Math.atan2(SANDBAR_ISLAND.z, SANDBAR_ISLAND.x);
+  const shore = getLakeShoreRadius(ang) + 1.5;
+  const dx = Math.cos(ang) * shore - SANDBAR_ISLAND.x;
+  const dz = Math.sin(ang) * shore - SANDBAR_ISLAND.z;
+  fordCache = { ax: SANDBAR_ISLAND.x, az: SANDBAR_ISLAND.z, dx, dz, len2: dx * dx + dz * dz };
+  return fordCache;
+}
 
 export function getTerrainHeight(x, z) {
   const half = TERRAIN_SIZE * 0.5;

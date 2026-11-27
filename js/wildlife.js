@@ -506,16 +506,17 @@ function findWaterBankSpot() {
 }
 
 // 1. Wilde kalkoenen (12 — vrij algemeen)
+// Droge weides langs de berm (niet op de meerweg en buiten het grotere meer)
 const turkeyFlockCenters = [
-  { x: 42, z: 66 },
-  { x: -46, z: 68 },
-  { x: 64, z: -25 }
+  { x: 116, z: 12 },
+  { x: -136, z: -12 },
+  { x: 5, z: 186 }
 ];
 
 turkeyFlockCenters.forEach((fc) => {
   for (let k = 0; k < 4; k++) {
-    const tx = fc.x + (Math.random() - 0.5) * 9;
-    const tz = fc.z + (Math.random() - 0.5) * 9;
+    const tx = fc.x + (Math.random() - 0.5) * 7;
+    const tz = fc.z + (Math.random() - 0.5) * 7;
     const ty = getTerrainHeight(tx, tz);
     const tk = createWildTurkey();
     tk.root.position.set(tx, ty, tz);

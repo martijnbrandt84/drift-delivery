@@ -67,7 +67,7 @@ ruralLots.forEach((lot) => {
     });
     return;
   }
-  if (lot.type === 'camping' || lot.type === 'sawmill' || lot.type === 'fair' || lot.type === 'airfield' || lot.type === 'coffee') return;
+  if (lot.type === 'camping' || lot.type === 'sawmill' || lot.type === 'fair' || lot.type === 'airfield' || lot.type === 'coffee' || lot.type === 'police') return;
   if (lot.type === 'villa') {
     [[-2.8, 0.6], [2.8, 0.6], [-3.3, 1.2]].forEach(([lx, lz]) => {
       const w = lotLocalToWorld(lot, lx, lz);

@@ -485,6 +485,7 @@ body {
   pointer-events: none;
   white-space: nowrap;
 }
+#race-hud[hidden] { display: none; }
 #race-hud b { color: var(--gold); }
 #race-hud .pos { background: #fff8ee; color: var(--ink); border-radius: 8px; padding: 1px 8px; }
 #race-hud .pos.p1 { background: #6cc04a; }

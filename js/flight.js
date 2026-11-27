@@ -9,6 +9,7 @@ import { getTerrainHeight } from './terrain.js';
 import { createRoadSign } from './scenery.js';
 import { spawnParticle } from './effects.js';
 import { showToast } from './ui-controls.js';
+import { tagMap } from './map-tags.js';
 
 // =========================================================
 // PINEWOOD AIRFIELD + BESTUURBAAR VLIEGTUIGJE
@@ -72,12 +73,12 @@ function buildAirfield() {
   };
 
   // Platform en startbaan
-  const apron = createOutlinedMesh(new THREE.BoxGeometry(32, 0.3, 24), concreteMat, 0.03, false, true);
+  const apron = tagMap(createOutlinedMesh(new THREE.BoxGeometry(32, 0.3, 24), concreteMat, 0.03, false, true), 'paved');
   apron.position.set(0, 0.05, -2);
   g.add(apron);
   const runwayLen = 118;
   const runwayStart = -14;
-  const runway = createOutlinedMesh(new THREE.BoxGeometry(12, 0.3, runwayLen), runwayMat, 0.03, false, true);
+  const runway = tagMap(createOutlinedMesh(new THREE.BoxGeometry(12, 0.3, runwayLen), runwayMat, 0.03, false, true), 'runway');
   runway.position.set(-6, 0.08, runwayStart - runwayLen * 0.5);
   g.add(runway);
   const markY = 0.25;
@@ -120,7 +121,7 @@ function buildAirfield() {
   }
 
   // Hangar met rond dak, open richting het platform
-  const hangar = new THREE.Group();
+  const hangar = tagMap(new THREE.Group(), 'industry');
   const roof = createOutlinedMesh(new THREE.CylinderGeometry(5.2, 5.2, 11, 16, 1, false, 0, Math.PI), hangarRoofMat, 0.05);
   roof.rotation.z = Math.PI / 2;
   roof.rotation.y = Math.PI / 2;
@@ -148,7 +149,7 @@ function buildAirfield() {
   collide(14.5, -6, 2.6);
 
   // Verkeerstorentje
-  const tower = new THREE.Group();
+  const tower = tagMap(new THREE.Group(), 'civic');
   const base = createOutlinedMesh(new THREE.BoxGeometry(3, 5, 3), towerMat, 0.04);
   base.position.y = 2.5;
   tower.add(base);

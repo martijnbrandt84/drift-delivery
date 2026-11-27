@@ -7,6 +7,7 @@ import { getTerrainHeight } from './terrain.js';
 import { walkways } from './drive-surface.js';
 import { XMAS_TREE_POS } from './town.js';
 import { OCEAN_FLOOR } from './landscape.js';
+import { tagMap } from './map-tags.js';
 
 // =========================================================
 // DORPSDETAILS: rode Amerikaanse brievenbussen, een muziekkapel aan de oever
@@ -77,7 +78,7 @@ const kapelFloorMat = registerSeasonalMat(0xb89a74, 0xe8eff6);
 const bulbMat = new THREE.MeshBasicMaterial({ color: 0xffe9a8 });
 const bulbGeo = new THREE.SphereGeometry(0.09, 6, 5);
 
-function createBandstand() {
+function createBandstand__build() {
   const g = new THREE.Group();
   const R = 3.6;
   const base = createOutlinedMesh(new THREE.CylinderGeometry(R + 0.3, R + 0.5, 0.9, 8), kapelWhiteMat, 0.045, false, true);
@@ -273,3 +274,6 @@ const pierRailMat = registerSeasonalMat(0xf6f2ea, 0xffffff);
     void WATER_LEVEL;
   }
 }
+
+// Kaart: gebouwen krijgen hun soort mee (zie map-tags.js)
+function createBandstand(...args) { return tagMap(createBandstand__build(...args), 'civic'); }

@@ -49,7 +49,14 @@ function standHeight(a, x, z, allowRoad) {
   } else if (y < WATER_LEVEL + 0.3) {
     return null;
   }
-  if (!allowRoad && getClosestNetworkRoad(x, z).marginDist < 1.2) return null;
+  if (!allowRoad) {
+    const m = getClosestNetworkRoad(x, z).marginDist;
+    if (m < 1.2) {
+      // Staat het dier al op de weg, dan mag het altijd een stap van de weg af zetten
+      const cur = getClosestNetworkRoad(a.root.position.x, a.root.position.z).marginDist;
+      if (!(cur < 1.2 && m > cur)) return null;
+    }
+  }
   if (!a.townOk && isInsideTownFootprint(x, z, 1)) return null;
   if (hitsCollider(x, z, a.bodyR)) return null;
   return y;
@@ -435,7 +442,13 @@ export function updateWildlife(dt, elapsed, px, pz, playerSpeed) {
         }
       }
     } else {
-      if (a.timer <= 0) {
+      if (a.timer <= 0 && getClosestNetworkRoad(p.x, p.z).marginDist < 1.2) {
+        // Op de weg beland (na vluchten): loop er recht vanaf
+        const rs = getClosestNetworkRoad(p.x, p.z).sample;
+        if (rs) a.angle = angleTo(rs.x, rs.z, p.x, p.z);
+        a.walking = true;
+        a.timer = 1.5;
+      } else if (a.timer <= 0) {
         a.walking = !a.walking || a.species === 'fox' || a.species === 'turkey';
         a.timer = a.walking ? 1.8 + Math.random() * 3 : 2 + Math.random() * 3.5;
         const dHome = Math.hypot(a.homeX - p.x, a.homeZ - p.z);

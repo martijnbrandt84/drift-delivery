@@ -5,6 +5,9 @@ import { getTerrainHeight } from './terrain.js';
 import { minimapCanvas, fullmapCanvas, fullmapOverlayEl, minimapCardEl } from './dom.js';
 import { destructibles } from './demolition.js';
 import { cropFields } from './farm.js';
+import { scene, outlineMat } from './scene-setup.js';
+import { MAP_KINDS } from './map-tags.js';
+import * as THREE from 'three';
 
 // =========================================================
 // MINIMAP: wegennet/meer/landmarks 1x gebakken naar een offscreen canvas, elk frame alleen uitgeknipt (goedkoop!)
@@ -100,40 +103,16 @@ function bakeStaticMap() {
     });
   });
 
-  bctx.lineJoin = 'round';
-  bctx.lineCap = 'round';
-  bctx.strokeStyle = '#3d3830';
-  bctx.lineWidth = 8;
-  allRoadNetworks.forEach((net) => drawRoadPath(net.samples, net.isClosed));
-  bctx.strokeStyle = '#6a6258';
-  bctx.lineWidth = 5;
-  allRoadNetworks.forEach((net) => drawRoadPath(net.samples, net.isClosed));
 
-  // Dorpsgebied
-  bctx.fillStyle = 'rgba(230, 218, 200, 0.6)';
+  // Dorpsgebied (lichte ondergrond; de gebouwen zelf staan er straks in hun eigen kleur op)
+  bctx.fillStyle = 'rgba(232, 222, 204, 0.45)';
   const tl = worldToBake(TOWN_BOUNDS.minX, TOWN_BOUNDS.minZ);
   const br = worldToBake(TOWN_BOUNDS.maxX, TOWN_BOUNDS.maxZ);
   bctx.fillRect(tl.px, tl.py, br.px - tl.px, br.py - tl.py);
 
-  // Boerderij
-  ruralLots.filter((l) => l.type === 'farm').forEach((farmLot) => {
-    const { px, py } = worldToBake(farmLot.x, farmLot.z);
-    bctx.fillStyle = '#a23327';
-    bctx.fillRect(px - 7, py - 7, 14, 14);
-  });
-
-  // Diner (rood-geel rondje)
-  ruralLots.filter((l) => l.type === 'diner').forEach((lot) => {
-    const { px, py } = worldToBake(lot.x, lot.z);
-    bctx.fillStyle = '#ffd23f';
-    bctx.beginPath();
-    bctx.arc(px, py, 8, 0, Math.PI * 2);
-    bctx.fill();
-    bctx.fillStyle = '#d62839';
-    bctx.beginPath();
-    bctx.arc(px, py, 5, 0, Math.PI * 2);
-    bctx.fill();
-  });
+  drawTaggedFootprints(['yard', 'paved', 'runway']);
+  drawRoads();
+  drawTaggedFootprints(['home', 'shop', 'civic', 'farm', 'leisure', 'industry']);
 
   // Vuurtoren op het zandeiland
   const lh = worldToBake(SANDBAR_ISLAND.x, SANDBAR_ISLAND.z);
@@ -151,19 +130,66 @@ function bakeStaticMap() {
   bctx.lineTo(ep.px + 7, ep.py + 6);
   bctx.closePath();
   bctx.fill();
+}
 
-  // Hutten en huizen
-  bctx.fillStyle = '#7a4a2a';
-  ruralLots.forEach((lot) => {
-    if (lot.type === 'farm' || lot.type === 'store' || lot.type === 'diner' || lot.type === 'camping' || lot.type === 'sawmill' || lot.type === 'fair' || lot.type === 'cinema' || lot.type === 'airfield' || lot.type === 'coffee') return;
-    if (lot.type === 'villa') {
-      const v = worldToBake(lot.x, lot.z);
-      bctx.fillStyle = '#f6f0e4';
-      bctx.fillRect(v.px - 6, v.py - 4, 12, 8);
-      return;
-    }
-    const { px, py } = worldToBake(lot.x, lot.z);
-    bctx.fillRect(px - 3, py - 3, 6, 6);
+function drawRoads() {
+  bctx.lineJoin = 'round';
+  bctx.lineCap = 'round';
+  bctx.strokeStyle = '#3d3830';
+  bctx.lineWidth = 8;
+  allRoadNetworks.forEach((net) => drawRoadPath(net.samples, net.isClosed));
+  bctx.strokeStyle = '#6a6258';
+  bctx.lineWidth = 5;
+  allRoadNetworks.forEach((net) => drawRoadPath(net.samples, net.isClosed));
+}
+
+// Echte omtrek van elk gelabeld gebouw/terrein: begrenzingsdoos in het eigen assenstelsel van het object,
+// zodat gedraaide gebouwen ook gedraaid op de kaart staan
+const _inv = new THREE.Matrix4();
+const _m = new THREE.Matrix4();
+const _box = new THREE.Box3();
+const _tmp = new THREE.Box3();
+const _v = new THREE.Vector3();
+function footprintOf(obj) {
+  _inv.copy(obj.matrixWorld).invert();
+  _box.makeEmpty();
+  obj.traverseVisible((ch) => {
+    // Alleen zichtbare delen (de lichtbundel van de vuurtoren telt bijv. niet mee); transparante effecten ook niet
+    if (!ch.isMesh || ch.isInstancedMesh || ch.material === outlineMat || !ch.geometry) return;
+    if (ch.material && ch.material.transparent && ch.material.opacity < 0.6) return;
+    if (!ch.geometry.boundingBox) ch.geometry.computeBoundingBox();
+    _m.multiplyMatrices(_inv, ch.matrixWorld);
+    _tmp.copy(ch.geometry.boundingBox).applyMatrix4(_m);
+    _box.union(_tmp);
+  });
+  if (_box.isEmpty()) return null;
+  return [[_box.min.x, _box.min.z], [_box.max.x, _box.min.z], [_box.max.x, _box.max.z], [_box.min.x, _box.max.z]].map(([x, z]) => {
+    _v.set(x, 0, z).applyMatrix4(obj.matrixWorld);
+    return worldToBake(_v.x, _v.z);
+  });
+}
+function drawTaggedFootprints(kinds) {
+  scene.updateMatrixWorld(true);
+  const list = [];
+  scene.traverse((o) => {
+    const k = o.userData && o.userData.mapKind;
+    if (k && kinds.includes(k)) list.push(o);
+  });
+  // Grote terreinen eerst, gebouwen erbovenop
+  kinds.forEach((kind) => {
+    const style = MAP_KINDS[kind];
+    list.filter((o) => o.userData.mapKind === kind).forEach((o) => {
+      const pts = footprintOf(o);
+      if (!pts) return;
+      bctx.beginPath();
+      pts.forEach((p, i) => (i ? bctx.lineTo(p.px, p.py) : bctx.moveTo(p.px, p.py)));
+      bctx.closePath();
+      bctx.fillStyle = style.fill;
+      bctx.fill();
+      bctx.lineWidth = kind === 'paved' || kind === 'yard' || kind === 'runway' ? 1 : 1.4;
+      bctx.strokeStyle = style.stroke;
+      bctx.stroke();
+    });
   });
 }
 // De kaart wordt pas gebakken bij het eerste frame: dan staan alle bomen en akkers er al
@@ -265,6 +291,7 @@ ruralLots.forEach((lot) => {
   if (lot.type === 'cinema') addLabel('Bioscoop', lot.x + 6, lot.z - 14);
   if (lot.type === 'airfield') addLabel('Vliegveld', lot.x - 50, lot.z - 16);
   if (lot.type === 'coffee') addLabel('Pine Coffee', lot.x, lot.z - 12);
+  if (lot.type === 'police') addLabel('Politiebureau', lot.x, lot.z - 16);
 });
 addLabel('Strand', 0, 352, 'water');
 
@@ -300,6 +327,33 @@ export function updateFullMap(px, pz, angle, copPositions = []) {
     fullCtx.strokeText(lb.text, p.px, p.py);
     fullCtx.fillText(lb.text, p.px, p.py);
   });
+
+  // Legenda
+  {
+    const items = Object.values(MAP_KINDS).filter((k) => k.legend);
+    const x0 = 14;
+    const y0 = FULL - 14 - items.length * 22 - 12;
+    fullCtx.fillStyle = 'rgba(255, 249, 240, 0.9)';
+    fullCtx.strokeStyle = '#2a1810';
+    fullCtx.lineWidth = 2;
+    fullCtx.beginPath();
+    fullCtx.roundRect ? fullCtx.roundRect(x0, y0, 190, items.length * 22 + 12, 10) : fullCtx.rect(x0, y0, 190, items.length * 22 + 12);
+    fullCtx.fill();
+    fullCtx.stroke();
+    fullCtx.textAlign = 'left';
+    fullCtx.font = '700 14px system-ui, sans-serif';
+    items.forEach((it, i) => {
+      const y = y0 + 8 + i * 22;
+      fullCtx.fillStyle = it.fill;
+      fullCtx.fillRect(x0 + 10, y + 2, 16, 14);
+      fullCtx.strokeStyle = it.stroke;
+      fullCtx.lineWidth = 1.2;
+      fullCtx.strokeRect(x0 + 10, y + 2, 16, 14);
+      fullCtx.fillStyle = '#2a1810';
+      fullCtx.fillText(it.label, x0 + 34, y + 10);
+    });
+    fullCtx.textAlign = 'center';
+  }
 
   // Sheriffs
   fullCtx.fillStyle = '#2288ff';

@@ -8,6 +8,7 @@ import { houseWindows, warmWindowMat } from './town.js';
 import { createRoadSign } from './scenery.js';
 import { buildPickupTruckMesh, parkedCars } from './vehicles.js';
 import { createPineFast, createDeciduousTreeFast, createShrubFast } from './props.js';
+import { tagMap } from './map-tags.js';
 
 // Tekst op borden: altijd net vóór het bord tekenen (geen flikkeren/wegvallen op afstand)
 // Borden: echte sRGB-kleuren en geen filmische tonemapping, zodat rood rood blijft en tekst scherp is
@@ -108,7 +109,7 @@ function picnicTable(mat) {
 // ---------------------------------------------------------
 // STRANDCAMPING
 // ---------------------------------------------------------
-function createTent(colorHex) {
+function createTent__build(colorHex) {
   const g = new THREE.Group();
   const shape = new THREE.Shape();
   shape.moveTo(-1.4, 0);
@@ -125,7 +126,7 @@ function createTent(colorHex) {
   return g;
 }
 
-function createCaravan(stripeHex) {
+function createCaravan__build(stripeHex) {
   const g = new THREE.Group();
   const body = createOutlinedMesh(new THREE.CapsuleGeometry(1.15, 3.0, 4, 10), whiteMat, 0.045);
   body.rotation.z = Math.PI * 0.5;
@@ -186,7 +187,7 @@ function buildCamping(lot) {
   const { g, collide, toWorld } = lotFrame(lot);
   const fb = lot.flatBox;
 
-  const ground = createOutlinedMesh(new THREE.BoxGeometry(34, 0.3, 26), gravelMat, 0.03, false, true);
+  const ground = tagMap(createOutlinedMesh(new THREE.BoxGeometry(34, 0.3, 26), gravelMat, 0.03, false, true), 'yard');
   ground.position.set(0, 0.05, -6);
   g.add(ground);
 
@@ -391,12 +392,12 @@ function logStack(rows, length, radius, mat) {
 function buildSawmill(lot) {
   const { g, collide } = lotFrame(lot);
 
-  const yard = createOutlinedMesh(new THREE.BoxGeometry(32, 0.3, 30), gravelMat, 0.03, false, true);
+  const yard = tagMap(createOutlinedMesh(new THREE.BoxGeometry(32, 0.3, 30), gravelMat, 0.03, false, true), 'yard');
   yard.position.set(0, 0.05, 2);
   g.add(yard);
 
   // Open zaagloods met cirkelzaag
-  const shed = new THREE.Group();
+  const shed = tagMap(new THREE.Group(), 'industry');
   const len = 16;
   const depth = 8;
   const h = 4.6;
@@ -526,7 +527,7 @@ function makeStandSignTexture(text, bg, fg) {
 }
 
 // Grote rood-witte circustent
-function createBigTop() {
+function createBigTop__build() {
   const g = new THREE.Group();
   const R = 5.6;
   const wallH = 3.0;
@@ -556,7 +557,7 @@ function createBigTop() {
 }
 
 // Botsautohal met dak en een paar gekleurde botsautootjes
-function createBumperCars() {
+function createBumperCars__build() {
   const g = new THREE.Group();
   const floor = createOutlinedMesh(new THREE.BoxGeometry(10, 0.3, 8), makeToonMat(0x5a5f68), 0.03, false, true);
   floor.position.y = 0.15;
@@ -596,7 +597,7 @@ function createBumperCars() {
 }
 
 // Eetkraam met een groot "product" op het dak
-function createFoodStand(kind, colorOverride = null) {
+function createFoodStand__build(kind, colorOverride = null) {
   const cfg = {
     popcorn: { col: 0xd94e3a, label: 'POPCORN' },
     candy: { col: 0xe07ab8, label: 'COTTON CANDY' },
@@ -636,7 +637,7 @@ function createFoodStand(kind, colorOverride = null) {
   return g;
 }
 
-function createFerrisWheel() {
+function createFerrisWheel__build() {
   const g = new THREE.Group();
   const R = 7.0;
   const hubY = 8.4;
@@ -693,7 +694,7 @@ function createFerrisWheel() {
   return g;
 }
 
-function createCarousel() {
+function createCarousel__build() {
   const g = new THREE.Group();
   const base = createOutlinedMesh(new THREE.CylinderGeometry(5.2, 5.4, 0.6, 20), makeToonMat(0xf1e4c8), 0.04);
   base.position.y = 0.3;
@@ -738,7 +739,7 @@ function createCarousel() {
   return g;
 }
 
-function createFairBooth(stripeHex) {
+function createFairBooth__build(stripeHex) {
   const g = new THREE.Group();
   const counter = createOutlinedMesh(new THREE.BoxGeometry(3.6, 1.1, 2.0), lightWoodMat, 0.035);
   counter.position.y = 0.55;
@@ -962,7 +963,7 @@ function buildFair(lot) {
 }
 
 // Spelletjeskraam: ringwerpen met flessen op de toonbank
-function createGameStand() {
+function createGameStand__build() {
   const g = createFairBooth(0xd94e3a);
   const sign = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 0.8), new THREE.MeshBasicMaterial({ map: makeStandSignTexture('RING TOSS', '#fffaf0', '#b8243a'), ...SIGN_MAT_OPTS }));
   sign.position.set(0, 3.35, 1.26);
@@ -1009,3 +1010,14 @@ export function updateAttractions(elapsed, dt, isNight) {
     n.light.intensity += (target - n.light.intensity) * Math.min(1, dt * 2);
   });
 }
+
+// Kaart: gebouwen krijgen hun soort mee (zie map-tags.js)
+function createTent(...args) { return tagMap(createTent__build(...args), 'leisure'); }
+function createCaravan(...args) { return tagMap(createCaravan__build(...args), 'leisure'); }
+function createBigTop(...args) { return tagMap(createBigTop__build(...args), 'leisure'); }
+function createBumperCars(...args) { return tagMap(createBumperCars__build(...args), 'leisure'); }
+function createFoodStand(...args) { return tagMap(createFoodStand__build(...args), 'leisure'); }
+function createFerrisWheel(...args) { return tagMap(createFerrisWheel__build(...args), 'leisure'); }
+function createCarousel(...args) { return tagMap(createCarousel__build(...args), 'leisure'); }
+function createFairBooth(...args) { return tagMap(createFairBooth__build(...args), 'leisure'); }
+function createGameStand(...args) { return tagMap(createGameStand__build(...args), 'leisure'); }

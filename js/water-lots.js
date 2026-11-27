@@ -11,13 +11,35 @@ const eastAveSamples = streetSampleSets.find((s) => s.def.id === 'east_ave').sam
 // =========================================================
 // WATERLOPEN & KAVELS (MET EXACTE RECHTHOEKIGE VLAKTE-ZONES)
 // =========================================================
+// Extra groei van Pinewood Lake per 10 graden (0 = oost, 90 = zuid/dorp), afgestemd op de vrije ruimte
+// tot de meerweg: overal blijft minstens ~16 m oever over. Bij het dorp en in het zuidwesten blijft het gelijk.
+const LAKE_GROW = [
+  19, 16, 14, 15, 16, 15, 10, 2, 0, 0, 0, 6, 15, 20, 20, 20, 20, 20,
+  20, 18, 11, 4, 0, 0, 0, 0, 0, 0, 3, 5, 7, 9, 12, 16, 18, 17
+];
+function lakeGrowAt(theta) {
+  const n = LAKE_GROW.length;
+  let t = (theta / (Math.PI * 2)) * n;
+  t = ((t % n) + n) % n;
+  const i1 = Math.floor(t);
+  const f = t - i1;
+  const p0 = LAKE_GROW[(i1 - 1 + n) % n];
+  const p1 = LAKE_GROW[i1];
+  const p2 = LAKE_GROW[(i1 + 1) % n];
+  const p3 = LAKE_GROW[(i1 + 2) % n];
+  // Catmull-Rom: vloeiende oeverlijn zonder knikken
+  const v = 0.5 * ((2 * p1) + (-p0 + p2) * f + (2 * p0 - 5 * p1 + 4 * p2 - p3) * f * f + (-p0 + 3 * p1 - 3 * p2 + p3) * f * f * f);
+  return Math.max(0, v);
+}
+
 export function getLakeShoreRadius(theta) {
   // Noordelijke helft flink groter (daar ligt de meerweg ver genoeg weg); zuidkant bij het dorp blijft gelijk
   const northGrow = Math.pow(Math.max(0, -Math.sin(theta)), 0.8) * 14;
-  return 47 + Math.sin(theta * 2 - 0.4) * 6.0 + Math.cos(theta * 3 + 1.1) * 4.5 + Math.sin(theta * 5) * 1.8 + northGrow;
+  return 47 + Math.sin(theta * 2 - 0.4) * 6.0 + Math.cos(theta * 3 + 1.1) * 4.5 + Math.sin(theta * 5) * 1.8 + northGrow + lakeGrowAt(theta);
 }
 
-export const SANDBAR_ISLAND = { x: 24, z: 6, r: 12 };
+// Vuurtoreneiland: wat verder het (grotere) meer in, met vrij water rondom
+export const SANDBAR_ISLAND = { x: 30, z: 2, r: 12 };
 
 // Rivieren worden nu in roads.js gedefinieerd (nodig om bruggen op de nieuwe wegen automatisch te plaatsen)
 export { riverCurves, VALLEY_POND, getDistToRivers };
@@ -27,7 +49,12 @@ export const ruralLots = [
   { netSamples: lakeSamples, u: 0.895, outward: true, dist: 18.0, type: 'house_red', yawOff: 0.1 },
   { netSamples: valleySamples, u: 0.16, outward: true, dist: 18.0, type: 'cabin', yawOff: 0.05 },
   { netSamples: valleySamples, u: 0.28, outward: false, dist: 17.5, type: 'house_red', yawOff: -0.08 },
-  { netSamples: valleySamples, u: 0.36, outward: true, dist: 17.5, type: 'house_yellow', yawOff: 0.1 },
+  // Politiebureau (Sheriff's Office) tussen het dorp en het vliegveld
+  {
+    netSamples: valleySamples, u: 0.36, outward: true, dist: 21.0, type: 'police', yawOff: 0,
+    drivewayStopShort: 12.5, flatElevOffset: -0.05,
+    flatBox: { minLX: -16.5, maxLX: 16.5, minLZ: -14, maxLZ: 12, blend: 12 }
+  },
 
   // Supermarkt & Pinewood Mall op het vlakke noordoostelijke stuk van de meerweg (u=0.055, vlakke weg!).
   // flatBox legt het hele winkelcentrum én de hele parkeerplaats tot aan de wegrand 100% waterpas.
@@ -39,9 +66,9 @@ export const ruralLots = [
     type: 'store',
     yawOff: 0,
     // Brede geasfalteerde inrit van de weg tot aan de rand van de parkeerplaats (lz = 19.6)
-    drivewayStopShort: 24.3,
+    drivewayStopShort: 19.4,
     flatElevOffset: -0.06,
-    flatBox: { minLX: -22.5, maxLX: 22.5, minLZ: -18.0, maxLZ: 26.0, blend: 12.0 }
+    flatBox: { minLX: -19.5, maxLX: 37.5, minLZ: -14.0, maxLZ: 26.0, blend: 12.0 }
   },
 
   // Huizen en hutten langs de kustweg en het bospad (near = wereldpunt, u wordt opgezocht)
@@ -226,7 +253,7 @@ ruralLots.forEach((lot) => {
       y2: lot.y,
       z2: rs.z + rs.nz * side * (lot.dist - (lot.drivewayStopShort ?? 0)),
       halfWidth: lot.type === 'farm' ? 3.2 : lot.type === 'store' ? 4.4 : lot.type === 'cinema' ? 3.4 : lot.type === 'villa' ? 2.8 : 2.5,
-      asphalt: lot.type === 'store' || lot.type === 'cinema' || lot.type === 'airfield' || lot.type === 'coffee'
+      asphalt: lot.type === 'store' || lot.type === 'cinema' || lot.type === 'airfield' || lot.type === 'coffee' || lot.type === 'police'
     });
   }
 });

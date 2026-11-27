@@ -7,6 +7,7 @@ import { ruralLots } from './water-lots.js';
 import { hardColliders, registerDestructible } from './demolition.js';
 import { getTerrainHeight } from './terrain.js';
 import { spawnParticle } from './effects.js';
+import { tagMap } from './map-tags.js';
 
 // =========================================================
 // GROTE AFGELEGEN BOERDERIJ: SCHUUR, DUBBELE SILO, BOERENHUIS,
@@ -44,7 +45,7 @@ function localToWorld(lx, lz, yaw) {
   return { x: lx * c + lz * s, z: -lx * s + lz * c };
 }
 
-function createGrandBarn(pal = PAL_CLASSIC) {
+function createGrandBarn__build(pal = PAL_CLASSIC) {
   const g = new THREE.Group();
   const w = 12.2;
   const h = 6.2;
@@ -144,7 +145,7 @@ function createGrandBarn(pal = PAL_CLASSIC) {
   return g;
 }
 
-function createFarmHouse(pal = PAL_CLASSIC) {
+function createFarmHouse__build(pal = PAL_CLASSIC) {
   const g = new THREE.Group();
   const w = 7.8, h = 4.6, d = 6.4;
 
@@ -202,7 +203,7 @@ function createFarmHouse(pal = PAL_CLASSIC) {
   return g;
 }
 
-function createGrainSilo(radius = 2.0, height = 8.8, pal = PAL_CLASSIC) {
+function createGrainSilo__build(radius = 2.0, height = 8.8, pal = PAL_CLASSIC) {
   const g = new THREE.Group();
 
   const body = createOutlinedMesh(new THREE.CylinderGeometry(radius, radius, height, 14), pal.siloBody, 0.045, true);
@@ -228,7 +229,7 @@ function createGrainSilo(radius = 2.0, height = 8.8, pal = PAL_CLASSIC) {
   return g;
 }
 
-function createWindmill() {
+function createWindmill__build() {
   const g = new THREE.Group();
   const h = 10.2;
 
@@ -539,7 +540,7 @@ const PAL_DAIRY = {
 };
 
 // Open werktuigenloods / koeienstal: palen, achterwand en een schuin dak
-function createOpenShed(len, depth, pal) {
+function createOpenShed__build(len, depth, pal) {
   const g = new THREE.Group();
   const h = 3.4;
   const back = createOutlinedMesh(new THREE.BoxGeometry(len, h, 0.3), pal.wall, 0.04);
@@ -848,3 +849,10 @@ export function updateCows(px, pz, dt, elapsed) {
     }
   }
 }
+
+// Kaart: gebouwen krijgen hun soort mee (zie map-tags.js)
+function createGrandBarn(...args) { return tagMap(createGrandBarn__build(...args), 'farm'); }
+function createFarmHouse(...args) { return tagMap(createFarmHouse__build(...args), 'home'); }
+function createGrainSilo(...args) { return tagMap(createGrainSilo__build(...args), 'farm'); }
+function createWindmill(...args) { return tagMap(createWindmill__build(...args), 'farm'); }
+function createOpenShed(...args) { return tagMap(createOpenShed__build(...args), 'farm'); }

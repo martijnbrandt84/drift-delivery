@@ -6,6 +6,7 @@ import { TOWN_ELEV } from './roads.js';
 import { ruralLots } from './water-lots.js';
 import { hardColliders, registerDestructible, destructibles, markLastPlanted } from './demolition.js';
 import { getTerrainHeight } from './terrain.js';
+import { tagMap } from './map-tags.js';
 
 // Tekst op borden: altijd net vóór het bord tekenen (geen flikkeren/wegvallen op afstand)
 // Borden: echte sRGB-kleuren en geen filmische tonemapping, zodat rood rood blijft en tekst scherp is
@@ -293,7 +294,7 @@ function createFountain() {
 // =========================================================
 // AANEENGESLOTEN STADSWINKELS & GESCHAKELDE RIJTJESHUIZEN
 // =========================================================
-function createAttachedShop(width, height, depth, wallHex, awningHex, roofTrimHex) {
+function createAttachedShop__build(width, height, depth, wallHex, awningHex, roofTrimHex) {
   const g = new THREE.Group();
   const wallMat = makeToonMat(wallHex);
   const awningMat = makeToonMat(awningHex);
@@ -342,7 +343,7 @@ function createAttachedShop(width, height, depth, wallHex, awningHex, roofTrimHe
   return g;
 }
 
-function createRowTownHouse(width, height, depth, sidingHex, altRoof = false) {
+function createRowTownHouse__build(width, height, depth, sidingHex, altRoof = false) {
   const g = new THREE.Group();
   const stoopDepth = 0.85;
   const roofMat = altRoof ? altSlateRoofMat : sharedHouseRoofMat;
@@ -404,7 +405,7 @@ function createRowTownHouse(width, height, depth, sidingHex, altRoof = false) {
   return g;
 }
 
-function createDetachedRuralHouse(sidingHex) {
+function createDetachedRuralHouse__build(sidingHex) {
   const g = new THREE.Group();
   const w = 6.4, h = 4.3, d = 5.4;
 
@@ -464,7 +465,7 @@ function createDetachedRuralHouse(sidingHex) {
   return g;
 }
 
-function createGemeentehuis() {
+function createGemeentehuis__build() {
   const g = new THREE.Group();
   const w = 11.4, h = 5.4, d = 5.6;
 
@@ -770,7 +771,7 @@ function addHangingSign(g, x, y, z, mesh) {
   g.add(mesh);
 }
 
-function createNamedShop(type, width, height, depth) {
+function createNamedShop__build(type, width, height, depth) {
   const cfg = SHOP_TYPES[type];
   const g = createAttachedShop(width, height, depth, cfg.wall, cfg.awn, cfg.trim);
   const sign = new THREE.Mesh(new THREE.PlaneGeometry(width * 0.72, 0.5), new THREE.MeshBasicMaterial({ map: getShopSignTexture(cfg), ...SIGN_MAT_OPTS }));
@@ -897,7 +898,7 @@ function placeNamedShop(x, z, rotY, type, w, h, d) {
 // =========================================================
 // APPARTEMENTENGEBOUWEN: 4 verdiepingen met balkons, entree-luifel en watertoren op het dak
 // =========================================================
-function createApartmentBuilding(width, floors, depth, wallHex, trimHex, withTower = true, opts = {}) {
+function createApartmentBuilding__build(width, floors, depth, wallHex, trimHex, withTower = true, opts = {}) {
   floors = Math.min(3, floors);
   const roofType = opts.roof ?? 'flat';
   const g = new THREE.Group();
@@ -1273,7 +1274,7 @@ function createProduceStand() {
   return g;
 }
 
-function createSupermarketWing() {
+function createSupermarketWing__build() {
   const g = new THREE.Group();
   const w = 11.4, h = 5.8, d = 8.8;
 
@@ -1322,7 +1323,7 @@ function createSupermarketWing() {
   return g;
 }
 
-function createMallAtriumCenter() {
+function createMallAtriumCenter__build() {
   const g = new THREE.Group();
   const w = 10.8, h = 8.8, d = 9.4;
 
@@ -1387,7 +1388,7 @@ function createMallAtriumCenter() {
   return g;
 }
 
-function createMallRetailWing() {
+function createMallRetailWing__build() {
   const g = new THREE.Group();
   const w = 11.4, h = 7.0, d = 8.8;
 
@@ -1434,7 +1435,89 @@ function createMallRetailWing() {
   return g;
 }
 
-const MALL_SCALE = 1.25;
+// Bouwmarkt met houten gevel en een groene luifel (past bij Pinewood)
+function createHardwareStore__build() {
+  const g = new THREE.Group();
+  const w = 11.6, h = 6.2, d = 9.0;
+  const wood = makeToonMat(0x8a5a3c);
+  const green = makeToonMat(0x2f6b45);
+  const body = createOutlinedMesh(new THREE.BoxGeometry(w, h, d), wood, 0.055);
+  body.position.y = h * 0.5;
+  g.add(body);
+  // Verticale planken
+  for (let k = 0; k < 12; k++) {
+    const plank = new THREE.Mesh(new THREE.BoxGeometry(0.06, h - 0.4, 0.05), makeToonMat(0x6e4630));
+    plank.position.set(-w * 0.5 + 0.5 + k * ((w - 1) / 11), h * 0.5, d * 0.5 + 0.03);
+    g.add(plank);
+  }
+  // Schuurdak
+  const rShape = new THREE.Shape();
+  rShape.moveTo(-(w * 0.5 + 0.4), 0);
+  rShape.lineTo(0, 1.6);
+  rShape.lineTo(w * 0.5 + 0.4, 0);
+  rShape.closePath();
+  const rGeo = new THREE.ExtrudeGeometry(rShape, { depth: d + 0.6, bevelEnabled: false });
+  rGeo.translate(0, 0, -(d + 0.6) * 0.5);
+  const roof = createOutlinedMesh(rGeo, registerSeasonalMat(0x2f4a3a, 0xf2f6fb), 0.05);
+  roof.position.y = h;
+  g.add(roof);
+  // Grote schuifdeur en etalage
+  const door = createOutlinedMesh(new THREE.BoxGeometry(3.4, 3.4, 0.12), green, 0.03, false);
+  door.position.set(-2.6, 1.7, d * 0.5 + 0.1);
+  g.add(door);
+  const doorGlass = new THREE.Mesh(new THREE.PlaneGeometry(2.8, 2.9), warmWindowMat);
+  doorGlass.position.set(-2.6, 1.6, d * 0.5 + 0.17);
+  g.add(doorGlass);
+  houseWindows.push({ mesh: doorGlass, timer: Math.random() * 10 });
+  const win = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 1.9), warmWindowMat);
+  win.position.set(2.8, 1.8, d * 0.5 + 0.07);
+  g.add(win);
+  houseWindows.push({ mesh: win, timer: Math.random() * 10 });
+  const awning = createOutlinedMesh(new THREE.BoxGeometry(w - 0.6, 0.2, 1.4), green, 0.035, false);
+  awning.position.set(0, 3.75, d * 0.5 + 0.65);
+  awning.rotation.x = 0.22;
+  g.add(awning);
+  const board = createOutlinedMesh(new THREE.BoxGeometry(8.2, 1.1, 0.16), green, 0.03, false);
+  board.position.set(0, 5.0, d * 0.5 + 0.1);
+  g.add(board);
+  const text = mallTextPlane('PINEWOOD HARDWARE', '#2f6b45', '#ffffff', 7.9, 0.95);
+  text.position.set(0, 5.0, d * 0.5 + 0.23);
+  g.add(text);
+  g.userData.lightSpecs = { width: w * 0.94, yPos: h - 0.2, zFront: d * 0.5 + 0.3 };
+  return g;
+}
+
+// Klein café met gestreepte luifel
+function createMallCafe__build() {
+  const g = new THREE.Group();
+  const w = 5.6, h = 4.6, d = 8.0;
+  const body = createOutlinedMesh(new THREE.BoxGeometry(w, h, d), makeToonMat(0xf2e6d0), 0.05);
+  body.position.y = h * 0.5;
+  g.add(body);
+  const parapet = createOutlinedMesh(new THREE.BoxGeometry(w + 0.1, 0.5, d + 0.12), makeToonMat(0x2f7a8a), 0.04, false);
+  parapet.position.y = h + 0.2;
+  g.add(parapet);
+  const win = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 2.0), warmWindowMat);
+  win.position.set(0, 1.7, d * 0.5 + 0.07);
+  g.add(win);
+  houseWindows.push({ mesh: win, timer: Math.random() * 10 });
+  for (let k = 0; k < 7; k++) {
+    const stripe = createOutlinedMesh(new THREE.BoxGeometry(0.78, 0.12, 1.3), makeToonMat(k % 2 ? 0xf6f2ea : 0x2f7a8a), 0.015, false);
+    stripe.position.set(-2.35 + k * 0.78, 3.15, d * 0.5 + 0.6);
+    stripe.rotation.x = 0.3;
+    g.add(stripe);
+  }
+  const board = createOutlinedMesh(new THREE.BoxGeometry(4.6, 0.8, 0.14), makeToonMat(0x2f7a8a), 0.025, false);
+  board.position.set(0, 3.95, d * 0.5 + 0.08);
+  g.add(board);
+  const text = mallTextPlane('CAFÉ', '#2f7a8a', '#ffffff', 4.3, 0.7);
+  text.position.set(0, 3.95, d * 0.5 + 0.2);
+  g.add(text);
+  g.userData.lightSpecs = { width: w * 0.94, yPos: h + 0.3, zFront: d * 0.5 + 0.2 };
+  return g;
+}
+
+const MALL_SCALE = 1.0; // ware grootte: de mall wordt breder met extra panden, niet opgerekt
 function buildGeneralStore() {
   const rl = (lx, lz, yw) => rotateLocal(lx * MALL_SCALE, lz * MALL_SCALE, yw);
   const lot = ruralLots.find((l) => l.type === 'store');
@@ -1449,11 +1532,9 @@ function buildGeneralStore() {
   const complexGroup = new THREE.Group();
   complexGroup.position.set(baseX, surfaceY, baseZ);
   complexGroup.rotation.y = yaw;
-  // Iets groter dan voorheen: alles (gebouwen, parkeerplaats) 25% groter
-  complexGroup.scale.set(MALL_SCALE, 1.0, MALL_SCALE);
   scene.add(complexGroup);
 
-  const pad = new THREE.Mesh(new THREE.BoxGeometry(33.6, slabDepthH, 19.6), storeAsphaltMat);
+  const pad = tagMap(new THREE.Mesh(new THREE.BoxGeometry(33.6, slabDepthH, 19.6), storeAsphaltMat), 'paved');
   pad.position.set(0, -slabDepthH * 0.5, 9.8);
   pad.receiveShadow = true;
   complexGroup.add(pad);
@@ -1491,7 +1572,8 @@ function buildGeneralStore() {
     const cart = createShoppingCart();
     cart.position.set(-16.6 + k * 0.6, 0.16, -1.15);
     cart.rotation.y = Math.PI * 0.5;
-    cart.scale.setScalar(0.95);
+    // De mallgroep is alleen in lengte/breedte vergroot: wagentjes houden hun echte maat
+    cart.scale.set(0.95 / MALL_SCALE, 0.95, 0.95 / MALL_SCALE);
     complexGroup.add(cart);
   }
 
@@ -1499,9 +1581,10 @@ function buildGeneralStore() {
   {
     const stand = createProduceStand();
     stand.position.set(-7.4, 0.16, -1.3);
+    stand.scale.set(1 / MALL_SCALE, 1, 1 / MALL_SCALE);
     complexGroup.add(stand);
     const sp = rl(-7.4, -1.3, yaw);
-    hardColliders.push({ x: baseX + sp.x, z: baseZ + sp.z, r: 1.1 * MALL_SCALE });
+    hardColliders.push({ x: baseX + sp.x, z: baseZ + sp.z, r: 1.1 });
   }
 
   // Reclamezuil naast de inrit met de winkels eronder
@@ -1533,7 +1616,7 @@ function buildGeneralStore() {
   });
   // De zuil staat buiten de geschaalde groep, net naast de inrit aan de rand van de parkeerplaats
   {
-    const pp = rotateLocal(-13.5, 24.6, yaw);
+    const pp = rotateLocal(-9.5, 21.0, yaw);
     pylon.position.set(baseX + pp.x, surfaceY, baseZ + pp.z);
     pylon.rotation.y = yaw;
     scene.add(pylon);
@@ -1556,6 +1639,81 @@ function buildGeneralStore() {
   [superWing, atrium, retailWing].forEach((wing) => {
     addRoofStringLights(wing, wing.userData.lightSpecs.width, wing.userData.lightSpecs.yPos, wing.userData.lightSpecs.zFront);
   });
+
+  // ---- Uitbreiding rechts: bouwmarkt met tuincentrum, een café en een tweede parkeervak ----
+  {
+    const extPad = tagMap(new THREE.Mesh(new THREE.BoxGeometry(19.4, slabDepthH, 19.6), storeAsphaltMat), 'paved');
+    extPad.position.set(26.3, -slabDepthH * 0.5, 9.8);
+    extPad.receiveShadow = true;
+    complexGroup.add(extPad);
+    const extProm = createOutlinedMesh(new THREE.BoxGeometry(19.4, slabDepthH + 0.16, 2.3), sidewalkMat, 0.042, false, true);
+    extProm.position.set(26.3, -slabDepthH * 0.5 + 0.08, -1.15);
+    complexGroup.add(extProm);
+    const extPlinth = createOutlinedMesh(new THREE.BoxGeometry(19.4, slabDepthH + 0.16, 9.8), stoneMat, 0.04, false, true);
+    extPlinth.position.set(26.3, -slabDepthH * 0.5 + 0.08, -7.2);
+    complexGroup.add(extPlinth);
+
+    const hardware = createHardwareStore();
+    hardware.position.set(23.4, 0.16, -6.9);
+    complexGroup.add(hardware);
+    const cafe = createMallCafe();
+    cafe.position.set(32.4, 0.16, -6.4);
+    complexGroup.add(cafe);
+    [19.6, 23.4, 27.2].forEach((cx) => {
+      const wc = rl(cx, -6.9, yaw);
+      hardColliders.push({ x: baseX + wc.x, z: baseZ + wc.z, r: 4.4 });
+    });
+    {
+      const wc = rl(32.4, -6.6, yaw);
+      hardColliders.push({ x: baseX + wc.x, z: baseZ + wc.z, r: 3.4 });
+    }
+
+    // Tuincentrum-uitstalling voor de bouwmarkt: planten in potten op pallets, stapel brandhout
+    const potMat = makeToonMat(0xb8643a);
+    const palletMat = makeToonMat(0xc9a06a);
+    const plantMats = [makeToonMat(0x4f8a3c), makeToonMat(0x6a9a40), makeToonMat(0x3f6e3c)];
+    [[19.4, -0.9], [21.9, -0.9]].forEach(([px, pz], pi) => {
+      const pallet = createOutlinedMesh(new THREE.BoxGeometry(2.0, 0.18, 1.1), palletMat, 0.02, false);
+      pallet.position.set(px, 0.25, pz);
+      complexGroup.add(pallet);
+      for (let k = 0; k < 6; k++) {
+        const ox = -0.7 + (k % 3) * 0.7;
+        const oz = k < 3 ? -0.25 : 0.25;
+        const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.15, 0.3, 7), potMat);
+        pot.position.set(px + ox, 0.5, pz + oz);
+        complexGroup.add(pot);
+        const plant = createOutlinedMesh(new THREE.IcosahedronGeometry(0.28, 0), plantMats[(k + pi) % 3], 0.015, false);
+        plant.position.set(px + ox, 0.8, pz + oz);
+        complexGroup.add(plant);
+      }
+    });
+    const woodMat = makeToonMat(0x8a5a36);
+    const woodEndMat = makeToonMat(0xd8b07a);
+    for (let r = 0; r < 3; r++) {
+      for (let k = 0; k < 4 - r; k++) {
+        const log = createOutlinedMesh(new THREE.CylinderGeometry(0.16, 0.16, 1.1, 7), woodMat, 0.012, false);
+        log.rotation.x = Math.PI / 2;
+        log.position.set(25.2 + k * 0.34 + r * 0.17, 0.33 + r * 0.29, -1.0);
+        complexGroup.add(log);
+        const end = new THREE.Mesh(new THREE.CircleGeometry(0.15, 7), woodEndMat);
+        end.position.set(25.2 + k * 0.34 + r * 0.17, 0.33 + r * 0.29, -0.44);
+        complexGroup.add(end);
+      }
+    }
+    // Café-terrasje
+    [[30.6, -0.8], [33.6, -0.8]].forEach(([tx, tz], k) => {
+      const top = createOutlinedMesh(new THREE.CylinderGeometry(0.5, 0.5, 0.06, 10), makeToonMat(0xf6f2ea), 0.012, false);
+      top.position.set(tx, 0.92, tz);
+      complexGroup.add(top);
+      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 2.3, 6), streetPostMat);
+      leg.position.set(tx, 1.3, tz);
+      complexGroup.add(leg);
+      const umb = createOutlinedMesh(new THREE.ConeGeometry(1.2, 0.45, 8), makeToonMat(k ? 0x2f7a8a : 0xf4b41a), 0.02, false);
+      umb.position.set(tx, 2.5, tz);
+      complexGroup.add(umb);
+    });
+
+  }
 
   [-13.8, -8.2, -2.7, 2.7, 8.2, 13.8].forEach((cx) => {
     const wc = rl(cx, -6.8, yaw);
@@ -1590,6 +1748,9 @@ function buildGeneralStore() {
 
   addParkingRow([-13.2, -10.85, -8.5, -6.15, -3.8, 3.8, 6.15, 8.5, 10.85, 13.2], 10.8, 1.5);
   addParkingRow([-12.0, -9.65, -7.3, -4.95, 4.95, 7.3, 9.65, 12.0], 2.2, -1.5);
+  // Tweede parkeervak bij de uitbreiding rechts
+  addParkingRow([19.6, 21.95, 24.3, 26.65, 29.0, 31.35, 33.7], 10.8, 1.5);
+  addParkingRow([20.8, 23.15, 25.5, 27.85, 30.2, 32.55], 2.2, -1.5);
 
   // Plantenstroken langs de randen van de parkeerplaats (buiten de vakken), met een opening voor de inrit
   const planterStrips = [
@@ -1597,7 +1758,9 @@ function buildGeneralStore() {
     [-15.9, 9.6, 1.5, 19.0],
     [15.9, 9.6, 1.5, 19.0],
     [-10.6, 18.9, 9.4, 1.4],
-    [10.6, 18.9, 9.4, 1.4]
+    [10.6, 18.9, 9.4, 1.4],
+    [36.2, 9.6, 1.5, 19.0],
+    [26.1, 18.9, 18.4, 1.4]
   ];
   planterStrips.forEach(([cx, cz, w, d]) => {
     const curb = createOutlinedMesh(new THREE.BoxGeometry(w, 0.26, d), stoneMat, 0.025, false, true);
@@ -1613,7 +1776,8 @@ function buildGeneralStore() {
     complexGroup.add(hedge);
   });
   // Bomen in de stroken: los in de wereld, je kunt ze omrijden
-  [[-15.9, 1.5], [-15.9, 7.0], [-15.9, 12.5], [-15.9, 17.6], [15.9, 1.5], [15.9, 7.0], [15.9, 12.5], [15.9, 17.6], [-8.2, 18.9], [8.2, 18.9]].forEach(([tx, tz]) => {
+  [[-15.9, 1.5], [-15.9, 7.0], [-15.9, 12.5], [-15.9, 17.6], [15.9, 1.5], [15.9, 7.0], [15.9, 12.5], [15.9, 17.6], [-8.2, 18.9], [8.2, 18.9],
+    [36.2, 1.5], [36.2, 7.0], [36.2, 12.5], [36.2, 17.6], [21.0, 18.9], [26.5, 18.9], [32.0, 18.9]].forEach(([tx, tz]) => {
     const wp = rl(tx, tz, yaw);
     const tree = createParkTree();
     const ty = surfaceY + 0.3 * MALL_SCALE;
@@ -1624,7 +1788,7 @@ function buildGeneralStore() {
     markLastPlanted();
   });
   // Omrijdbare lantaarns in de zijstroken
-  [[-15.9, 4.3], [-15.9, 15.0], [15.9, 4.3], [15.9, 15.0]].forEach(([lx, lz]) => {
+  [[-15.9, 4.3], [-15.9, 15.0], [15.9, 4.3], [15.9, 15.0], [36.2, 4.3], [36.2, 15.0]].forEach(([lx, lz]) => {
     const wp = rl(lx, lz, yaw);
     createSmashableStreetLampAt(baseX + wp.x, surfaceY + 0.3 * MALL_SCALE, baseZ + wp.z);
   });
@@ -1732,7 +1896,7 @@ function buildRoadsideDiner() {
   const slabH = 3.2;
   const padMinLZ = -17;
   const padDepth = roadEdgeLZ - padMinLZ;
-  const pad = new THREE.Mesh(new THREE.BoxGeometry(48, slabH, padDepth), storeAsphaltMat);
+  const pad = tagMap(new THREE.Mesh(new THREE.BoxGeometry(48, slabH, padDepth), storeAsphaltMat), 'paved');
   pad.position.set(-6, -slabH * 0.5, padMinLZ + padDepth * 0.5);
   pad.receiveShadow = true;
   g.add(pad);
@@ -1811,8 +1975,134 @@ function buildRoadsideDiner() {
     scene.add(t);
     registerDestructible(t, w.x, surfaceY, w.z, 0.9, 'small', 8, 'Terrastafel');
   };
-  [[-25, -9, 0xd62839], [-25, -4, 0xffd23f], [-25, 1, 0xd62839]].forEach(([lx, lz, c]) => placeTable(lx, lz, c));
-  [[12, -12, 0xd62839], [16, -12, 0xffd23f]].forEach(([lx, lz, c]) => placeTable(lx, lz, c));
+  // ---- Terras naast het restaurant ----
+  {
+    const tx0 = -29.6;
+    const tx1 = -20.4;
+    const tz0 = -13.2;
+    const tz1 = 2.6;
+    const cxT = (tx0 + tx1) * 0.5;
+    const czT = (tz0 + tz1) * 0.5;
+    const wT = tx1 - tx0;
+    const dT = tz1 - tz0;
+    // Tegelvloer in twee tinten (dambord)
+    const tileA = makeToonMat(0xe9d8bf);
+    const tileB = makeToonMat(0xd4bc9a);
+    const floor = createOutlinedMesh(new THREE.BoxGeometry(wT, 0.18, dT), tileA, 0.025, false, true);
+    floor.position.set(cxT, 0.09, czT);
+    g.add(floor);
+    const tileGeo = new THREE.BoxGeometry(1.15, 0.02, 1.15);
+    for (let ix = 0; ix < 8; ix++) {
+      for (let iz = 0; iz < 13; iz++) {
+        if ((ix + iz) % 2) continue;
+        const t = new THREE.Mesh(tileGeo, tileB);
+        t.position.set(tx0 + 0.6 + ix * 1.15, 0.19, tz0 + 0.6 + iz * 1.2);
+        g.add(t);
+      }
+    }
+    // Rood-wit hekje aan de buitenkant met plantenbakken op de hoeken
+    const fenceRed = dinerRedMat;
+    const fenceWhite = makeToonMat(0xf6f2ea);
+    const railGeoX = new THREE.BoxGeometry(wT, 0.12, 0.1);
+    const railGeoZ = new THREE.BoxGeometry(0.1, 0.12, dT);
+    [[cxT, tz0, railGeoX], [cxT, tz1, railGeoX], [tx0, czT, railGeoZ]].forEach(([rx, rz, geo]) => {
+      [0.55, 0.95].forEach((ry, k) => {
+        const rail = new THREE.Mesh(geo, k ? fenceRed : fenceWhite);
+        rail.position.set(rx, ry, rz);
+        g.add(rail);
+      });
+    });
+    const postGeo = new THREE.BoxGeometry(0.14, 1.1, 0.14);
+    for (let x = tx0; x <= tx1 + 0.01; x += wT / 5) {
+      [tz0, tz1].forEach((z) => {
+        const post = new THREE.Mesh(postGeo, fenceRed);
+        post.position.set(x, 0.55, z);
+        g.add(post);
+      });
+    }
+    for (let z = tz0; z <= tz1 + 0.01; z += dT / 7) {
+      const post = new THREE.Mesh(postGeo, fenceRed);
+      post.position.set(tx0, 0.55, z);
+      g.add(post);
+    }
+    [[tx0 + 0.6, tz0 + 0.6], [tx0 + 0.6, tz1 - 0.6], [tx1 - 0.6, tz0 + 0.6], [tx1 - 0.6, tz1 - 0.6]].forEach(([bx, bz]) => {
+      const box = createOutlinedMesh(new THREE.BoxGeometry(0.9, 0.6, 0.9), dinerYellowMat, 0.025, false);
+      box.position.set(bx, 0.48, bz);
+      g.add(box);
+      const bush = createOutlinedMesh(new THREE.IcosahedronGeometry(0.5, 1), makeToonMat(0x4f8a3c), 0.025, false);
+      bush.position.set(bx, 1.05, bz);
+      g.add(bush);
+      [0xffffff, 0xe86a9a, 0xffd23f].forEach((c, k) => {
+        const bloom = new THREE.Mesh(new THREE.SphereGeometry(0.1, 6, 5), makeToonMat(c));
+        bloom.position.set(bx - 0.25 + k * 0.25, 1.4, bz + 0.25 - k * 0.1);
+        g.add(bloom);
+      });
+      collide(bx, bz, 0.55);
+    });
+    // Lichtsnoer over het terras tussen twee masten
+    const mastMat = makeToonMat(0x3a3a3a);
+    [[tx0 + 0.6, czT], [tx1 - 0.6, czT]].forEach(([mx, mz]) => {
+      const mast = createOutlinedMesh(new THREE.CylinderGeometry(0.07, 0.09, 3.6, 6), mastMat, 0.02, false);
+      mast.position.set(mx, 1.8, mz);
+      g.add(mast);
+    });
+    const bulbMats = [makeToonMat(0xffe08a), makeToonMat(0xffb25a), makeToonMat(0xfff4d0)];
+    // Slingers: van mast tot mast en van elke mast naar de verre hoeken
+    const mA = [tx0 + 0.6, czT];
+    const mB = [tx1 - 0.6, czT];
+    const bulbGeo = new THREE.SphereGeometry(0.09, 6, 5);
+    [[mA, mB], [mA, [tx1 - 0.6, tz0 + 0.6]], [mA, [tx1 - 0.6, tz1 - 0.6]], [mB, [tx0 + 0.6, tz0 + 0.6]], [mB, [tx0 + 0.6, tz1 - 0.6]]].forEach(([s0, s1], si) => {
+      const n = 12;
+      const endY = si === 0 ? 3.45 : 1.3;
+      for (let k = 0; k <= n; k++) {
+        const f = k / n;
+        const bulb = new THREE.Mesh(bulbGeo, bulbMats[(k + si) % 3]);
+        bulb.position.set(
+          THREE.MathUtils.lerp(s0[0], s1[0], f),
+          THREE.MathUtils.lerp(3.45, endY, f) - Math.sin(f * Math.PI) * 0.45,
+          THREE.MathUtils.lerp(s0[1], s1[1], f)
+        );
+        g.add(bulb);
+      }
+    });
+    // Picknicktafels met banken en parasols (omrijdbaar)
+    const placePicnic = (lx, lz, hex) => {
+      const t = new THREE.Group();
+      const wood = makeToonMat(0xb5713e);
+      const top = createOutlinedMesh(new THREE.BoxGeometry(1.0, 0.08, 1.8), wood, 0.015, false);
+      top.position.y = 0.78;
+      t.add(top);
+      [-0.75, 0.75].forEach((sx) => {
+        const bench = createOutlinedMesh(new THREE.BoxGeometry(0.34, 0.07, 1.8), wood, 0.015, false);
+        bench.position.set(sx, 0.45, 0);
+        t.add(bench);
+      });
+      [-0.7, 0.7].forEach((sz) => {
+        const frame = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.08, 0.08), mastMat);
+        frame.position.set(0, 0.4, sz);
+        t.add(frame);
+        const legA = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.8, 0.08), mastMat);
+        legA.position.set(0, 0.4, sz);
+        t.add(legA);
+      });
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 2.5, 6), streetPostMat);
+      pole.position.y = 1.25;
+      t.add(pole);
+      const umb = createOutlinedMesh(new THREE.ConeGeometry(1.5, 0.55, 8), makeToonMat(hex), 0.025, false);
+      umb.position.y = 2.5;
+      t.add(umb);
+      const valance = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.5, 0.18, 8, 1, true), makeToonMat(0xf6f2ea));
+      valance.position.y = 2.18;
+      t.add(valance);
+      const w = toWorld(lx, lz);
+      t.position.set(w.x, surfaceY + 0.18, w.z);
+      t.rotation.y = yaw;
+      scene.add(t);
+      registerDestructible(t, w.x, surfaceY + 0.18, w.z, 1.0, 'small', 8, 'Picknicktafel');
+    };
+    [[-27.4, -10.4, 0xd62839], [-23.0, -10.4, 0xffd23f], [-27.4, -5.2, 0xffd23f], [-23.0, -5.2, 0xd62839], [-27.4, 0, 0xd62839], [-23.0, 0, 0xffd23f]]
+      .forEach(([lx, lz, c]) => placePicnic(lx, lz, c));
+  }
 
 
   // ---- Parkeervakken (twee rijen voor het restaurant) ----
@@ -1919,7 +2209,7 @@ function makeCoffeeLogoTexture() {
   return tex;
 }
 
-function createBurgerRestaurant() {
+function createBurgerRestaurant__build() {
   const g = new THREE.Group();
   const w = 15.0, h = 4.8, d = 9.0;
   const body = createOutlinedMesh(new THREE.BoxGeometry(w, h, d), makeToonMat(0xfdf6ec), 0.055);
@@ -1988,7 +2278,7 @@ function createBurgerRestaurant() {
   return g;
 }
 
-function createCoffeeKiosk() {
+function createCoffeeKiosk__build() {
   const g = new THREE.Group();
   const greenMat = makeToonMat(0x1f6b45);
   const body = createOutlinedMesh(new THREE.BoxGeometry(6.4, 3.4, 4.6), makeToonMat(0xf6f2ea), 0.045);
@@ -2071,7 +2361,7 @@ function buildCoffeeStop() {
   const slabH = 3.2;
   const padMinLZ = -8;
   const padDepth = roadEdgeLZ - padMinLZ;
-  const pad = new THREE.Mesh(new THREE.BoxGeometry(16, slabH, padDepth), storeAsphaltMat);
+  const pad = tagMap(new THREE.Mesh(new THREE.BoxGeometry(16, slabH, padDepth), storeAsphaltMat), 'paved');
   pad.position.set(-1, -slabH * 0.5, padMinLZ + padDepth * 0.5);
   pad.receiveShadow = true;
   g.add(pad);
@@ -2203,7 +2493,7 @@ const cinemaRoofMat = registerSeasonalMat(0x4a3340, 0xf2f6fb);
 const marqueeBulbMat = new THREE.MeshBasicMaterial({ color: 0xffe9a8 });
 const marqueeBulbGeo = new THREE.SphereGeometry(0.09, 6, 5);
 
-function createCinemaBuilding() {
+function createCinemaBuilding__build() {
   const g = new THREE.Group();
   const w = 18.0, h = 8.5, d = 11.0;
 
@@ -2311,7 +2601,7 @@ function buildCinema() {
 
   // Parkeerplaats (lz -1 .. 15) en stoep voor het gebouw
   const slabH = 3.2;
-  const pad = new THREE.Mesh(new THREE.BoxGeometry(29, slabH, 16.5), storeAsphaltMat);
+  const pad = tagMap(new THREE.Mesh(new THREE.BoxGeometry(29, slabH, 16.5), storeAsphaltMat), 'paved');
   pad.position.set(0, -slabH * 0.5, 6.75);
   pad.receiveShadow = true;
   g.add(pad);
@@ -2374,7 +2664,7 @@ buildCinema();
 // =========================================================
 // LANDELIJKE KAVELS BUITEN HET DORP
 // =========================================================
-function createLogCabin() {
+function createLogCabin__build() {
   const g = new THREE.Group();
   const logMat = makeToonMat(0x8f5531);
 
@@ -2422,7 +2712,7 @@ function createLogCabin() {
   return g;
 }
 
-function createAFrameCabin() {
+function createAFrameCabin__build() {
   const g = new THREE.Group();
   const cedarMat = makeToonMat(0xd99b66);
 
@@ -2502,7 +2792,7 @@ function addVillaWindows(g, xs, ys, z, rotY = 0) {
   });
 }
 
-function createVilla() {
+function createVilla__build() {
   const g = new THREE.Group();
   const mainW = 13.0, mainD = 8.5, mainH = 7.0;
 
@@ -2618,7 +2908,7 @@ function buildVilla(lot) {
 }
 
 ruralLots.forEach((lot) => {
-  if (lot.type === 'farm' || lot.type === 'store' || lot.type === 'diner' || lot.type === 'camping' || lot.type === 'sawmill' || lot.type === 'fair' || lot.type === 'cinema' || lot.type === 'airfield' || lot.type === 'coffee') return;
+  if (lot.type === 'farm' || lot.type === 'store' || lot.type === 'diner' || lot.type === 'camping' || lot.type === 'sawmill' || lot.type === 'fair' || lot.type === 'cinema' || lot.type === 'airfield' || lot.type === 'coffee' || lot.type === 'police') return;
   if (lot.type === 'villa') {
     buildVilla(lot);
     return;
@@ -2654,3 +2944,21 @@ ruralLots.forEach((lot) => {
     });
   }
 });
+// Kaart: gebouwen krijgen hun soort mee (zie map-tags.js)
+function createAttachedShop(...args) { return tagMap(createAttachedShop__build(...args), 'shop'); }
+function createRowTownHouse(...args) { return tagMap(createRowTownHouse__build(...args), 'home'); }
+function createDetachedRuralHouse(...args) { return tagMap(createDetachedRuralHouse__build(...args), 'home'); }
+function createGemeentehuis(...args) { return tagMap(createGemeentehuis__build(...args), 'civic'); }
+function createNamedShop(...args) { return tagMap(createNamedShop__build(...args), 'shop'); }
+function createApartmentBuilding(...args) { return tagMap(createApartmentBuilding__build(...args), 'home'); }
+function createSupermarketWing(...args) { return tagMap(createSupermarketWing__build(...args), 'shop'); }
+function createMallAtriumCenter(...args) { return tagMap(createMallAtriumCenter__build(...args), 'shop'); }
+function createMallRetailWing(...args) { return tagMap(createMallRetailWing__build(...args), 'shop'); }
+function createHardwareStore(...args) { return tagMap(createHardwareStore__build(...args), 'shop'); }
+function createMallCafe(...args) { return tagMap(createMallCafe__build(...args), 'shop'); }
+function createBurgerRestaurant(...args) { return tagMap(createBurgerRestaurant__build(...args), 'shop'); }
+function createCoffeeKiosk(...args) { return tagMap(createCoffeeKiosk__build(...args), 'shop'); }
+function createCinemaBuilding(...args) { return tagMap(createCinemaBuilding__build(...args), 'leisure'); }
+function createLogCabin(...args) { return tagMap(createLogCabin__build(...args), 'home'); }
+function createAFrameCabin(...args) { return tagMap(createAFrameCabin__build(...args), 'home'); }
+function createVilla(...args) { return tagMap(createVilla__build(...args), 'home'); }

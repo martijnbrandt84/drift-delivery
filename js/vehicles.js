@@ -509,43 +509,85 @@ export function buildPoliceCruiserMesh() {
   };
 }
 
-// Lage sportwagen met spoiler en racestrepen (raceauto voor de Ronde van Pinewood)
+// Gestroomlijnde sportwagen (raceauto voor de Ronde van Pinewood):
+// zijprofiel als vorm, in de breedte geëxtrudeerd met afgeronde randen
+function extrudeProfile(points, width, bevel = 0.08) {
+  const shape = new THREE.Shape();
+  points.forEach(([z, y], i) => (i ? shape.lineTo(z, y) : shape.moveTo(z, y)));
+  shape.closePath();
+  const geo = new THREE.ExtrudeGeometry(shape, {
+    depth: width - bevel * 2, bevelEnabled: bevel > 0, bevelThickness: bevel, bevelSize: bevel, bevelSegments: 2, curveSegments: 4
+  });
+  // vorm-x = lengte (auto-z), extrusie = breedte (auto-x), gecentreerd
+  geo.rotateY(-Math.PI / 2);
+  geo.translate((width - bevel * 2) * 0.5, 0, 0);
+  return geo;
+}
+
 export function buildSportsCarMesh(paintHex = 0xd62839, label = 'Pine Racer GT', number = 7) {
   const root = new THREE.Group();
   const body = new THREE.Group();
   root.add(body);
   const paint = makeToonMat(paintHex);
-  const white = makeToonMat(0xf6f2ea);
+  const white = makeToonMat(0xf6f2ea, { polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
   const dark = makeToonMat(0x1d1d22);
+  const chrome = makeToonMat(0xc8ccd2);
+  const glassMat = makeToonMat(0x3a5a78);
 
-  const lower = createOutlinedMesh(new THREE.BoxGeometry(2.1, 0.55, 4.4), paint, 0.05);
-  lower.position.y = 0.62;
-  body.add(lower);
-  // Spitse neus
-  const nose = createOutlinedMesh(new THREE.BoxGeometry(1.9, 0.32, 0.9), paint, 0.04);
-  nose.position.set(0, 0.52, 2.45);
-  nose.rotation.x = 0.18;
-  body.add(nose);
-  // Lage cabine iets naar achteren
-  const cabin = createOutlinedMesh(new THREE.BoxGeometry(1.6, 0.5, 1.75), paint, 0.045);
-  cabin.position.set(0, 1.12, -0.35);
+  // Carrosserie: lage neus, glooiende motorkap, brede heupen en een kort opgewipt staartje
+  const bodyProfile = [
+    [2.35, 0.34], [2.42, 0.52], [2.2, 0.68], [1.6, 0.82], [0.8, 0.92],
+    [-0.2, 0.96], [-1.2, 0.98], [-1.9, 0.98], [-2.25, 1.04], [-2.36, 0.86], [-2.3, 0.34]
+  ];
+  const shell = createOutlinedMesh(extrudeProfile(bodyProfile, 2.08), paint, 0.05);
+  body.add(shell);
+
+  // Glazen koepel met een gelakt dak erop
+  const cabinProfile = [[0.85, 0.9], [0.05, 1.4], [-0.85, 1.44], [-1.45, 1.22], [-1.75, 0.96]];
+  const cabin = createOutlinedMesh(extrudeProfile(cabinProfile, 1.62, 0.1), glassMat, 0.045);
   body.add(cabin);
-  const glass = new THREE.Mesh(new THREE.BoxGeometry(1.42, 0.36, 1.82), winBlueMat);
-  glass.position.set(0, 1.12, -0.35);
-  body.add(glass);
-  const windshield = new THREE.Mesh(new THREE.BoxGeometry(1.42, 0.5, 0.1), winBlueMat);
-  windshield.position.set(0, 1.05, 0.62);
-  windshield.rotation.x = -0.75;
-  body.add(windshield);
-  // Twee witte racestrepen over de lengte
-  [-0.28, 0.28].forEach((sx) => {
-    const st = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.04, 4.42), white);
-    st.position.set(sx, 0.91, 0);
-    body.add(st);
-    const st2 = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.04, 1.76), white);
-    st2.position.set(sx, 1.38, -0.35);
-    body.add(st2);
+  const roofProfile = [[0.0, 1.44], [-0.85, 1.48], [-1.35, 1.32], [-1.3, 1.26], [-0.85, 1.42], [0.02, 1.38]];
+  const roof = new THREE.Mesh(extrudeProfile(roofProfile, 1.5, 0.04), paint);
+  body.add(roof);
+
+  // Twee witte racestrepen over motorkap, dak en achterdek (lichtjes boven de lak)
+  [-0.3, 0.3].forEach((sx) => {
+    const stripeHood = new THREE.Mesh(extrudeProfile(bodyProfile, 0.24, 0), white);
+    stripeHood.scale.set(1, 1.012, 1.004);
+    stripeHood.position.x = sx;
+    body.add(stripeHood);
+    const stripeRoof = new THREE.Mesh(extrudeProfile(roofProfile, 0.24, 0), white);
+    stripeRoof.scale.set(1, 1.01, 1);
+    stripeRoof.position.x = sx;
+    body.add(stripeRoof);
   });
+
+  // Zwarte dorpels, grille met luchthappers, diffuser en uitlaten
+  [-1, 1].forEach((side) => {
+    const skirt = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.16, 2.4), dark);
+    skirt.position.set(side * 1.06, 0.38, 0);
+    body.add(skirt);
+    const intake = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.18, 0.5), dark);
+    intake.position.set(side * 1.05, 0.66, -0.95);
+    body.add(intake);
+    const mirror = createOutlinedMesh(new THREE.BoxGeometry(0.22, 0.12, 0.16), paint, 0.015, false);
+    mirror.position.set(side * 0.92, 1.05, 0.62);
+    body.add(mirror);
+    const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.22, 8), chrome);
+    pipe.rotation.x = Math.PI / 2;
+    pipe.position.set(side * 0.45, 0.42, -2.36);
+    body.add(pipe);
+  });
+  const grille = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.16, 0.08), dark);
+  grille.position.set(0, 0.48, 2.42);
+  body.add(grille);
+  const splitter = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.06, 0.3), dark);
+  splitter.position.set(0, 0.3, 2.38);
+  body.add(splitter);
+  const diffuser = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.14, 0.12), dark);
+  diffuser.position.set(0, 0.36, -2.34);
+  body.add(diffuser);
+
   // Startnummer op de deuren
   const numCanvas = document.createElement('canvas');
   numCanvas.width = 128;
@@ -562,40 +604,42 @@ export function buildSportsCarMesh(paintHex = 0xd62839, label = 'Pine Racer GT',
   nctx.fillText(String(number), 64, 70);
   const numMat = new THREE.MeshBasicMaterial({ map: Object.assign(new THREE.CanvasTexture(numCanvas), { colorSpace: THREE.SRGBColorSpace }), transparent: true, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4, toneMapped: false });
   [-1, 1].forEach((side) => {
-    const disc = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 0.62), numMat);
-    disc.position.set(side * 1.08, 0.66, 0.1);
+    const disc = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.6), numMat);
+    disc.position.set(side * 1.1, 0.66, 0.15);
     disc.rotation.y = side * Math.PI / 2;
     body.add(disc);
   });
-  // Spoiler
-  const wing = createOutlinedMesh(new THREE.BoxGeometry(2.0, 0.08, 0.5), dark, 0.03, false);
-  wing.position.set(0, 1.32, -2.05);
+
+  // Achtervleugel op twee steunen
+  const wing = createOutlinedMesh(new THREE.BoxGeometry(2.05, 0.07, 0.5), dark, 0.03, false);
+  wing.position.set(0, 1.45, -2.05);
+  wing.rotation.x = -0.08;
   body.add(wing);
-  [-0.7, 0.7].forEach((sx) => {
-    const strut = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.42, 0.18), dark);
-    strut.position.set(sx, 1.08, -2.0);
+  [-1, 1].forEach((side) => {
+    const plate = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.28, 0.55), paint);
+    plate.position.set(side * 1.04, 1.42, -2.05);
+    body.add(plate);
+    const strut = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.48, 0.16), dark);
+    strut.position.set(side * 0.62, 1.2, -2.0);
     body.add(strut);
   });
-  const splitter = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.08, 0.3), dark);
-  splitter.position.set(0, 0.36, 2.75);
-  body.add(splitter);
 
-  attachHeadlightBulbs(body, 0.66, 2.62, 0.62);
-  attachHeadlightBeams(body, 2.6, 0.62);
-  attachTailLights(body, 0.7, -2.2, 0.66);
+  attachHeadlightBulbs(body, 0.66, 2.36, 0.68);
+  attachHeadlightBeams(body, 2.4, 0.68);
+  attachTailLights(body, 0.82, -2.34, 0.72);
 
   const { wheels, frontPivots } = buildSteerableWheels(root, [
-    { x: -1.04, y: 0.42, z: 1.4, front: true },
-    { x: 1.04, y: 0.42, z: 1.4, front: true },
-    { x: -1.04, y: 0.42, z: -1.4, front: false },
-    { x: 1.04, y: 0.42, z: -1.4, front: false }
+    { x: -1.04, y: 0.42, z: 1.45, front: true },
+    { x: 1.04, y: 0.42, z: 1.45, front: true },
+    { x: -1.04, y: 0.42, z: -1.45, front: false },
+    { x: 1.04, y: 0.42, z: -1.45, front: false }
   ]);
 
   return {
     root, body, wheels, frontPivots,
     name: label,
     isRaceCar: true,
-    radius: 1.5, rearAxleZ: -1.4, trackHalfW: 0.98,
+    radius: 1.5, rearAxleZ: -1.45, trackHalfW: 0.98,
     stats: { baseSpeed: 44, maxSpeed: 74, baseAccel: 52, peakAccel: 100, turnRate: 3.05, driftGripMod: 0.86, mass: 1.0 }
   };
 }

@@ -38,8 +38,8 @@ function nearestIdx(x, z, from = 0, span = N) {
 }
 
 // Snelheidsprofiel voor de rivaal: langzamer in bochten, op tijd remmen
-const RIVAL_VMAX = 48;
-const RIVAL_LAT = 15;
+const RIVAL_VMAX = 56;
+const RIVAL_LAT = 18;
 const RIVAL_DECEL = 16;
 const speedProfile = new Float32Array(N);
 {
@@ -61,7 +61,7 @@ const speedProfile = new Float32Array(N);
 
 // Start/finish: een stukje voorbij de inrit van Pine Burger
 const burgerLot = ruralLots.find((l) => l.type === 'diner');
-const START_IDX = wrap(nearestIdx(burgerLot ? burgerLot.x : 0, burgerLot ? burgerLot.z : 0).idx + Math.round(34 / DS));
+const START_IDX = wrap(nearestIdx(burgerLot ? burgerLot.x : 0, burgerLot ? burgerLot.z : 0).idx + Math.round(120 / DS));
 const GRID_BACK = Math.round(9 / DS);
 const uOf = (i) => wrap(i) / N;
 
@@ -311,7 +311,7 @@ export function updateRace(dt, playerVeh, carState) {
   const rivalIdx = Math.floor(race.rivalDist / DS) + START_IDX;
   if (race.rivalFinish === null || race.state === 'racing') {
     const gap = race.rivalDist - race.playerIdx * DS; // + = rivaal voor
-    const band = THREE.MathUtils.clamp(1 - gap / 500, 0.82, 1.1);
+    const band = THREE.MathUtils.clamp(1 - gap / 600, 0.88, 1.12);
     const target = race.rivalFinish !== null ? 14 : speedProfile[wrap(rivalIdx + 4)] * band;
     const acc = race.rivalSpeed < target ? 15 : -RIVAL_DECEL;
     race.rivalSpeed = race.rivalSpeed < target ? Math.min(target, race.rivalSpeed + acc * dt) : Math.max(target, race.rivalSpeed + acc * dt);

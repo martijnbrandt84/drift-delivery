@@ -7,6 +7,7 @@ import { getLakeShoreRadius, SANDBAR_ISLAND, getDistToRivers, ruralLots } from '
 import { hardColliders, registerDestructible } from './demolition.js';
 import { createPineFast, createShrubFast } from './props.js';
 import { getTerrainHeight } from './terrain.js';
+import { tagMap } from './map-tags.js';
 
 // Tekst op borden: altijd net vóór het bord tekenen (geen flikkeren/wegvallen op afstand)
 // Borden: echte sRGB-kleuren en geen filmische tonemapping, zodat rood rood blijft en tekst scherp is
@@ -304,7 +305,7 @@ function buildLighthouse() {
   const x = SANDBAR_ISLAND.x;
   const z = SANDBAR_ISLAND.z;
   const baseY = getTerrainHeight(x, z);
-  const g = new THREE.Group();
+  const g = tagMap(new THREE.Group(), 'civic');
 
   const base = createOutlinedMesh(new THREE.CylinderGeometry(1.5, 1.7, 0.6, 12), makeToonMat(0x8d8379), 0.045, false);
   base.position.y = 0.3;
