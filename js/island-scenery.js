@@ -8,7 +8,7 @@ import {
 } from './roads.js';
 import { ruralLots } from './water-lots.js';
 import {
-  ISLAND_CENTER, getIslandPolar, getCoastRadius, getCliffiness, MOOSE_LAKE, LOOKOUT_HILL
+  ISLAND_CENTER, getIslandPolar, getCoastRadius, getCliffiness, MOOSE_LAKE, FOX_LAKE, LOOKOUT_HILL
 } from './landscape.js';
 import { hardColliders, destructibles, registerInstancedDestructible } from './demolition.js';
 import { houseWindows, warmWindowMat } from './town.js';
@@ -100,6 +100,7 @@ function collectForestSpots() {
     if (marginDist < 4.0) continue;
     if (getDistToRivers(x, z) < 4.0) continue;
     if (Math.hypot(x - MOOSE_LAKE.x, z - MOOSE_LAKE.z) < MOOSE_LAKE.r + 4) continue;
+    if (Math.hypot(x - FOX_LAKE.x, z - FOX_LAKE.z) < FOX_LAKE.r + 4) continue;
     if (Math.hypot(x - summitPos.x, z - summitPos.z) < 16) continue;
     if (isInsideTownFootprint(x, z, 6) || isInsideSpecialLot(x, z) || isNearAnyDriveway(x, z, 3)) continue;
     if (tooClose(x, z, dens > 0.5 ? 3.0 : 4.2)) continue;

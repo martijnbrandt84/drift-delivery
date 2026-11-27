@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { lakeSamples, valleySamples, ringSamples, outerRoadDefs, riverCurves, VALLEY_POND, getDistToRivers } from './roads.js';
 
 const timberTrailSamples = outerRoadDefs.find((d) => d.id === 'timber_trail').samples;
+const foxRoadSamples = outerRoadDefs.find((d) => d.id === 'fox_lake_road').samples;
 
 
 
@@ -20,7 +21,6 @@ export const SANDBAR_ISLAND = { x: 24, z: 6, r: 8.5 };
 export { riverCurves, VALLEY_POND, getDistToRivers };
 
 export const ruralLots = [
-  { netSamples: lakeSamples, u: 0.255, outward: true, dist: 17.5, type: 'house_blue', yawOff: 0.05 },
   { netSamples: lakeSamples, u: 0.825, outward: true, dist: 17.5, type: 'cabin', yawOff: -0.1 },
   { netSamples: lakeSamples, u: 0.895, outward: true, dist: 18.0, type: 'house_red', yawOff: 0.1 },
   { netSamples: valleySamples, u: 0.16, outward: true, dist: 18.0, type: 'cabin', yawOff: 0.05 },
@@ -48,6 +48,10 @@ export const ruralLots = [
   { netSamples: ringSamples, near: [40, -262], outward: true, dist: 18.0, type: 'house_blue', yawOff: 0.06 },
   { netSamples: ringSamples, near: [302, 95], outward: false, dist: 17.5, type: 'house_yellow', yawOff: -0.05 },
   { netSamples: ringSamples, near: [262, 125], outward: true, dist: 17.0, type: 'cabin', yawOff: 0.0, tag: 'moose_lodge' },
+  // Huizen langs de nieuwe Fox Lake Road
+  { netSamples: foxRoadSamples, near: [140, -27], outward: true, dist: 17.5, type: 'house_blue', yawOff: 0.05 },
+  { netSamples: foxRoadSamples, near: [192, -45], outward: true, dist: 17.5, type: 'cabin', yawOff: -0.05 },
+
   // Grote villa aan Moose Lake (met zwembad en oprijlaan)
   { netSamples: ringSamples, near: [200, 240], outward: false, dist: 22.0, type: 'villa', yawOff: 0.0, padRadius: 24, blendRadius: 36 },
   { netSamples: ringSamples, near: [-55, 320], outward: false, dist: 18.0, type: 'house_red', yawOff: -0.06 },

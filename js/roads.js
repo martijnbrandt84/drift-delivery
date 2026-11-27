@@ -75,12 +75,15 @@ function getRawLakeLoopElev(u) {
 
 // Extra T-splitsing aan de noordoostkant van de meerweg: verbindingsweg naar de kustweg
 export const U_LAKE_NORTH_JUNCTION = 0.142;
-const lakeNorthJY = getRawLakeLoopElev(U_LAKE_NORTH_JUNCTION);
+export const U_LAKE_EAST_JUNCTION = 0.232;
+const lakeJunctionFlats = [U_LAKE_NORTH_JUNCTION, U_LAKE_EAST_JUNCTION].map((uj) => ({ uj, y: getRawLakeLoopElev(uj) }));
 
 export function getLakeLoopBaseElev(u) {
   let h = getRawLakeLoopElev(u);
-  const d = Math.abs(cyclicDiff(u, U_LAKE_NORTH_JUNCTION));
-  if (d < 0.05) h = THREE.MathUtils.lerp(lakeNorthJY, h, THREE.MathUtils.smoothstep(d, 0.018, 0.05));
+  for (const f of lakeJunctionFlats) {
+    const d = Math.abs(cyclicDiff(u, f.uj));
+    if (d < 0.04) h = THREE.MathUtils.lerp(f.y, h, THREE.MathUtils.smoothstep(d, 0.014, 0.04));
+  }
   return h;
 }
 
@@ -337,6 +340,19 @@ export const riverCurves = [
   createRiverFromBridgeSample(valleyBridgeSample, 6.2, false, 1)
 ];
 
+// Farm Creek: verbindt de zuidwestelijke beek met de westelijke rivier, tussen de boerderij en de kustweg
+{
+  const creekPts = [[-160, 247], [-184, 233], [-208, 210], [-224, 183], [-233, 155], [-238, 130], [-244, 110]];
+  const curve = new THREE.CatmullRomCurve3(creekPts.map(([x, z]) => new THREE.Vector3(x, 0, z)), false, 'centripetal', 0.5);
+  const count = Math.round(curve.getLength() / 3.2);
+  const sampled = [];
+  for (let k = 0; k <= count; k++) {
+    const p = curve.getPointAt(k / count);
+    sampled.push({ x: p.x, z: p.z, hw: 5.6 });
+  }
+  riverCurves.push({ sampled, halfWidth: 5.6, maxHalfWidth: 5.6, pondCenter: null, name: 'Farm Creek' });
+}
+
 export const VALLEY_POND = { x: riverCurves[2].pondCenter.x, z: riverCurves[2].pondCenter.z, r: 14.5 };
 
 riverCurves.forEach((riv) => {
@@ -348,16 +364,39 @@ riverCurves.forEach((riv) => {
   riv.bbox = { minX, maxX, minZ, maxZ };
 });
 
+// Ruimtelijk raster met rivierpunten: alleen punten tot ~18m buiten de oever worden opgezocht.
+// Verder weg geeft getDistToRivers een grote waarde terug (alle gebruikers kijken alleen dichtbij).
+const RIVER_CELL = 16;
+const RIVER_REACH = 18;
+const riverGrid = new Map();
+const riverKey = (cx, cz) => (cx + 2048) * 4096 + (cz + 2048);
+const riverPts = [];
+riverCurves.forEach((riv) => {
+  riv.sampled.forEach((p) => {
+    const idx = riverPts.length;
+    riverPts.push(p);
+    const reach = p.hw + RIVER_REACH;
+    const c0x = Math.floor((p.x - reach) / RIVER_CELL);
+    const c1x = Math.floor((p.x + reach) / RIVER_CELL);
+    const c0z = Math.floor((p.z - reach) / RIVER_CELL);
+    const c1z = Math.floor((p.z + reach) / RIVER_CELL);
+    for (let cx = c0x; cx <= c1x; cx++) {
+      for (let cz = c0z; cz <= c1z; cz++) {
+        const key = riverKey(cx, cz);
+        let bucket = riverGrid.get(key);
+        if (!bucket) { bucket = []; riverGrid.set(key, bucket); }
+        bucket.push(idx);
+      }
+    }
+  });
+});
+
 export function getDistToRivers(x, z) {
-  let minEffective = Infinity;
-  for (const riv of riverCurves) {
-    const b = riv.bbox;
-    // Snelle afwijzing: ver buiten de bounding box hoeven we niet elk punt te toetsen
-    const outX = x < b.minX ? b.minX - x : x > b.maxX ? x - b.maxX : 0;
-    const outZ = z < b.minZ ? b.minZ - z : z > b.maxZ ? z - b.maxZ : 0;
-    if (Math.hypot(outX, outZ) - riv.maxHalfWidth > Math.min(minEffective, 60)) continue;
-    for (let i = 0; i < riv.sampled.length; i++) {
-      const p = riv.sampled[i];
+  let minEffective = 999;
+  const bucket = riverGrid.get(riverKey(Math.floor(x / RIVER_CELL), Math.floor(z / RIVER_CELL)));
+  if (bucket) {
+    for (let i = 0; i < bucket.length; i++) {
+      const p = riverPts[bucket[i]];
       const d = Math.hypot(x - p.x, z - p.z) - p.hw;
       if (d < minEffective) minEffective = d;
     }
@@ -563,6 +602,7 @@ const RING_JUNCTION_POINTS = {
   north: [112, -222],
   south: [80, 315],
   west: [-268, 14],
+  east: [228, -89],
   trailWest: [-257, -45],
   trailNorth: [-64, -276]
 };
@@ -633,11 +673,14 @@ function makeLinkRoad(id, a, b, midPoints, smoothM = 40) {
 const hostNorth = hostJunction(lakeCurve, U_LAKE_NORTH_JUNCTION, getLakeLoopBaseElev);
 const hostSouth = hostJunction(valleyCurve, U_VALLEY_SOUTH_JUNCTION, getValleyBaseElev);
 const hostWest = hostJunction(valleyCurve, U_VALLEY_WEST_JUNCTION, getValleyBaseElev);
+const hostEast = hostJunction(lakeCurve, U_LAKE_EAST_JUNCTION, getLakeLoopBaseElev);
 
 export const connectorRoads = [
   makeLinkRoad('north_link', hostNorth, ringEndpoint(RING_JUNCTIONS.north), [[92, -130], [112, -178]]),
   makeLinkRoad('south_link', hostSouth, ringEndpoint(RING_JUNCTIONS.south), [[78, 215], [92, 262]]),
-  makeLinkRoad('west_link', hostWest, ringEndpoint(RING_JUNCTIONS.west), [[-176, 52], [-222, 30]])
+  makeLinkRoad('west_link', hostWest, ringEndpoint(RING_JUNCTIONS.west), [[-176, 52], [-222, 30]]),
+  // Fox Lake Road: van de meerweg langs de zuidoever van Fox Lake naar de oostelijke kustweg
+  makeLinkRoad('fox_lake_road', hostEast, ringEndpoint(RING_JUNCTIONS.east), [[132, -24], [168, -34], [198, -48], [212, -70]], 32)
 ];
 
 // Timber Trail: smal kronkelend bospad door de heuvels met een haarspeldbocht,

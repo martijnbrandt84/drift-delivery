@@ -57,8 +57,15 @@ export const LOOKOUT_HILL = FOREST_HILLS[1];
 
 // Moose Lake: groter bosmeer in het zuidoosten met lodge
 export const MOOSE_LAKE = { x: 212, z: 172, r: 31 };
+// Fox Lake: tweede meertje aan de oostkant (waar vroeger het fjord lag)
+export const FOX_LAKE = { x: 168, z: -66, r: 23 };
+const INLAND_LAKES = [MOOSE_LAKE, FOX_LAKE];
 
 export function getNaturalGroundBase(x, z) {
+  // Snelle uitweg voor open zee (ruim de helft van het terreinraster)
+  const pol0 = getIslandPolar(x, z);
+  if (getCoastRadius(pol0.theta) - pol0.r < -32) return OCEAN_FLOOR;
+
   const r = Math.hypot(x, z - 25);
   const theta = Math.atan2(z - 25, x);
 
@@ -87,14 +94,15 @@ export function getNaturalGroundBase(x, z) {
     if (g > 0.003) h += m.h * g;
   }
 
-  // Moose Lake (komvormig)
-  const dMoose = Math.hypot(x - MOOSE_LAKE.x, z - MOOSE_LAKE.z);
-  if (dMoose < MOOSE_LAKE.r + 16) {
-    if (dMoose > MOOSE_LAKE.r - 6) {
-      const t = THREE.MathUtils.smoothstep(dMoose, MOOSE_LAKE.r - 6, MOOSE_LAKE.r + 16);
+  // Moose Lake & Fox Lake (komvormig)
+  for (const lake of INLAND_LAKES) {
+    const dLake = Math.hypot(x - lake.x, z - lake.z);
+    if (dLake >= lake.r + 16) continue;
+    if (dLake > lake.r - 6) {
+      const t = THREE.MathUtils.smoothstep(dLake, lake.r - 6, lake.r + 16);
       h = Math.min(h, THREE.MathUtils.lerp(-0.74, h, t));
     } else {
-      const t = THREE.MathUtils.smoothstep(dMoose, MOOSE_LAKE.r - 14, MOOSE_LAKE.r - 6);
+      const t = THREE.MathUtils.smoothstep(dLake, lake.r - 14, lake.r - 6);
       h = Math.min(h, THREE.MathUtils.lerp(-2.6, -0.74, t));
     }
   }

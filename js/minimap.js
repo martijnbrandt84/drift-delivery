@@ -1,6 +1,6 @@
 import { allRoadNetworks, TOWN_BOUNDS, WORLD_LIMIT, WATER_LEVEL, riverCurves } from './roads.js';
 import { SANDBAR_ISLAND, ruralLots } from './water-lots.js';
-import { LOOKOUT_HILL, MOOSE_LAKE } from './landscape.js';
+import { LOOKOUT_HILL, MOOSE_LAKE, FOX_LAKE } from './landscape.js';
 import { getTerrainHeight } from './terrain.js';
 import { minimapCanvas, fullmapCanvas, fullmapOverlayEl, minimapCardEl } from './dom.js';
 
@@ -206,6 +206,7 @@ function addLabel(text, x, z, kind = 'place') {
 addLabel('Pinewood', 0, 104, 'town');
 addLabel('Pinewood Lake', 0, -30, 'water');
 addLabel('Moose Lake', MOOSE_LAKE.x, MOOSE_LAKE.z, 'water');
+addLabel('Fox Lake', FOX_LAKE.x, FOX_LAKE.z, 'water');
 addLabel('Uitkijktoren', LOOKOUT_HILL.x, LOOKOUT_HILL.z - 14);
 {
   const rp = riverCurves[0].sampled[Math.round(riverCurves[0].sampled.length * 0.5)];

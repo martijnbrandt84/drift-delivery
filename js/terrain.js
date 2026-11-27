@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { scene, toonGradient } from './scene-setup.js';
 import { TOWN_ELEV, WATER_LEVEL, getClosestNetworkRoad } from './roads.js';
 import { getLakeShoreRadius, SANDBAR_ISLAND, getDistToRivers, ruralLots, driveways } from './water-lots.js';
-import { getNaturalGroundBase, OCEAN_FLOOR } from './landscape.js';
+import { getNaturalGroundBase, OCEAN_FLOOR, ISLAND_CENTER } from './landscape.js';
 
 function getOrientedBoxDist(x, z, lot, minLX, maxLX, minLZ, maxLZ) {
   const dx = x - lot.x;
@@ -31,6 +31,8 @@ driveways.forEach((d) => {
 
 function getRawTerrainHeight(x, z) {
   let h = getNaturalGroundBase(x, z);
+  // Open zee ver buiten de kust: niets anders te doen (rivieren eindigen ~30m buiten de kustlijn)
+  if (h <= OCEAN_FLOOR && Math.hypot(x - ISLAND_CENTER.x, z - ISLAND_CENTER.z) > 300) return h;
 
   const dxTown = Math.max(0, Math.abs(x) - 45.5);
   const dzTown = z < 73 ? 73 - z : z > 138 ? z - 138 : 0;
@@ -184,6 +186,8 @@ const cellSize = TERRAIN_SIZE / TERRAIN_SEGMENTS;
 const cSnowCap = new THREE.Color(0xf7fbff);
 const cAlpineRock = new THREE.Color(0x8a8079);
 const cDeepSea = new THREE.Color(0x3d7f8f);
+const tmpColA = new THREE.Color();
+const tmpColW = new THREE.Color();
 
 for (let i = 0; i < gPos.count; i++) {
   const vx = gPos.getX(i);
@@ -199,8 +203,8 @@ for (let i = 0; i < gPos.count; i++) {
   const hD = heightGrid[Math.min(stride - 1, iz + 1) * stride + ix];
   const slope = Math.hypot(hR - hL, hD - hU) / (2 * cellSize);
 
-  const colA = new THREE.Color();
-  const colW = new THREE.Color();
+  const colA = tmpColA;
+  const colW = tmpColW;
   const inTownArea = vx > -45 && vx < 45 && vz > 75 && vz < 137;
   const snowLine = 31 + Math.sin(vx * 0.07) * Math.cos(vz * 0.06) * 3.5;
 

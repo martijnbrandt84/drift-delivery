@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { scene, createOutlinedMesh, makeToonMat, pineSnowCapObjects } from './scene-setup.js';
 import {
   TOWN_ELEV, lakeCurve, getLakeLoopBaseElev, getLakeBridgeAtU, valleyCurve, getValleyBaseElev, getValleyBridgeAtU,
-  ringCurve, getRingBaseElev, getRingBridgeAtU, timberTrail
+  ringCurve, getRingBaseElev, getRingBridgeAtU, timberTrail, connectorRoads
 } from './roads.js';
 import { ruralLots } from './water-lots.js';
 import { warmWindowMat } from './town.js';
@@ -540,6 +540,10 @@ spawnTrafficVehicle(buildPickupTruckMesh(0x8a5a3c, 'Kustwacht Pickup'), ringCurv
 spawnTrafficVehicle(buildSchoolBusMesh(), ringCurve, getRingBaseElev, getRingBridgeAtU, 0.71, -1, 14.0, -2.2, true);
 spawnTrafficVehicle(buildPickupTruckMesh(0xd9b23a, 'Gele Strand Pickup'), ringCurve, getRingBaseElev, getRingBridgeAtU, 0.90, 1, 17.0, 2.2, true);
 
+{
+  const fox = connectorRoads.find((c) => c.id === 'fox_lake_road');
+  if (fox) spawnTrafficVehicle(buildYellowTaxiMesh(), fox.curve, fox.elevFn, fox.bridgeFn, 0.5, 1, 14.0, 2.15, false);
+}
 spawnTrafficVehicle(buildPickupTruckMesh(0x5b7a3a, 'Houthakkers Pickup'), timberTrail.curve, timberTrail.elevFn, timberTrail.bridgeFn, 0.3, 1, 13.0, 2.15, false);
 
 // Geparkeerde auto's bij de diner
