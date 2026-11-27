@@ -711,9 +711,10 @@ const dinerLot = ruralLots.find((l) => l.type === 'diner');
 if (dinerLot) {
   const c = Math.cos(dinerLot.yaw);
   const s = Math.sin(dinerLot.yaw);
-  [[-9.75, 2.5, buildYellowTaxiMesh()], [-15.25, 11.7, buildPickupTruckMesh(0xc94a38, 'Red Diner Pickup')]].forEach(([lx, lz, veh]) => {
+  // Rij A: neus naar het restaurant; rij B: neus naar de weg
+  [[-9.75, 2.5, buildYellowTaxiMesh(), Math.PI], [-15.25, 11.7, buildPickupTruckMesh(0xc94a38, 'Red Diner Pickup'), 0]].forEach(([lx, lz, veh, turn]) => {
     veh.root.position.set(dinerLot.x + lx * c + lz * s, dinerLot.roadY + 0.08, dinerLot.z - lx * s + lz * c);
-    veh.root.rotation.y = dinerLot.yaw + Math.PI;
+    veh.root.rotation.y = dinerLot.yaw + turn;
     scene.add(veh.root);
     parkedCars.push(veh);
   });
@@ -726,17 +727,18 @@ if (dinerLot) {
   parkedCars.push(racer);
 }
 
-// Zwarte sportwagen op het voorplein van de villa
+// Zwarte sportwagen in de garage van de villa
 {
   const villaLot = ruralLots.find((l) => l.type === 'villa');
   if (villaLot) {
     const car = buildSportsCarMesh(0x1d1d22, 'Villa Gran Turismo', 1);
     const c = Math.cos(villaLot.yaw);
     const s = Math.sin(villaLot.yaw);
-    const lx = 3.2;
-    const lz = -4.5 + 4.25 + 9.6; // naast de fontein op het voorplein
-    car.root.position.set(villaLot.x + lx * c + lz * s, villaLot.y + 0.3, villaLot.z - lx * s + lz * c);
-    car.root.rotation.y = villaLot.yaw + 0.5;
+    // In het open vak van de garage links naast de villa (villa staat 9,5 m achter het kavelmidden)
+    const lx = -22.5;
+    const lz = -9.5 - 0.4;
+    car.root.position.set(villaLot.x + lx * c + lz * s, villaLot.y + 0.25, villaLot.z - lx * s + lz * c);
+    car.root.rotation.y = villaLot.yaw;
     scene.add(car.root);
     parkedCars.push(car);
   }

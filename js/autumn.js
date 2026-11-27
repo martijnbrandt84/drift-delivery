@@ -44,19 +44,20 @@ const stemMat = makeToonMat(0x5b6b2e);
 const PUMPKIN_COLORS = [0xf08a24, 0xe8741c, 0xf2a33a, 0xd9661a, 0xf5c04a].map((c) => new THREE.Color(c));
 
 const pumpkinSpots = [];
-function addPumpkin(x, z, scale = 1) {
+function addPumpkin(x, z, scale = 1, y = null) {
   const { marginDist } = getClosestNetworkRoad(x, z);
   if (marginDist < 0.8) return;
-  pumpkinSpots.push({ x, z, y: getTerrainHeight(x, z), scale, rot: Math.random() * Math.PI * 2 });
+  pumpkinSpots.push({ x, z, y: y ?? getTerrainHeight(x, z), scale, rot: Math.random() * Math.PI * 2 });
 }
 
 // Pompoenen bij de voordeur van elk huis, de villa en de diner
 ruralLots.forEach((lot) => {
   if (lot.type === 'farm' || lot.type === 'store') return;
   if (lot.type === 'diner') {
-    [[-22.5, -13.5], [-23.3, -12.8], [13.0, -13.2]].forEach(([lx, lz]) => {
+    // Op de stoep langs de pui, naast de entree en op de rechterhoek
+    [[-12.9, -1.6], [-12.1, -1.45], [-0.4, -1.55]].forEach(([lx, lz]) => {
       const w = lotLocalToWorld(lot, lx, lz);
-      addPumpkin(w.x, w.z, 1.1);
+      addPumpkin(w.x, w.z, 1.1, lot.roadY - 0.02 + 0.16);
     });
     return;
   }

@@ -127,6 +127,56 @@ function createSeamlessBlockBase(minX, maxX, minZ, maxZ, sw = 1.9, innerMat = co
 const cypressMat = makeToonMat(0x2c5a3c);
 const blossomMat = registerSeasonalMat(0xe8a6c0, 0xf2f6fb);
 const roundLeafMat = registerSeasonalMat(0x5f8f3e, 0xe8eff4);
+// Losse dubbele garage naast de villa (zelfde muren en dak), linkerdeur open, rechterdeur dicht
+function createVillaGarage() {
+  const g = new THREE.Group();
+  const w = 8.0, d = 6.6, h = 3.4;
+  const plinth = createOutlinedMesh(new THREE.BoxGeometry(w + 0.4, 0.3, d + 0.4), stoneMat, 0.03, false, true);
+  plinth.position.y = 0.05;
+  g.add(plinth);
+  // Achterwand, zijwanden en middenmuur (de vakken zijn open aan de voorkant)
+  const back = createOutlinedMesh(new THREE.BoxGeometry(w, h, 0.3), villaWallMat, 0.045);
+  back.position.set(0, h / 2 + 0.2, -d / 2 + 0.15);
+  g.add(back);
+  [-w / 2 + 0.15, 0, w / 2 - 0.15].forEach((x) => {
+    const wall = createOutlinedMesh(new THREE.BoxGeometry(0.3, h, d), villaWallMat, 0.045);
+    wall.position.set(x, h / 2 + 0.2, 0);
+    g.add(wall);
+  });
+  const lintel = createOutlinedMesh(new THREE.BoxGeometry(w, 0.7, 0.3), villaWallMat, 0.04);
+  lintel.position.set(0, h - 0.15, d / 2 - 0.15);
+  g.add(lintel);
+  const cornice = createOutlinedMesh(new THREE.BoxGeometry(w + 0.3, 0.25, d + 0.3), villaTrimMat, 0.03, false);
+  cornice.position.y = h + 0.3;
+  g.add(cornice);
+  const roof = hipRoof(w, d, 1.9, villaRoofMat);
+  roof.position.y = h + 0.42;
+  g.add(roof);
+  // Rechterdeur dicht (gepaneeld), linker vak open met donker interieur
+  const door = createOutlinedMesh(new THREE.BoxGeometry(3.4, 2.75, 0.12), trimWhiteMat, 0.02, false);
+  door.position.set(w / 4, 1.58, d / 2 - 0.05);
+  g.add(door);
+  for (let k = 0; k < 4; k++) {
+    const groove = new THREE.Mesh(new THREE.BoxGeometry(3.3, 0.05, 0.03), villaTrimMat);
+    groove.position.set(w / 4, 0.55 + k * 0.62, d / 2 + 0.02);
+    g.add(groove);
+  }
+  const inside = new THREE.Mesh(new THREE.BoxGeometry(3.5, 2.8, 0.05), makeToonMat(0x3a3530));
+  inside.position.set(-w / 4, 1.6, -d / 2 + 0.32);
+  g.add(inside);
+  const floor = new THREE.Mesh(new THREE.BoxGeometry(w - 0.6, 0.04, d - 0.4), makeToonMat(0x9a958c));
+  floor.position.set(0, 0.22, 0);
+  g.add(floor);
+  // Lantaarns naast de deuren
+  const lampMat = new THREE.MeshBasicMaterial({ color: 0xffe08a });
+  [-w / 2 + 0.05, w / 2 - 0.05].forEach((x) => {
+    const lamp = createOutlinedMesh(new THREE.BoxGeometry(0.22, 0.34, 0.22), lampMat, 0.015, false);
+    lamp.position.set(x, 2.3, d / 2 + 0.15);
+    g.add(lamp);
+  });
+  return g;
+}
+
 function createGardenTree(kind) {
   if (kind === 'cypress') {
     const g = new THREE.Group();
@@ -1991,7 +2041,7 @@ function buildRoadsideDiner() {
   });
   const arrowGeo = new THREE.ConeGeometry(0.55, 1.2, 3);
   arrowGeo.rotateX(-Math.PI / 2);
-  [[5.6, -2, Math.PI], [5.6, -10, Math.PI], [-3, -14.6, -Math.PI / 2], [-12, -14.6, -Math.PI / 2], [-21, -14.6, -Math.PI / 2], [-26.4, -10, 0], [-26.4, -2, 0]].forEach(([ax, az, rot]) => {
+  [[5.6, -2, 0], [5.6, -10, 0], [-3, -14.6, Math.PI / 2], [-12, -14.6, Math.PI / 2], [-21, -14.6, Math.PI / 2], [-26.4, -10, Math.PI], [-26.4, -2, Math.PI]].forEach(([ax, az, rot]) => {
     const arrow = new THREE.Mesh(arrowGeo, storeLineMat);
     arrow.scale.y = 0.05;
     arrow.position.set(ax, 0.06, az);
@@ -2087,11 +2137,14 @@ function buildRoadsideDiner() {
   // Nieuwe indeling: rij A voor de pui (naast het terras), rij B langs de voorkant;
   // daartussen een rijbaan van ~5 m die de uitgang van de drive-thru (linksvoor) verbindt met de inrit,
   // en rechts van de inrit een vrije strook naar het begin van de drive-thru.
+  // stop: -1 = stootrand aan de kant van het restaurant (rij A, je rijdt erin richting de pui),
+  //       +1 = stootrand aan de wegkant/zeekant (rij B en C, je rijdt erin richting de weg)
   const rows = [
-    { z: 2.5, x0: -13.5, n: 5 },  // rij A: x -13,5 .. -1
-    { z: 11.7, x0: -24.0, n: 8 }  // rij B: x -24 .. -4
+    { z: 2.5, x0: -13.5, n: 5, stop: -1 },  // rij A: x -13,5 .. -1
+    { z: 11.7, x0: -24.0, n: 8, stop: 1 },  // rij B: x -24 .. -4
+    { z: 11.7, x0: 4.8, n: 2, stop: 1 }     // rij C: twee vakken rechts van de inrit
   ];
-  rows.forEach(({ z: rowZ, x0, n }) => {
+  rows.forEach(({ z: rowZ, x0, n, stop: stopSide }) => {
     for (let k = 0; k <= n; k++) {
       const lx = x0 + k * bayW;
       const stripe = new THREE.Mesh(stripeGeo, storeLineMat);
@@ -2100,7 +2153,7 @@ function buildRoadsideDiner() {
       g.add(stripe);
       if (k < n) {
         const stop = new THREE.Mesh(stopGeo, wheelStopMat);
-        stop.position.set(lx + bayW * 0.5, 0.05, rowZ - bayD * 0.5 + 0.35);
+        stop.position.set(lx + bayW * 0.5, 0.05, rowZ + stopSide * (bayD * 0.5 - 0.35));
         g.add(stop);
       }
     }
@@ -2110,7 +2163,7 @@ function buildRoadsideDiner() {
     const arrow = new THREE.Mesh(arrowGeo, storeLineMat);
     arrow.scale.y = 0.05;
     arrow.position.set(ax, 0.06, az);
-    arrow.rotation.y = Math.PI / 2;
+    arrow.rotation.y = -Math.PI / 2;
     g.add(arrow);
   });
 
@@ -2918,21 +2971,19 @@ function createVilla__build() {
     g.add(hedge);
   });
 
-  // Geschoren buxus in stenen potten langs het voorplein (kegels en bollen)
-  const potMat = makeToonMat(0xd9cdb8);
-  [-1, 1].forEach((side) => {
-    [5.2, 8.0, 10.8].forEach((pz, k) => {
-      const px = side * 7.6;
-      const pot = createOutlinedMesh(new THREE.CylinderGeometry(0.45, 0.35, 0.6, 10), potMat, 0.02, false);
-      pot.position.set(px, 0.55, mainD * 0.5 + pz);
-      g.add(pot);
-      const shape = k === 1
-        ? createOutlinedMesh(new THREE.SphereGeometry(0.62, 10, 8), hedgeMat, 0.025, false)
-        : createOutlinedMesh(new THREE.ConeGeometry(0.55, 1.9, 10), hedgeMat, 0.025, false);
-      shape.position.set(px, k === 1 ? 1.45 : 1.8, mainD * 0.5 + pz);
-      g.add(shape);
-    });
-  });
+  // Voorplein met fontein en heggen
+  const court = createOutlinedMesh(new THREE.BoxGeometry(14, 0.3, 7.5), poolDeckMat, 0.03, false, true);
+  court.position.set(0, 0.12, mainD * 0.5 + 7.6);
+  g.add(court);
+  const basin = createOutlinedMesh(new THREE.CylinderGeometry(1.9, 2.1, 0.55, 16), stoneMat, 0.035, false);
+  basin.position.set(0, 0.5, mainD * 0.5 + 8.0);
+  g.add(basin);
+  const fWater = new THREE.Mesh(new THREE.CylinderGeometry(1.65, 1.65, 0.08, 16), poolWaterMat);
+  fWater.position.set(0, 0.76, mainD * 0.5 + 8.0);
+  g.add(fWater);
+  const spout = createOutlinedMesh(new THREE.CylinderGeometry(0.2, 0.35, 1.3, 8), stoneMat, 0.025, false);
+  spout.position.set(0, 1.25, mainD * 0.5 + 8.0);
+  g.add(spout);
   [-1, 1].forEach((side) => {
     const hedge = createOutlinedMesh(new THREE.BoxGeometry(5.0, 1.0, 1.0), hedgeMat, 0.035, false);
     hedge.position.set(side * 5.0, 0.75, mainD * 0.5 + 11.0);
@@ -2947,7 +2998,7 @@ function createVilla__build() {
 function buildVilla(lot) {
   const mesh = createVilla();
   // Villa staat iets van de oprit af: het voorplein ligt aan het eind van de oprijlaan
-  const back = rotateLocal(0, -4.5, lot.yaw);
+  const back = rotateLocal(0, -9.5, lot.yaw);
   const vx = lot.x + back.x;
   const vz = lot.z + back.z;
   mesh.position.set(vx, getTerrainHeight(lot.x, lot.z), vz);
@@ -2969,9 +3020,8 @@ function buildVilla(lot) {
   const gy = getTerrainHeight(lot.x, lot.z);
   // Gevarieerde tuin: slanke cipressen langs de oprijlaan, sierbomen en een bloeiende boom achter
   const garden = [
-    ['cypress', -5.4, 16.2], ['cypress', 5.4, 16.2],
-    ['round', -17, -2], ['round', 17, -3], ['blossom', -15.5, -15], ['round', 15.5, -16],
-    ['tall', -11, -22], ['blossom', 11, -22], ['tall', 0, -24], ['cypress', -18.5, 7.5], ['cypress', 18.5, 7.5]
+    ['round', -27.5, -4], ['round', 17, -3], ['blossom', -15.5, -15], ['round', 15.5, -16],
+    ['tall', -11, -22], ['blossom', 11, -22], ['tall', 0, -24], ['cypress', -27, 6], ['cypress', 18.5, 7.5]
   ];
   garden.forEach(([kind, lx, lz]) => {
     const p = rotateLocal(lx, lz, lot.yaw);
@@ -2985,46 +3035,31 @@ function buildVilla(lot) {
     registerDestructible(tree, tx, ty, tz, kind === 'cypress' ? 0.45 : 0.7, 'tree', 15, 'Garden tree');
     markLastPlanted();
   });
-  // Toegangspoort aan het begin van de oprijlaan: stenen pilaren met lantaarns en een open smeedijzeren hek
+  // Losse garage links naast de villa, met een geplaveide oprit naar het voorplein
   {
-    const pillarMat = makeToonMat(0xd9cdb8);
-    const ironMat = makeToonMat(0x23262b);
-    const lampMat = new THREE.MeshBasicMaterial({ color: 0xffe08a });
-    [-1, 1].forEach((side) => {
-      const p = rotateLocal(side * 3.9, 18.0, lot.yaw);
-      const px = vx + p.x;
-      const pz = vz + p.z;
-      const py = getTerrainHeight(px, pz);
-      const pillar = createOutlinedMesh(new THREE.BoxGeometry(0.9, 2.4, 0.9), pillarMat, 0.03, false);
-      pillar.position.set(px, py + 1.2, pz);
-      scene.add(pillar);
-      const cap = createOutlinedMesh(new THREE.BoxGeometry(1.1, 0.2, 1.1), pillarMat, 0.02, false);
-      cap.position.set(px, py + 2.5, pz);
-      scene.add(cap);
-      const lamp = createOutlinedMesh(new THREE.BoxGeometry(0.35, 0.45, 0.35), lampMat, 0.015, false);
-      lamp.position.set(px, py + 2.85, pz);
-      scene.add(lamp);
-      hardColliders.push({ x: px, z: pz, r: 0.6 });
-      // Open hekdeur, tegen de binnenkant van de pilaar gedraaid
-      const gate = new THREE.Group();
-      for (let k = 0; k < 7; k++) {
-        const bar = new THREE.Mesh(new THREE.BoxGeometry(0.05, 1.8, 0.05), ironMat);
-        bar.position.set(k * 0.32, 0.95, 0);
-        gate.add(bar);
-      }
-      [0.25, 1.75].forEach((by) => {
-        const rail = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.07, 0.07), ironMat);
-        rail.position.set(0.95, by, 0);
-        gate.add(rail);
-      });
-      const q = rotateLocal(side * 3.4, 17.7, lot.yaw);
-      gate.position.set(vx + q.x, py, vz + q.z);
-      gate.rotation.y = lot.yaw + Math.PI / 2 + side * 0.18;
-      scene.add(gate);
+    const gp = rotateLocal(-20.5, 0, lot.yaw);
+    const gx = vx + gp.x;
+    const gz = vz + gp.z;
+    const garage = tagMap(createVillaGarage(), 'home');
+    garage.position.set(gx, getTerrainHeight(lot.x, lot.z) + 0.05, gz);
+    garage.rotation.y = lot.yaw;
+    scene.add(garage);
+    const baseY = getTerrainHeight(lot.x, lot.z);
+    [[-20.5, 7.1, 7.4, 7.0], [-12.1, 9.6, 10.2, 3.0]].forEach(([cx, cz, w, d]) => {
+      const apron = createOutlinedMesh(new THREE.BoxGeometry(w, 0.3, d), poolDeckMat, 0.03, false, true);
+      const ap = rotateLocal(cx, cz, lot.yaw);
+      apron.position.set(vx + ap.x, baseY + 0.12, vz + ap.z);
+      apron.rotation.y = lot.yaw;
+      scene.add(apron);
+    });
+    // Botsranden: achterwand, zijwanden en de dichte rechterdeur (het linker vak blijft open voor de auto)
+    [[-22.4, -3.0, 0.9], [-18.6, -3.0, 0.9], [-24.75, 0.5, 0.45], [-16.25, 0.5, 0.45], [-18.5, 0.8, 1.8]].forEach(([lx, lz, r]) => {
+      const p = rotateLocal(lx, lz, lot.yaw);
+      hardColliders.push({ x: vx + p.x, z: vz + p.z, r });
     });
   }
   const lanternGlow = new THREE.MeshBasicMaterial({ color: 0xffe08a });
-  [[-3.2, 14.5], [3.2, 14.5], [-7.6, -4.6], [7.6, -4.6]].forEach(([lx, lz]) => {
+  [[-7.6, -4.6], [7.6, -4.6]].forEach(([lx, lz]) => {
     const p = rotateLocal(lx, lz, lot.yaw);
     const post = createOutlinedMesh(new THREE.CylinderGeometry(0.05, 0.07, 1.1, 6), streetPostMat, 0.015, false);
     const lx2 = vx + p.x;
