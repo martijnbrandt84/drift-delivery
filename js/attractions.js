@@ -4,6 +4,7 @@ import { scene, makeToonMat, registerSeasonalMat, createOutlinedMesh } from './s
 import { ruralLots } from './water-lots.js';
 import { hardColliders, registerDestructible, markLastPlanted, destructibles, syncInstancedDestructible } from './demolition.js';
 import { LOOKOUT_HILL } from './landscape.js';
+import { clearVegetationAround } from './vegetation.js';
 import { getClosestNetworkRoad } from './roads.js';
 import { getTerrainHeight } from './terrain.js';
 import { houseWindows, warmWindowMat, createLogCabin } from './town.js';
@@ -186,22 +187,22 @@ function createCampfire() {
 }
 
 // ---------- Wegmotel (vervangt de camping) ----------
-function motelSignTexture(lines) {
+function motelSignTexture(lines, bg = '#1d2733', border = '#f4c430', w = 512, h = 256) {
   const c = document.createElement('canvas');
-  c.width = 512;
-  c.height = 256;
+  c.width = w;
+  c.height = h;
   const ctx = c.getContext('2d');
-  ctx.fillStyle = '#1d2733';
-  ctx.fillRect(0, 0, 512, 256);
-  ctx.strokeStyle = '#f4c430';
-  ctx.lineWidth = 10;
-  ctx.strokeRect(10, 10, 492, 236);
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, w, h);
+  ctx.strokeStyle = border;
+  ctx.lineWidth = Math.round(h * 0.05);
+  ctx.strokeRect(ctx.lineWidth, ctx.lineWidth, w - ctx.lineWidth * 2, h - ctx.lineWidth * 2);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   lines.forEach(([text, color, size, y]) => {
     ctx.fillStyle = color;
     ctx.font = `900 ${size}px system-ui, sans-serif`;
-    ctx.fillText(text, 256, y);
+    ctx.fillText(text, w / 2, y);
   });
   const tex = Object.assign(new THREE.CanvasTexture(c), { colorSpace: THREE.SRGBColorSpace });
   tex.needsUpdate = true;
@@ -210,12 +211,14 @@ function motelSignTexture(lines) {
 
 function buildMotel(lot) {
   const { g, collide, toWorld } = lotFrame(lot);
-  const wallMat = makeToonMat(0xf2e2c4);
-  const trimMat = makeToonMat(0x2f7a8a);
-  const doorMats = [makeToonMat(0xd94e3a), makeToonMat(0xf4b41a), makeToonMat(0x3f78a8)];
+  // Klassiek motelpalet: crèmewit, steenrood en mintgroene deuren
+  const wallMat = makeToonMat(0xf6f1e7);
+  const trimMat = makeToonMat(0xb8412f);
+  const doorMint = makeToonMat(0x7fc8b8);
+  const doorMats = [doorMint, doorMint, doorMint];
   const asphalt = makeToonMat(0x4a474c);
   const lineMat = makeToonMat(0xf2ede4);
-  const roofMat = registerSeasonalMat(0x5a5f66, 0xf2f6fb);
+  const roofMat = registerSeasonalMat(0x3f444c, 0xf2f6fb);
 
   // Parkeerterrein voor de kamers
   const pad = tagMap(new THREE.Mesh(new THREE.BoxGeometry(30, 0.3, 16.5), asphalt), 'paved');
@@ -259,7 +262,7 @@ function buildMotel(lot) {
       building.add(win);
       houseWindows.push({ mesh: win, timer: Math.random() * 10 });
       // Kamernummer
-      const tex = motelSignTexture([[String(firstNo + k), '#ffffff', 170, 135]]);
+      const tex = motelSignTexture([[String(firstNo + k), '#3a2a12', 170, 135]], '#d8b65a', '#8a6a2a');
       const num = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.25), new THREE.MeshBasicMaterial({ map: tex, ...SIGN_MAT_OPTS }));
       num.position.set(door.position.x + (alongX ? 0 : 0.06), 2.5, door.position.z + (alongX ? 0.06 : 0));
       if (!alongX) num.rotation.y = Math.PI / 2;
@@ -289,9 +292,18 @@ function buildMotel(lot) {
     glass.position.set(11.5, 1.7, -6.22);
     building.add(glass);
     houseWindows.push({ mesh: glass, timer: Math.random() * 10 });
-    const board = new THREE.Mesh(new THREE.PlaneGeometry(4.6, 0.8), new THREE.MeshBasicMaterial({ map: motelSignTexture([['OFFICE', '#f4c430', 150, 130]]), ...SIGN_MAT_OPTS }));
-    board.position.set(11.5, 3.6, -6.2);
+    const boardBack = createOutlinedMesh(new THREE.BoxGeometry(4.4, 0.95, 0.14), makeToonMat(0xfdf8ee), 0.02, false);
+    boardBack.position.set(11.5, 3.75, -6.18);
+    building.add(boardBack);
+    const board = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 0.8), new THREE.MeshBasicMaterial({ map: motelSignTexture([['OFFICE', '#b8412f', 88, 66]], '#fdf8ee', '#b8412f', 640, 128), ...SIGN_MAT_OPTS }));
+    board.position.set(11.5, 3.75, -6.09);
     building.add(board);
+    for (let k = 0; k < 7; k++) {
+      const stripe = createOutlinedMesh(new THREE.BoxGeometry(0.78, 0.1, 1.1), k % 2 ? makeToonMat(0xf6f1e7) : trimMat, 0.012, false);
+      stripe.position.set(9.15 + k * 0.78, 3.05, -5.7);
+      stripe.rotation.x = 0.3;
+      building.add(stripe);
+    }
     const ice = createOutlinedMesh(new THREE.BoxGeometry(1.0, 1.6, 0.8), makeToonMat(0xdfe8ee), 0.02, false);
     ice.position.set(9.1, 1.0, -5.6);
     building.add(ice);
@@ -344,14 +356,14 @@ function buildMotel(lot) {
     const pole = createOutlinedMesh(new THREE.BoxGeometry(0.45, 7.5, 0.45), trimMat, 0.03);
     pole.position.set(-12.5, 3.75, 15.5);
     g.add(pole);
-    const tex = motelSignTexture([['MOTEL', '#ff4a4a', 150, 105], ['VACANCY', '#6cff7a', 60, 200]]);
+    const tex = motelSignTexture([['MOTEL', '#c8321f', 150, 105], ['VACANCY', '#1f8a4c', 58, 202]], '#fdf8ee', '#b8412f');
     [1, -1].forEach((side) => {
       const face = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 2.1), new THREE.MeshBasicMaterial({ map: tex, ...SIGN_MAT_OPTS }));
       face.position.set(-12.5, 7.4, 15.5 + side * 0.2);
       if (side < 0) face.rotation.y = Math.PI;
       g.add(face);
     });
-    const frame = createOutlinedMesh(new THREE.BoxGeometry(4.5, 2.4, 0.3), makeToonMat(0x1d2733), 0.03);
+    const frame = createOutlinedMesh(new THREE.BoxGeometry(4.5, 2.4, 0.3), trimMat, 0.03);
     frame.position.set(-12.5, 7.4, 15.5);
     g.add(frame);
     const glow = new THREE.PointLight(0xff5a5a, 0, 22, 1.6);
@@ -1082,7 +1094,8 @@ export function buildLookoutCampfire() {
   // Bomen die precies op de kampvuurplek staan weghalen (de rest van het bos blijft)
   for (let i = destructibles.length - 1; i >= 0; i--) {
     const d = destructibles[i];
-    if ((d.kind !== 'tree' && d.kind !== 'shrub') || Math.hypot(d.x - spot.x, d.z - spot.z) > 5.5) continue;
+    const wild = d.kind === 'tree' || d.kind === 'shrub' || (d.kind === 'small' && d.instRefs); // incl. stammen en stronken
+    if (!wild || Math.hypot(d.x - spot.x, d.z - spot.z) > 6.5) continue;
     if (d.instRefs) {
       d.mesh.scale.setScalar(0);
       syncInstancedDestructible(d);
@@ -1091,10 +1104,28 @@ export function buildLookoutCampfire() {
     }
     destructibles.splice(i, 1);
   }
+  clearVegetationAround(spot.x, spot.z, 6.5);
   const y = getTerrainHeight(spot.x, spot.z);
   const g = new THREE.Group();
   g.position.set(spot.x, y, spot.z);
   g.rotation.y = -spot.ang;
+  // Extra bos rondom de open plek (de kant van de toren blijft open)
+  for (let k = 0; k < 11; k++) {
+    const a = spot.ang + (k / 11 - 0.5) * Math.PI * 1.5;
+    const r = 8 + Math.random() * 4;
+    const px = spot.x + Math.cos(a) * r;
+    const pz = spot.z + Math.sin(a) * r;
+    if (getClosestNetworkRoad(px, pz).marginDist < 4) continue;
+    const py = getTerrainHeight(px, pz);
+    const sc = 0.8 + Math.random() * 0.4;
+    const isPine = Math.random() < 0.65;
+    const tree = isPine ? createPineFast(sc) : createDeciduousTreeFast(sc);
+    tree.position.set(px, py, pz);
+    tree.rotation.y = Math.random() * Math.PI * 2;
+    scene.add(tree);
+    registerDestructible(tree, px, py, pz, 0.85 * sc, 'tree', 15, isPine ? 'Pine tree' : 'Tree');
+    markLastPlanted();
+  }
   scene.add(g);
   const fire = createCampfire();
   g.add(fire);

@@ -105,6 +105,26 @@ function buildSet(baked, items, { material = null, colors = null, castShadow = f
   return { main, out };
 }
 
+// Niet-sloopbare begroeiing (varens, riet, gras, bloemen, paddenstoelen) kan plaatselijk worden weggehaald
+const clearable = [];
+const ZERO = new THREE.Matrix4().makeScale(0, 0, 0);
+export function clearVegetationAround(x, z, r) {
+  clearable.forEach(({ items, sets }) => {
+    items.forEach((t, i) => {
+      if (Math.hypot(t.x - x, t.z - z) > r) return;
+      sets.forEach((set) => {
+        if (!set) return;
+        set.main.setMatrixAt(i, ZERO);
+        set.main.instanceMatrix.needsUpdate = true;
+        if (set.out) {
+          set.out.setMatrixAt(i, ZERO);
+          set.out.instanceMatrix.needsUpdate = true;
+        }
+      });
+    });
+  });
+}
+
 function registerSets(items, sets, r, kind, pts, label) {
   items.forEach((t, i) => {
     const refs = [];
@@ -432,6 +452,7 @@ for (let a = 0; a < 30000 && flowers.length < 900; a++) {
 {
   const caps = buildSet(bakedMushCaps, mushrooms, {});
   const stems = buildSet(bakedMushStems, mushrooms, { outline: false });
+  clearable.push({ items: mushrooms, sets: [caps, stems] });
   [caps, stems].forEach((s) => {
     if (!s) return;
     deciduousFoliageObjects.push(s.main);
@@ -440,14 +461,16 @@ for (let a = 0; a < 30000 && flowers.length < 900; a++) {
 }
 {
   const f = buildSet(bakedFern, ferns, { material: fernMat, colors: FERN_COLORS, outline: false });
+  clearable.push({ items: ferns, sets: [f] });
   if (f) deciduousFoliageObjects.push(f.main);
 }
-buildSet(bakedReeds, reeds, { material: reedMat, colors: REED_COLORS, outline: false });
-buildSet(bakedCattails, cattails, {});
-buildSet(bakedTuft, tufts, { material: grassMat, colors: DUNE_COLORS, outline: false });
+clearable.push({ items: reeds, sets: [buildSet(bakedReeds, reeds, { material: reedMat, colors: REED_COLORS, outline: false })] });
+clearable.push({ items: cattails, sets: [buildSet(bakedCattails, cattails, {})] });
+clearable.push({ items: tufts, sets: [buildSet(bakedTuft, tufts, { material: grassMat, colors: DUNE_COLORS, outline: false })] });
 {
   const fl = buildSet(bakedFlowers, flowers, { material: flowerMat, colors: FLOWER_COLORS, outline: false });
   const st = buildSet(bakedStems, flowers, { outline: false });
+  clearable.push({ items: flowers, sets: [fl, st] });
   [fl, st].forEach((s) => { if (s) deciduousFoliageObjects.push(s.main); });
 }
 

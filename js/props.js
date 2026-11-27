@@ -177,6 +177,25 @@ export function isNearAnyDriveway(x, z, margin = 2.5) {
   return false;
 }
 
+// Ligt (x, z) op het terrein van een kavel (vlakke box of huisperceel), met marge?
+export function isInsideAnyLotArea(x, z, margin = 6) {
+  for (const lot of ruralLots) {
+    if (lot.flatBox) {
+      const c = Math.cos(lot.yaw);
+      const s = Math.sin(lot.yaw);
+      const dx = x - lot.x;
+      const dz = z - lot.z;
+      const lx = dx * c - dz * s;
+      const lz = dx * s + dz * c;
+      const fb = lot.flatBox;
+      if (lx > fb.minLX - margin && lx < fb.maxLX + margin && lz > fb.minLZ - margin && lz < fb.maxLZ + margin) return true;
+    } else if (Math.hypot(x - lot.x, z - lot.z) < (lot.padRadius ?? 9) + margin) {
+      return true;
+    }
+  }
+  return false;
+}
+
 export function isNearAnyRuralLot(x, z, radius = 9.2) {
   for (const lot of ruralLots) {
     if (Math.hypot(x - lot.x, z - lot.z) < radius) return true;
@@ -299,7 +318,7 @@ export const bakedRock = createMergedToonProp(
 for (let i = 0; i < 40; i++) {
   const rx = (Math.random() - 0.5) * 420;
   const rz = (Math.random() - 0.5) * 420;
-  if (isInsideTownFootprint(rx, rz, 6.5) || isNearAnyRuralLot(rx, rz, 9.5) || isNearAnyDriveway(rx, rz, 3.5)) continue;
+  if (isInsideTownFootprint(rx, rz, 6.5) || isInsideAnyLotArea(rx, rz, 6) || isNearAnyDriveway(rx, rz, 3.5)) continue;
 
   const ry = getTerrainHeight(rx, rz);
   if (ry < 0.45) continue;
