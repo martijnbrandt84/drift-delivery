@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="nl">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
@@ -16,30 +16,30 @@
         <span class="brand-dot"></span>
         <span>Pinewood Creek</span>
       </div>
-      <button id="collapse-btn" class="icon-toggle">Inklappen</button>
+      <button id="collapse-btn" class="icon-toggle">Collapse</button>
     </div>
 
     <div id="card-body">
       <div>
-        <div class="section-label">Tijd, Weer &amp; Seizoen</div>
+        <div class="section-label">Time, Weather &amp; Season</div>
         <div class="control-grid">
           <button id="night-btn" class="ctrl-btn">
-            <span>Tijd: Dag</span><span class="kbd-hint">N</span>
+            <span>Time: Day</span><span class="kbd-hint">N</span>
           </button>
           <button id="weather-btn" class="ctrl-btn">
-            <span>Zonnig</span><span class="kbd-hint">C</span>
+            <span>Sunny</span><span class="kbd-hint">C</span>
           </button>
           <button id="xmas-btn" class="ctrl-btn">
-            <span>Winter: UIT</span><span class="kbd-hint">X</span>
+            <span>Winter: OFF</span><span class="kbd-hint">X</span>
           </button>
           <button id="sound-btn" class="ctrl-btn active-mode">
-            <span>Geluid: AAN</span><span class="kbd-hint">M</span>
+            <span>Sound: ON</span><span class="kbd-hint">M</span>
           </button>
         </div>
       </div>
 
       <div>
-        <div class="section-label">Rijstijl &amp; Actie</div>
+        <div class="section-label">Driving &amp; Action</div>
         <div class="control-grid">
           <button id="drift-btn" class="ctrl-btn active-mode">
             <span>Drift: Sport</span><span class="kbd-hint">V</span>
@@ -48,20 +48,21 @@
             <span>+ Sheriff</span><span class="kbd-hint">P</span>
           </button>
           <button id="reset-btn" class="ctrl-btn">
-            <span>Op de Weg</span><span class="kbd-hint">R</span>
+            <span>Back on Road</span><span class="kbd-hint">R</span>
           </button>
           <button id="clear-btn" class="ctrl-btn">
-            <span>Wis Sterren</span><span class="kbd-hint">O</span>
+            <span>Clear Stars</span><span class="kbd-hint">O</span>
           </button>
         </div>
       </div>
 
       <div class="keybind-list">
-        <div><span>Gas (bouwt op)</span><b>W / ↑</b></div>
-        <div><span>Handrem-drift</span><b>Spatie</b></div>
-        <div><span>Auto overnemen</span><b>F</b></div>
-        <div><span>Naar avond / ochtend</span><b>N</b></div>
-        <div><span>Kaart van het eiland</span><b>K</b></div>
+        <div><span>Throttle (builds up)</span><b>W / ↑</b></div>
+        <div><span>Handbrake drift</span><b>Space</b></div>
+        <div><span>Switch car / board plane</span><b>F</b></div>
+        <div><span>Skip to evening / morning</span><b>N</b></div>
+        <div><span>Island map</span><b>K</b></div>
+        <div><span>Contour lines on map</span><b>L</b></div>
       </div>
     </div>
   </div>
@@ -73,7 +74,7 @@
       </div>
       <div id="chaos-score">0 PTS</div>
     </div>
-    <div id="toast-pill">Pinewood Island — Volg de Kustweg langs het strand naar de Diner, over de Pinewood Bridge of door het bos via het Timber Trail!</div>
+    <div id="toast-pill">Pinewood Island — follow the coast road along the beach, cross the Pinewood Bridge or take the Timber Trail through the forest!</div>
   </div>
 
   <div id="speedo-card">
@@ -83,25 +84,26 @@
     </div>
     <div class="speed-main">
       <span id="speed-val">0</span>
-      <span class="speed-unit">KM/U</span>
+      <span class="speed-unit">KM/H</span>
     </div>
     <div class="rpm-track">
       <div id="rpm-bar"></div>
     </div>
   </div>
 
-  <div id="hijack-prompt">Druk op [F] om over te stappen</div>
+  <div id="hijack-prompt">Press [F] to switch</div>
 
   <div id="minimap-card">
     <canvas id="minimap" width="170" height="170"></canvas>
     <span id="minimap-north">N</span>
-    <span id="minimap-hint">K = kaart</span>
+    <span id="minimap-hint">K = map</span>
   </div>
 
   <div id="fullmap-overlay" hidden>
     <div id="fullmap-card">
       <div class="fullmap-header">
         <span class="brand-title"><span class="brand-dot"></span><span>Pinewood Island</span></span>
+        <button id="contour-btn" class="fullmap-chip" type="button">Contours (L)</button>
         <span class="fullmap-close">K / Esc</span>
       </div>
       <canvas id="fullmap" width="900" height="900"></canvas>
@@ -109,8 +111,8 @@
   </div>
 
   <div id="busted-banner">
-    INGEREKEND!
-    <span>De Sheriff heeft je klemgezet. Je staat weer vrij in Pinewood Creek.</span>
+    BUSTED!
+    <span>The Sheriff boxed you in. You are free again in Pinewood Creek.</span>
   </div>
 
   <script type="importmap">

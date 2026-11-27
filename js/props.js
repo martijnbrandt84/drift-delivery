@@ -189,7 +189,7 @@ export function isNearAnyRuralLot(x, z, radius = 9.2) {
   const y = TOWN_ELEV + 0.14;
   townTree.position.set(tx, y, 96.2);
   scene.add(townTree);
-  registerDestructible(townTree, tx, y, 96.2, 0.85, 'tree', 20, 'Dorpsboom');
+  registerDestructible(townTree, tx, y, 96.2, 0.85, 'tree', 20, 'Village tree');
 });
 
 // Enkele dichtere bosplekken verspreid over het landschap
@@ -258,7 +258,7 @@ while (placedTrees < 360 && attempts < 5400) {
   scene.add(tree);
 
   placedTreeCoords.push({ x: tx, z: tz });
-  registerDestructible(tree, tx, ty, tz, 0.85 * scale, 'tree', 15, isDecid ? 'Loofboom' : 'Dennenboom');
+  registerDestructible(tree, tx, ty, tz, 0.85 * scale, 'tree', 15, isDecid ? 'Tree' : 'Pine tree');
   placedTrees++;
 }
 
@@ -286,7 +286,7 @@ while (placedShrubs < 240 && shrubTries < 3600) {
   shrub.position.set(sx, sy, sz);
   shrub.rotation.y = Math.random() * Math.PI * 2;
   scene.add(shrub);
-  registerDestructible(shrub, sx, sy, sz, Math.max(0.6, 0.85 * shrubScale), 'shrub', 3, isLargeShrub ? 'Grote struik' : 'Struik');
+  registerDestructible(shrub, sx, sy, sz, Math.max(0.6, 0.85 * shrubScale), 'shrub', 3, isLargeShrub ? 'Large shrub' : 'Shrub');
   placedShrubs++;
 }
 

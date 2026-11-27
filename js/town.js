@@ -194,7 +194,7 @@ function createSmashableStreetLampAt(x, y, z) {
 
   g.position.set(x, y, z);
   scene.add(g);
-  registerDestructible(g, x, y, z, 0.65, 'small', 28, 'Straatlantaarn');
+  registerDestructible(g, x, y, z, 0.65, 'small', 28, 'Street lamp');
 }
 
 function placeCornerLamps(minX, maxX, minZ, maxZ, inset = 0.95) {
@@ -222,7 +222,7 @@ function createSmashableHydrant(x, z) {
   const py = TOWN_ELEV + 0.14;
   g.position.set(x, py, z);
   scene.add(g);
-  registerDestructible(g, x, py, z, 0.55, 'small', 32, 'Brandkraan');
+  registerDestructible(g, x, py, z, 0.55, 'small', 32, 'Fire hydrant');
 }
 
 function createBenchAt(x, y, z, rotY = 0) {
@@ -242,7 +242,7 @@ function createBenchAt(x, y, z, rotY = 0) {
   g.position.set(x, y, z);
   g.rotation.y = rotY;
   scene.add(g);
-  registerDestructible(g, x, y, z, 0.9, 'small', 10, 'Bankje');
+  registerDestructible(g, x, y, z, 0.9, 'small', 10, 'Bench');
 }
 
 function createBench(x, z, rotY = 0) {
@@ -260,7 +260,7 @@ function createTrashBinAt(x, y, z) {
 
   g.position.set(x, y, z);
   scene.add(g);
-  registerDestructible(g, x, y, z, 0.4, 'small', 6, 'Prullenbak');
+  registerDestructible(g, x, y, z, 0.4, 'small', 6, 'Trash can');
 }
 
 function createTrashBin(x, z) {
@@ -659,7 +659,7 @@ function buildChristmasTownCenterpiece() {
     giftHolder.position.set(gx, baseY, gz);
     giftHolder.rotation.y = a;
     christmasGroup.add(giftHolder);
-    registerDestructible(giftHolder, gx, baseY, gz, 0.5, 'small', 6, 'Cadeautje');
+    registerDestructible(giftHolder, gx, baseY, gz, 0.5, 'small', 6, 'Present');
     destructibles[destructibles.length - 1].season = 'winter';
   }
 
@@ -685,7 +685,7 @@ function buildChristmasTownCenterpiece() {
     cane.position.set(cx, cy, cz);
     cane.rotation.y = -a;
     christmasGroup.add(cane);
-    registerDestructible(cane, cx, cy, cz, 0.4, 'small', 5, 'Zuurstok');
+    registerDestructible(cane, cx, cy, cz, 0.4, 'small', 5, 'Candy cane');
     destructibles[destructibles.length - 1].season = 'winter';
   }
 
@@ -1644,7 +1644,7 @@ function buildGeneralStore() {
     cart.position.set(wx, surfaceY, wz);
     cart.rotation.y = yaw + rot;
     scene.add(cart);
-    registerDestructible(cart, wx, surfaceY, wz, 0.55, 'small', 6, 'Winkelwagentje');
+    registerDestructible(cart, wx, surfaceY, wz, 0.55, 'small', 6, 'Shopping cart');
   });
 
   complexGroup.updateMatrixWorld(true);
@@ -1812,7 +1812,7 @@ function buildGeneralStore() {
     tree.position.set(baseX + wp.x, ty, baseZ + wp.z);
     tree.scale.setScalar(1.15);
     scene.add(tree);
-    registerDestructible(tree, baseX + wp.x, ty, baseZ + wp.z, 0.7, 'tree', 15, 'Parkeerboom');
+    registerDestructible(tree, baseX + wp.x, ty, baseZ + wp.z, 0.7, 'tree', 15, 'Parking lot tree');
     markLastPlanted();
   });
   // Lantaarns: op alle drie de lange stroken op dezelfde hoogtes (z = 4,3 en 14,5)
@@ -2024,7 +2024,7 @@ function buildRoadsideDiner() {
       t.position.set(w.x, surfaceY + 0.16, w.z);
       t.rotation.y = yaw;
       scene.add(t);
-      registerDestructible(t, w.x, surfaceY + 0.16, w.z, 0.9, 'small', 8, 'Terrastafel');
+      registerDestructible(t, w.x, surfaceY + 0.16, w.z, 0.9, 'small', 8, 'Patio table');
     };
     [[-20.8, -8.6, 0xd62839], [-17.4, -8.6, 0xffd23f], [-20.8, -4.0, 0xffd23f], [-17.4, -4.0, 0xd62839], [-20.8, 0.4, 0xd62839], [-17.4, 0.4, 0xffd23f]]
       .forEach(([lx, lz, c]) => placeTable(lx, lz, c));
@@ -2334,7 +2334,7 @@ function buildCoffeeStop() {
     t.position.set(w.x, surfaceY, w.z);
     t.rotation.y = yaw;
     scene.add(t);
-    registerDestructible(t, w.x, surfaceY, w.z, 0.9, 'small', 8, 'Terrastafel');
+    registerDestructible(t, w.x, surfaceY, w.z, 0.9, 'small', 8, 'Patio table');
   };
   [[-7.2, -5.5, 0x2f7a4e], [-7.2, -1.5, 0xf6f2ea]].forEach(([lx, lz, c]) => placeTable(lx, lz, c));
 
@@ -2792,17 +2792,89 @@ function createVilla__build() {
     g.add(chim);
   });
 
-  // Zwembad met terras aan de zijkant (richting het meer)
-  const deck = createOutlinedMesh(new THREE.BoxGeometry(11.0, 0.3, 7.5), poolDeckMat, 0.035, false, true);
-  deck.position.set(mainW * 0.5 + 6.2 + 7.0, 0.3, 3.4);
+  // Dakkapellen aan de voorkant
+  [-3.4, 3.4].forEach((dx) => {
+    const dorm = createOutlinedMesh(new THREE.BoxGeometry(1.5, 1.2, 1.4), villaWallMat, 0.03, false);
+    dorm.position.set(dx, mainH + 1.15, mainD * 0.5 - 1.1);
+    g.add(dorm);
+    const dRoof = hipRoof(1.7, 1.6, 0.7, villaRoofMat);
+    dRoof.position.set(dx, mainH + 1.75, mainD * 0.5 - 1.1);
+    g.add(dRoof);
+    const dGlass = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.75), warmWindowMat);
+    dGlass.position.set(dx, mainH + 1.15, mainD * 0.5 - 0.39);
+    g.add(dGlass);
+    houseWindows.push({ mesh: dGlass, timer: Math.random() * 10 });
+  });
+  // Bloembakken onder de ramen van de begane grond
+  const boxMat = makeToonMat(0x5a3324);
+  const bloomMats = [makeToonMat(0xd94e6a), makeToonMat(0xf4f1ea), makeToonMat(0xe8b13a)];
+  [-4.6, -2.3, 2.3, 4.6].forEach((wx, wi) => {
+    const box = createOutlinedMesh(new THREE.BoxGeometry(1.3, 0.25, 0.32), boxMat, 0.015, false);
+    box.position.set(wx, 1.35, mainD * 0.5 + 0.2);
+    g.add(box);
+    for (let k = 0; k < 4; k++) {
+      const bloom = new THREE.Mesh(new THREE.SphereGeometry(0.12, 6, 5), bloomMats[(k + wi) % 3]);
+      bloom.position.set(wx - 0.45 + k * 0.3, 1.55, mainD * 0.5 + 0.22);
+      g.add(bloom);
+    }
+  });
+  // Lantaarns naast de voordeur
+  const lampGlow = new THREE.MeshBasicMaterial({ color: 0xffe08a });
+  [-1.25, 1.25].forEach((lx) => {
+    const lamp = createOutlinedMesh(new THREE.BoxGeometry(0.22, 0.34, 0.22), lampGlow, 0.015, false);
+    lamp.position.set(lx, 2.75, mainD * 0.5 + 0.18);
+    g.add(lamp);
+  });
+
+  // Achtertuin: terras aan de achtergevel, zwembad met stenen rand, ligbedden, parasol en een lage haag
+  const backZ = -mainD * 0.5;
+  const patio = createOutlinedMesh(new THREE.BoxGeometry(mainW + 2, 0.3, 3.4), poolDeckMat, 0.03, false, true);
+  patio.position.set(0, 0.3, backZ - 1.7);
+  g.add(patio);
+  const deck = createOutlinedMesh(new THREE.BoxGeometry(15.0, 0.3, 9.0), poolDeckMat, 0.035, false, true);
+  deck.position.set(0, 0.28, backZ - 7.9);
   g.add(deck);
-  const pool = new THREE.Mesh(new THREE.BoxGeometry(7.6, 0.1, 4.0), poolWaterMat);
-  pool.position.set(mainW * 0.5 + 6.2 + 7.0, 0.47, 3.4);
+  const rim = createOutlinedMesh(new THREE.BoxGeometry(9.8, 0.16, 5.0), stoneMat, 0.02, false);
+  rim.position.set(0, 0.5, backZ - 8.6);
+  g.add(rim);
+  const pool = new THREE.Mesh(new THREE.BoxGeometry(9.0, 0.08, 4.2), poolWaterMat);
+  pool.position.set(0, 0.56, backZ - 8.6);
   g.add(pool);
-  [-2.2, 2.2].forEach((lx) => {
+  [-1, 1].forEach((side) => {
+    const ladder = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.6, 0.06), trimWhiteMat);
+    ladder.position.set(4.0, 0.8, backZ - 8.6 + side * 0.35);
+    g.add(ladder);
+  });
+  [-4.5, -2.5, 2.5, 4.5].forEach((lx) => {
     const lounger = createOutlinedMesh(new THREE.BoxGeometry(0.7, 0.25, 1.9), trimWhiteMat, 0.02, false);
-    lounger.position.set(mainW * 0.5 + 6.2 + 7.0 + lx, 0.6, 6.4);
+    lounger.position.set(lx, 0.6, backZ - 4.6);
+    lounger.rotation.x = -0.12;
     g.add(lounger);
+  });
+  {
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 2.4, 6), trimWhiteMat);
+    pole.position.set(6.2, 1.6, backZ - 5.2);
+    g.add(pole);
+    const umb = createOutlinedMesh(new THREE.ConeGeometry(1.5, 0.5, 8), makeToonMat(0xf4f1ea), 0.025, false);
+    umb.position.set(6.2, 2.85, backZ - 5.2);
+    g.add(umb);
+  }
+  [[-7.8, backZ - 7.9, 0.8, 8.2], [7.8, backZ - 7.9, 0.8, 8.2], [-4.4, backZ - 12.6, 6.0, 0.8], [4.4, backZ - 12.6, 6.0, 0.8]].forEach(([hx, hz, hw, hd]) => {
+    const hedge = createOutlinedMesh(new THREE.BoxGeometry(hw, 0.9, hd), hedgeMat, 0.03, false);
+    hedge.position.set(hx, 0.7, hz);
+    g.add(hedge);
+  });
+
+  // Bloemperken langs het voorplein
+  [-1, 1].forEach((side) => {
+    const bed = createOutlinedMesh(new THREE.BoxGeometry(1.4, 0.3, 6.0), makeToonMat(0x5a3f2a), 0.02, false);
+    bed.position.set(side * 8.4, 0.2, mainD * 0.5 + 7.6);
+    g.add(bed);
+    for (let k = 0; k < 10; k++) {
+      const bloom = new THREE.Mesh(new THREE.SphereGeometry(0.18, 6, 5), bloomMats[k % 3]);
+      bloom.position.set(side * 8.4 + ((k % 2) - 0.5) * 0.6, 0.48, mainD * 0.5 + 5.0 + k * 0.55);
+      g.add(bloom);
+    }
   });
 
   // Voorplein met fontein en heggen
@@ -2832,7 +2904,7 @@ function createVilla__build() {
 function buildVilla(lot) {
   const mesh = createVilla();
   // Villa staat iets van de oprit af: het voorplein ligt aan het eind van de oprijlaan
-  const back = rotateLocal(0, -9.5, lot.yaw);
+  const back = rotateLocal(0, -4.5, lot.yaw);
   const vx = lot.x + back.x;
   const vz = lot.z + back.z;
   mesh.position.set(vx, getTerrainHeight(lot.x, lot.z), vz);
@@ -2841,16 +2913,48 @@ function buildVilla(lot) {
   addRoofStringLights(mesh, mesh.userData.lightSpecs.width, mesh.userData.lightSpecs.yPos, mesh.userData.lightSpecs.zFront);
   mesh.updateMatrixWorld(true);
   chimneySmokes.push({ origin: mesh.userData.chimneyTop.clone().applyMatrix4(mesh.matrixWorld), timer: Math.random() * 1.8 });
-  [[-9.5, -0.4], [-3.5, 0], [3.5, 0], [9.5, -0.4], [19.7, 3.4]].forEach(([lx, lz]) => {
+  [[-9.5, -0.4], [-3.5, 0], [3.5, 0], [9.5, -0.4]].forEach(([lx, lz]) => {
     const p = rotateLocal(lx, lz, lot.yaw);
-    hardColliders.push({ x: vx + p.x, z: vz + p.z, r: lx === 19.7 ? 4.0 : 4.2 });
+    hardColliders.push({ x: vx + p.x, z: vz + p.z, r: 4.2 });
+  });
+  // Zwembad met haag: botsranden zodat je er niet in rijdt
+  [[-3, -12.85], [3, -12.85], [-7.8, -12.2], [7.8, -12.2], [-4.4, -16.85], [4.4, -16.85]].forEach(([lx, lz]) => {
+    const p = rotateLocal(lx, lz, lot.yaw);
+    hardColliders.push({ x: vx + p.x, z: vz + p.z, r: 2.3 });
+  });
+  // Tuinbomen rondom en tuinlantaarns langs de oprijlaan
+  const gy = getTerrainHeight(lot.x, lot.z);
+  [[-17, -2], [17, -2], [-16, -13], [16, -14], [-11, -21], [11, -21.5], [-19, 7], [19, 7], [0, -23]].forEach(([lx, lz]) => {
+    const p = rotateLocal(lx, lz, lot.yaw);
+    const tree = createParkTree();
+    const tx = vx + p.x;
+    const tz = vz + p.z;
+    const ty = getTerrainHeight(tx, tz);
+    tree.position.set(tx, ty, tz);
+    tree.scale.setScalar(1.2 + Math.random() * 0.3);
+    scene.add(tree);
+    registerDestructible(tree, tx, ty, tz, 0.7, 'tree', 15, 'Garden tree');
+    markLastPlanted();
+  });
+  const lanternGlow = new THREE.MeshBasicMaterial({ color: 0xffe08a });
+  [[-3.2, 14.5], [3.2, 14.5], [-3.2, 19], [3.2, 19], [-7.6, -4.6], [7.6, -4.6]].forEach(([lx, lz]) => {
+    const p = rotateLocal(lx, lz, lot.yaw);
+    const post = createOutlinedMesh(new THREE.CylinderGeometry(0.05, 0.07, 1.1, 6), streetPostMat, 0.015, false);
+    const lx2 = vx + p.x;
+    const lz2 = vz + p.z;
+    const ly = Math.max(gy, getTerrainHeight(lx2, lz2));
+    post.position.set(lx2, ly + 0.55, lz2);
+    scene.add(post);
+    const glow = new THREE.Mesh(new THREE.SphereGeometry(0.16, 8, 6), lanternGlow);
+    glow.position.set(lx2, ly + 1.2, lz2);
+    scene.add(glow);
   });
   const f = rotateLocal(0, 12.25, lot.yaw);
   hardColliders.push({ x: vx + f.x, z: vz + f.z, r: 2.2 });
 }
 
 ruralLots.forEach((lot) => {
-  if (lot.type === 'farm' || lot.type === 'store' || lot.type === 'diner' || lot.type === 'camping' || lot.type === 'sawmill' || lot.type === 'fair' || lot.type === 'cinema' || lot.type === 'airfield' || lot.type === 'coffee' || lot.type === 'police') return;
+  if (lot.type === 'farm' || lot.type === 'store' || lot.type === 'diner' || lot.type === 'motel' || lot.type === 'sawmill' || lot.type === 'fair' || lot.type === 'cinema' || lot.type === 'airfield' || lot.type === 'coffee' || lot.type === 'police') return;
   if (lot.type === 'villa') {
     buildVilla(lot);
     return;

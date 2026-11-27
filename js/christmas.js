@@ -134,7 +134,7 @@ function placeSnowman(x, z, yaw, k) {
   sm.rotation.y = yaw;
   sm.scale.setScalar(0.9 + (k % 3) * 0.12);
   christmasGroup.add(sm);
-  registerDestructible(sm, x, sm.position.y, z, 0.8, 'small', 10, 'Sneeuwpop');
+  registerDestructible(sm, x, sm.position.y, z, 0.8, 'small', 10, 'Snowman');
   destructibles[destructibles.length - 1].season = 'winter';
 }
 
@@ -153,7 +153,7 @@ ruralLots.forEach((lot) => {
   else if (lot.type === 'diner') spot = at(-22, -15);
   else if (lot.type === 'villa') spot = at(6.5, 4);
   else if (lot.type === 'store') spot = at(-17, 18);
-  else if (lot.type === 'camping') spot = at(0, 11);
+  else if (lot.type === 'motel') spot = at(-9, 12);
   else if (lot.type === 'fair' || lot.type === 'sawmill') spot = at(-5, 18);
   else if (lot.type === 'cinema') spot = at(11, -1.5);
   else if (lot.type === 'airfield') spot = at(-16, 4);

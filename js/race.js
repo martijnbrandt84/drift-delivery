@@ -10,7 +10,7 @@ import { showToast } from './ui-controls.js';
 // =========================================================
 // RONDE VAN PINEWOOD — race tegen een rivaal over de kustweg rond het eiland
 // =========================================================
-export const RACE_NAME = 'Ronde van Pinewood';
+export const RACE_NAME = 'Pinewood Loop';
 const N = 1600;
 const L = ringCurve.getLength();
 const DS = L / N;
@@ -160,7 +160,7 @@ function makeBannerTexture() {
 }
 
 // ---- Rivaal ----
-const rival = buildSportsCarMesh(0x2a6fdb, 'Rivaal Stingray', 11);
+const rival = buildSportsCarMesh(0x2a6fdb, 'Rival Stingray', 11);
 rival.root.visible = false;
 scene.add(rival.root);
 
@@ -236,7 +236,7 @@ export function startRace(veh, carState) {
   placeOnGrid(veh, carState, 2.3);
   rival.root.visible = true;
   hud.hidden = false;
-  showToast(`${RACE_NAME}: één ronde over de kustweg om het eiland. Afsnijden telt niet!`);
+  showToast(`${RACE_NAME}: one lap of the coast road around the island. No shortcuts!`);
 }
 
 export function cancelRace(reason) {
@@ -287,7 +287,7 @@ export function updateRace(dt, playerVeh, carState) {
   }
 
   if (playerVeh !== race.veh) {
-    cancelRace(`${RACE_NAME} afgebroken — je bent uitgestapt`);
+    cancelRace(`${RACE_NAME} cancelled — you left the car`);
     return;
   }
 
@@ -302,7 +302,7 @@ export function updateRace(dt, playerVeh, carState) {
       race.state = 'racing';
       carState.throttleHold = Math.max(carState.throttleHold, 0.3);
     }
-    hud.textContent = `${RACE_NAME} · klaar voor de start`;
+    hud.textContent = `${RACE_NAME} · get ready`;
     return;
   }
 
@@ -363,7 +363,7 @@ export function updateRace(dt, playerVeh, carState) {
       if (delta <= Math.round(60 / DS)) accepted = glob.idx;
       else if (race.shortcutWarn <= 0) {
         race.shortcutWarn = 5;
-        showToast('Afsnijden telt niet! Rij terug naar waar je de kustweg verliet');
+        showToast('No shortcuts! Drive back to where you left the coast road');
       }
     }
   }
@@ -376,7 +376,7 @@ export function updateRace(dt, playerVeh, carState) {
     race.offCourseTimer += dt;
     if (race.offCourseTimer > 6 && race.shortcutWarn <= 0) {
       race.shortcutWarn = 6;
-      showToast('Terug naar de kustweg! (R zet je terug op de weg)');
+      showToast('Back to the coast road! (R puts you back on the road)');
     }
   }
 
@@ -390,15 +390,15 @@ export function updateRace(dt, playerVeh, carState) {
     let record = '';
     if (bestTime === null || race.timer < bestTime) {
       bestTime = race.timer;
-      record = ' · NIEUW RECORD!';
+      record = ' · NEW RECORD!';
       try { localStorage.setItem('pinewood-race-best', String(bestTime)); } catch (e) { /* niet opslaan */ }
     }
-    showCount(won ? 'GEWONNEN!' : 'VERLOREN', won ? 'go' : 'lost');
+    showCount(won ? 'YOU WIN!' : 'YOU LOSE', won ? 'go' : 'lost');
     race.countdown = 2.5;
-    hud.innerHTML = `<b>${won ? '🏆 Gewonnen' : 'Tweede'}</b><span>${fmt(race.timer)}</span><span>Beste ${fmt(bestTime)}${record}</span>`;
+    hud.innerHTML = `<b>${won ? '🏆 Winner' : 'Second'}</b><span>${fmt(race.timer)}</span><span>Best ${fmt(bestTime)}${record}</span>`;
     showToast(won
-      ? `Gewonnen in ${fmt(race.timer)}${record}`
-      : `De rivaal was ${fmt(race.timer - race.rivalFinish)} sneller${record}. Stop onder de boog voor een revanche`);
+      ? `Won in ${fmt(race.timer)}${record}`
+      : `The rival was ${fmt(race.timer - race.rivalFinish)} faster${record}. Stop under the arch for a rematch`);
     race.state = 'done';
     race.doneTimer = 6;
   }

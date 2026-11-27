@@ -67,7 +67,7 @@ ruralLots.forEach((lot, i) => {
   // Klepje naar de weg
   mb.rotation.y = Math.atan2(-fx, -fz);
   scene.add(mb);
-  registerDestructible(mb, x, y, z, 0.45, 'small', 8, 'Brievenbus');
+  registerDestructible(mb, x, y, z, 0.45, 'small', 8, 'Mailbox');
 });
 
 // ---------- Muziekkapel op het groen aan de oever ----------
@@ -171,7 +171,7 @@ function createBandstand__build() {
     bench.position.set(x, y, z);
     bench.rotation.y = Math.PI;
     scene.add(bench);
-    registerDestructible(bench, x, y, z, 0.9, 'small', 10, 'Bankje');
+    registerDestructible(bench, x, y, z, 0.9, 'small', 10, 'Bench');
   });
 }
 

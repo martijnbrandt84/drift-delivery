@@ -605,3 +605,17 @@ body.touch #busted-banner { font-size: 1.5rem; padding: 14px 20px; max-width: 90
   body.touch #speedo-card { width: 118px; }
   body.touch #race-hud { top: calc(96px + env(safe-area-inset-top, 0px)); }
 }
+
+.fullmap-chip {
+  margin-left: auto;
+  margin-right: 10px;
+  border: 2px solid var(--ink);
+  border-radius: 8px;
+  background: #fff1df;
+  color: var(--ink);
+  font: 800 0.75rem system-ui, sans-serif;
+  padding: 3px 8px;
+  cursor: pointer;
+  pointer-events: auto;
+}
+.fullmap-chip:active { transform: translateY(1px); }

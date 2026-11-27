@@ -200,6 +200,49 @@ function ensureBaked() {
   bakeStaticMap();
 }
 
+// ---------- Hoogtelijnen (aan/uit met L): elke 2 m dun, elke 10 m dikker ----------
+const contourCanvas = document.createElement('canvas');
+contourCanvas.width = BAKE_PX;
+contourCanvas.height = BAKE_PX;
+let contoursBaked = false;
+let contoursOn = false;
+try { contoursOn = localStorage.getItem('pinewood-contours') === '1'; } catch (e) { /* geen opslag */ }
+function bakeContours() {
+  if (contoursBaked) return;
+  contoursBaked = true;
+  const cctx = contourCanvas.getContext('2d');
+  const GRID = 440;
+  const H = new Float32Array(GRID * GRID);
+  for (let gy = 0; gy < GRID; gy++) {
+    for (let gx = 0; gx < GRID; gx++) {
+      const x = -MAP_WORLD_HALF + ((gx + 0.5) / GRID) * MAP_WORLD_HALF * 2;
+      const z = -MAP_WORLD_HALF + ((gy + 0.5) / GRID) * MAP_WORLD_HALF * 2;
+      H[gy * GRID + gx] = getTerrainHeight(x, z);
+    }
+  }
+  const px = BAKE_PX / GRID;
+  for (let gy = 0; gy < GRID - 1; gy++) {
+    for (let gx = 0; gx < GRID - 1; gx++) {
+      const h = H[gy * GRID + gx];
+      if (h < WATER_LEVEL + 0.3) continue;
+      const l0 = Math.floor(h / 2);
+      const lR = Math.floor(H[gy * GRID + gx + 1] / 2);
+      const lD = Math.floor(H[(gy + 1) * GRID + gx] / 2);
+      if (l0 === lR && l0 === lD) continue;
+      const level = Math.max(l0, lR, lD) * 2;
+      const major = level % 10 === 0;
+      cctx.fillStyle = major ? 'rgba(70, 45, 25, 0.62)' : 'rgba(70, 45, 25, 0.3)';
+      const sz = major ? px * 1.1 : px * 0.75;
+      cctx.fillRect(gx * px + (px - sz) / 2, gy * px + (px - sz) / 2, sz, sz);
+    }
+  }
+}
+export function toggleContours(force) {
+  contoursOn = force ?? !contoursOn;
+  try { localStorage.setItem('pinewood-contours', contoursOn ? '1' : '0'); } catch (e) { /* geen opslag */ }
+  return contoursOn;
+}
+
 const VIEW_RANGE = 130; // zichtbare wereldstraal op de minimap
 const viewCtx = minimapCanvas.getContext('2d');
 const outSize = minimapCanvas.width;
@@ -219,6 +262,10 @@ export function updateMinimap(px, pz, angle, copPositions = []) {
     center.px - srcHalf, center.py - srcHalf, srcHalf * 2, srcHalf * 2,
     0, 0, outSize, outSize
   );
+  if (contoursOn) {
+    bakeContours();
+    viewCtx.drawImage(contourCanvas, center.px - srcHalf, center.py - srcHalf, srcHalf * 2, srcHalf * 2, 0, 0, outSize, outSize);
+  }
   viewCtx.restore();
 
   viewCtx.fillStyle = '#2288ff';
@@ -275,7 +322,7 @@ addLabel('Pinewood', 0, 104, 'town');
 addLabel('Pinewood Lake', 0, -30, 'water');
 addLabel('Moose Lake', MOOSE_LAKE.x, MOOSE_LAKE.z, 'water');
 addLabel('Fox Lake', FOX_LAKE.x, FOX_LAKE.z, 'water');
-addLabel('Uitkijktoren', LOOKOUT_HILL.x, LOOKOUT_HILL.z - 14);
+addLabel('Lookout tower', LOOKOUT_HILL.x, LOOKOUT_HILL.z - 14);
 {
   const rp = riverCurves[0].sampled[Math.round(riverCurves[0].sampled.length * 0.5)];
   addLabel('Pine River', rp.x + 34, rp.z, 'water');
@@ -283,17 +330,17 @@ addLabel('Uitkijktoren', LOOKOUT_HILL.x, LOOKOUT_HILL.z - 14);
 ruralLots.forEach((lot) => {
   if (lot.type === 'store') addLabel('Pinewood Mall', lot.x, lot.z - 16);
   if (lot.type === 'diner') addLabel('Pine Burger', lot.x, lot.z - 16);
-  if (lot.type === 'farm') addLabel(lot.name ? lot.name.charAt(0) + lot.name.slice(1).toLowerCase().replace(/ (\w)/g, (m, c) => ' ' + c.toUpperCase()) : 'Boerderij', lot.x, lot.z - 36);
+  if (lot.type === 'farm') addLabel(lot.name ? lot.name.charAt(0) + lot.name.slice(1).toLowerCase().replace(/ (\w)/g, (m, c) => ' ' + c.toUpperCase()) : 'Farm', lot.x, lot.z - 36);
   if (lot.type === 'villa') addLabel('Villa', lot.x, lot.z - 16);
-  if (lot.type === 'camping') addLabel('Camping', lot.x, lot.z + 4);
-  if (lot.type === 'sawmill') addLabel('Zagerij', lot.x, lot.z - 14);
-  if (lot.type === 'fair') addLabel('Kermis', lot.x, lot.z);
-  if (lot.type === 'cinema') addLabel('Bioscoop', lot.x + 6, lot.z - 14);
-  if (lot.type === 'airfield') addLabel('Vliegveld', lot.x - 50, lot.z - 16);
+  if (lot.type === 'motel') addLabel('Motel', lot.x, lot.z + 4);
+  if (lot.type === 'sawmill') addLabel('Sawmill', lot.x, lot.z - 14);
+  if (lot.type === 'fair') addLabel('Funfair', lot.x, lot.z);
+  if (lot.type === 'cinema') addLabel('Cinema', lot.x + 6, lot.z - 14);
+  if (lot.type === 'airfield') addLabel('Airfield', lot.x - 50, lot.z - 16);
   if (lot.type === 'coffee') addLabel('Pine Coffee', lot.x, lot.z - 12);
-  if (lot.type === 'police') addLabel('Politiebureau', lot.x, lot.z - 16);
+  if (lot.type === 'police') addLabel('Police station', lot.x, lot.z - 16);
 });
-addLabel('Strand', 0, 352, 'water');
+addLabel('Beach', 0, 352, 'water');
 
 let fullOpen = false;
 export function isFullMapOpen() {
@@ -304,6 +351,13 @@ export function toggleFullMap(force) {
   fullmapOverlayEl.hidden = !fullOpen;
 }
 minimapCardEl.addEventListener('click', () => toggleFullMap(true));
+{
+  const btn = document.getElementById('contour-btn');
+  if (btn) {
+    btn.addEventListener('click', (e) => { e.stopPropagation(); toggleContours(); });
+    btn.addEventListener('pointerdown', (e) => e.stopPropagation());
+  }
+}
 fullmapOverlayEl.addEventListener('click', () => toggleFullMap(false));
 
 export function updateFullMap(px, pz, angle, copPositions = []) {
@@ -314,6 +368,10 @@ export function updateFullMap(px, pz, angle, copPositions = []) {
   const s1 = worldToBake(FULL_CX + FULL_HALF, FULL_CZ + FULL_HALF);
   fullCtx.clearRect(0, 0, FULL, FULL);
   fullCtx.drawImage(bakeCanvas, s0.px, s0.py, s1.px - s0.px, s1.py - s0.py, 0, 0, FULL, FULL);
+  if (contoursOn) {
+    bakeContours();
+    fullCtx.drawImage(contourCanvas, s0.px, s0.py, s1.px - s0.px, s1.py - s0.py, 0, 0, FULL, FULL);
+  }
 
   // Plaatsnamen met een lichte halo voor leesbaarheid
   fullCtx.textAlign = 'center';

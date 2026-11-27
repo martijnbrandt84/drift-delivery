@@ -360,7 +360,7 @@ function buildCompleteRoadSystem() {
         postGrp.position.set(bx, by, bz);
         postGrp.rotation.y = Math.atan2(s.tx, s.tz);
         scene.add(postGrp);
-        registerDestructible(postGrp, bx, by, bz, 0.55, 'small', 8, 'Bermpaaltje');
+        registerDestructible(postGrp, bx, by, bz, 0.55, 'small', 8, 'Roadside post');
       });
     }
   };

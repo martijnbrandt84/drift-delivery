@@ -91,7 +91,7 @@ export const ruralLots = [
   { netSamples: foxRoadSamples, near: [192, -45], outward: true, dist: 17.5, type: 'cabin', yawOff: -0.05 },
 
   // Grote villa aan Moose Lake (met zwembad en oprijlaan)
-  { netSamples: ringSamples, near: [200, 240], outward: false, dist: 22.0, type: 'villa', yawOff: 0.0, padRadius: 24, blendRadius: 36 },
+  { netSamples: ringSamples, near: [200, 240], outward: false, dist: 22.0, type: 'villa', yawOff: 0.0, padRadius: 28, blendRadius: 40 },
   { netSamples: ringSamples, near: [-55, 320], outward: false, dist: 18.0, type: 'house_red', yawOff: -0.06 },
   { netSamples: ringSamples, near: [-130, 303], outward: false, dist: 18.0, type: 'cabin', yawOff: 0.08 },
 
@@ -156,8 +156,9 @@ export const ruralLots = [
     near: [-112, -270],
     outward: true,
     dist: 30.0,
-    type: 'camping',
-    name: 'NORTH BEACH CAMPING',
+    type: 'motel',
+    name: 'NORTH BEACH MOTEL',
+    drivewayStopShort: 9.4,
     yawOff: 0,
     flatElevOffset: -0.05,
     flatBox: { minLX: -16, maxLX: 16, minLZ: -16, maxLZ: 20, blend: 12 }
@@ -281,8 +282,8 @@ ruralLots.forEach((lot) => {
       x2: rs.x + rs.nx * side * (lot.dist - (lot.drivewayStopShort ?? 0)),
       y2: lot.y,
       z2: rs.z + rs.nz * side * (lot.dist - (lot.drivewayStopShort ?? 0)),
-      halfWidth: lot.type === 'farm' ? 3.2 : lot.type === 'store' ? 4.4 : ['cinema', 'diner', 'coffee', 'police'].includes(lot.type) ? 3.4 : lot.type === 'villa' ? 2.8 : 2.5,
-      asphalt: lot.type === 'store' || lot.type === 'cinema' || lot.type === 'airfield' || lot.type === 'coffee' || lot.type === 'police' || lot.type === 'diner'
+      halfWidth: lot.type === 'farm' ? 3.2 : lot.type === 'store' ? 4.4 : ['cinema', 'diner', 'coffee', 'police', 'motel'].includes(lot.type) ? 3.4 : lot.type === 'villa' ? 2.8 : 2.5,
+      asphalt: lot.type === 'store' || lot.type === 'cinema' || lot.type === 'airfield' || lot.type === 'coffee' || lot.type === 'police' || lot.type === 'diner' || lot.type === 'motel'
     });
   }
 });

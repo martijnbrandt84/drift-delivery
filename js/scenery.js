@@ -93,7 +93,7 @@ export function createRoadSign(x, z, baseY, yaw, lines) {
   g.position.set(x, baseY, z);
   g.rotation.y = yaw;
   scene.add(g);
-  registerDestructible(g, x, baseY, z, 0.55, 'small', 15, 'Wegwijzer');
+  registerDestructible(g, x, baseY, z, 0.55, 'small', 15, 'Road sign');
 }
 
 function buildRoadSigns() {
@@ -104,7 +104,7 @@ function buildRoadSigns() {
     entering.z + entering.nz * enterOutSign * 6.8,
     getTerrainHeight(entering.x + entering.nx * enterOutSign * 6.8, entering.z + entering.nz * enterOutSign * 6.8),
     Math.atan2(entering.tx, entering.tz),
-    ['PINEWOOD CREEK', 'Welkom!']
+    ['PINEWOOD CREEK', 'Welcome!']
   );
 
   const leaving = sampleCurvePoint(lakeCurve, getLakeLoopBaseElev, getLakeBridgeAtU, 0.585);
@@ -114,7 +114,7 @@ function buildRoadSigns() {
     leaving.z + leaving.nz * leaveOutSign * 6.8,
     getTerrainHeight(leaving.x + leaving.nx * leaveOutSign * 6.8, leaving.z + leaving.nz * leaveOutSign * 6.8),
     Math.atan2(-leaving.tx, -leaving.tz),
-    ['TOT ZIENS', 'Pinewood Creek']
+    ['GOODBYE', 'Pinewood Creek']
   );
 
   const valleyStart = sampleCurvePoint(valleyCurve, getValleyBaseElev, getValleyBridgeAtU, 0.095);
@@ -411,14 +411,14 @@ buildLighthouse();
       pine.position.set(px, py, pz);
       pine.rotation.y = Math.random() * Math.PI * 2;
       scene.add(pine);
-      registerDestructible(pine, px, py, pz, 0.85 * sc, 'tree', 15, 'Dennenboom');
+      registerDestructible(pine, px, py, pz, 0.85 * sc, 'tree', 15, 'Pine tree');
     } else {
       const sc = 0.6 + Math.random() * 0.6;
       const shrub = createShrubFast(sc);
       shrub.position.set(px, py, pz);
       shrub.rotation.y = Math.random() * Math.PI * 2;
       scene.add(shrub);
-      registerDestructible(shrub, px, py, pz, Math.max(0.6, 0.85 * sc), 'shrub', 3, 'Struik');
+      registerDestructible(shrub, px, py, pz, Math.max(0.6, 0.85 * sc), 'shrub', 3, 'Shrub');
     }
   });
   const rockMat = makeToonMat(0x8d8379);

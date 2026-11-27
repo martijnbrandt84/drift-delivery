@@ -209,7 +209,7 @@ function buildAirfield() {
   const tl = Math.hypot(tx, tz) || 1;
   const sx = lot.roadX + c * 6 + (tx / tl) * 3.5;
   const sz = lot.roadZ - s * 6 + (tz / tl) * 3.5;
-  createRoadSign(sx, sz, getTerrainHeight(sx, sz), lot.yaw, ['AIRFIELD', 'Rondvluchten']);
+  createRoadSign(sx, sz, getTerrainHeight(sx, sz), lot.yaw, ['AIRFIELD', 'Scenic flights']);
 
   // Bomenrijen langs beide lange zijden van het vliegveld en groepjes bij het platform
   // (het eind van de baan blijft vrij voor het aanvliegen)
@@ -236,14 +236,14 @@ function buildAirfield() {
       obj = createShrubFast(sc);
       obj.position.set(w.x, y, w.z);
       scene.add(obj);
-      registerDestructible(obj, w.x, y, w.z, Math.max(0.6, 0.85 * sc), 'shrub', 3, 'Struik');
+      registerDestructible(obj, w.x, y, w.z, Math.max(0.6, 0.85 * sc), 'shrub', 3, 'Shrub');
     } else {
       const sc = 0.75 + Math.random() * 0.45;
       obj = kind === 'p' ? createPineFast(sc) : createDeciduousTreeFast(sc);
       obj.position.set(w.x, y, w.z);
       obj.rotation.y = Math.random() * Math.PI * 2;
       scene.add(obj);
-      registerDestructible(obj, w.x, y, w.z, 0.85 * sc, 'tree', 15, kind === 'p' ? 'Dennenboom' : 'Loofboom');
+      registerDestructible(obj, w.x, y, w.z, 0.85 * sc, 'tree', 15, kind === 'p' ? 'Pine tree' : 'Tree');
     }
     markLastPlanted();
   };
@@ -385,7 +385,7 @@ export function canExitPlane() {
 export function enterPlane() {
   flight.active = true;
   Object.keys(input).forEach((k) => { input[k] = false; });
-  showToast('Vliegtuig: W/S gas · A/D sturen · ↑ klimmen · ↓ dalen · F uitstappen');
+  showToast('Plane: W/S throttle · A/D steer · ↑ climb · ↓ dive · F get out');
 }
 
 // Geeft een plek naast het vliegtuig terug om de auto neer te zetten
@@ -429,7 +429,7 @@ export function updateFlight(dt, elapsed) {
     flight.crashTimer -= dt;
     if (flight.crashTimer <= 0) {
       parkPlane();
-      if (flight.active) showToast('Het vliegtuig staat weer klaar op het platform');
+      if (flight.active) showToast('The plane is ready on the apron again');
     }
     return;
   }
@@ -456,7 +456,7 @@ export function updateFlight(dt, elapsed) {
     if (wantsUp && flight.pitch > 0.12) {
       flight.airborne = true;
       flight.vy = 2;
-      showToast('Opgestegen! Kijk eens naar Pinewood Island van boven');
+      showToast('Airborne! Enjoy Pinewood Island from above');
     }
   } else {
     // In de lucht: hellen = draaien, neus omhoog/omlaag
@@ -476,13 +476,13 @@ export function updateFlight(dt, elapsed) {
     // Contact met de grond: landen of crashen
     if (flight.y <= ground + GEAR_H) {
       const overWater = getTerrainHeight(flight.x, flight.z) < WATER_LEVEL - 0.1;
-      if (overWater) crash('Plons! Het vliegtuig ligt in het water');
-      else if (flight.vy < -8.5 || Math.abs(flight.roll) > 0.5 || flight.pitch < -0.35) crash('Crash! Te hard of te scheef geland');
+      if (overWater) crash('Splash! The plane is in the water');
+      else if (flight.vy < -8.5 || Math.abs(flight.roll) > 0.5 || flight.pitch < -0.35) crash('Crash! Landed too hard or too crooked');
       else {
         flight.airborne = false;
         flight.y = ground + GEAR_H;
         flight.vy = 0;
-        showToast('Mooie landing!');
+        showToast('Nice landing!');
       }
     }
   }

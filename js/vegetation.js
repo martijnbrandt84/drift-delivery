@@ -404,7 +404,7 @@ for (let a = 0; a < 30000 && flowers.length < 900; a++) {
     deciduousFoliageObjects.push(crown.main);
     if (crown.out) deciduousFoliageObjects.push(crown.out);
   }
-  registerSets(maples, [trunk, crown], 0.6, 'tree', 15, 'Esdoorn');
+  registerSets(maples, [trunk, crown], 0.6, 'tree', 15, 'Maple');
 }
 {
   const trunk = buildSet(bakedOakTrunk, oaks, { castShadow: true });
@@ -413,21 +413,21 @@ for (let a = 0; a < 30000 && flowers.length < 900; a++) {
     deciduousFoliageObjects.push(crown.main);
     if (crown.out) deciduousFoliageObjects.push(crown.out);
   }
-  registerSets(oaks, [trunk, crown], 0.9, 'tree', 20, 'Eik');
+  registerSets(oaks, [trunk, crown], 0.9, 'tree', 20, 'Oak');
 }
 {
   const set = buildSet(bakedDeadPine, deads, { castShadow: true });
-  registerSets(deads, [set], 0.5, 'tree', 10, 'Dode den');
+  registerSets(deads, [set], 0.5, 'tree', 10, 'Dead pine');
 }
 {
   const bark = buildSet(bakedLog, logs, { castShadow: true });
   const ends = buildSet(bakedLogEnds, logs, { outline: false });
-  registerSets(logs, [bark, ends], 1.2, 'small', 6, 'Boomstam');
+  registerSets(logs, [bark, ends], 1.2, 'small', 6, 'Log');
 }
 {
   const bark = buildSet(bakedStump, stumps, {});
   const top = buildSet(bakedStumpTop, stumps, { outline: false });
-  registerSets(stumps, [bark, top], 0.6, 'small', 3, 'Boomstronk');
+  registerSets(stumps, [bark, top], 0.6, 'small', 3, 'Tree stump');
 }
 {
   const caps = buildSet(bakedMushCaps, mushrooms, {});

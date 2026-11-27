@@ -282,7 +282,7 @@ export function buildSchoolBusMesh() {
   };
 }
 
-export function buildCargoTruckMesh(cabHex = 0x3a6ea5, trailerHex = 0xf2ece1, label = 'Vrachtwagen') {
+export function buildCargoTruckMesh(cabHex = 0x3a6ea5, trailerHex = 0xf2ece1, label = 'Truck') {
   const root = new THREE.Group();
   const body = new THREE.Group();
   root.add(body);
@@ -398,7 +398,7 @@ export function buildSnowplowMesh() {
 
   return {
     root, body, wheels, frontPivots,
-    name: 'Sneeuwruimer',
+    name: 'Snowplow',
     radius: 1.95, rearAxleZ: -1.35, trackHalfW: 1.12,
     stats: { baseSpeed: 31, maxSpeed: 50, baseAccel: 35, peakAccel: 65, turnRate: 2.35, driftGripMod: 1.12, mass: 2.2 }
   };
@@ -466,7 +466,7 @@ export function buildIceCreamTruckMesh() {
 
   return {
     root, body, wheels, frontPivots,
-    name: 'IJscowagen',
+    name: 'Ice Cream Truck',
     radius: 1.7, rearAxleZ: -1.42, trackHalfW: 1.04,
     stats: { baseSpeed: 31, maxSpeed: 48, baseAccel: 34, peakAccel: 62, turnRate: 2.55, driftGripMod: 0.92, mass: 1.55 }
   };
@@ -677,22 +677,22 @@ function spawnTrafficVehicle(vehData, curve, elevFn, bridgeFn, startU, dir, crui
 
 spawnTrafficVehicle(buildSchoolBusMesh(), lakeCurve, getLakeLoopBaseElev, getLakeBridgeAtU, 0.47, -1, 13.0, -2.2, true);
 spawnTrafficVehicle(buildYellowTaxiMesh(), lakeCurve, getLakeLoopBaseElev, getLakeBridgeAtU, 0.53, 1, 17.5, 2.2, true);
-spawnTrafficVehicle(buildPickupTruckMesh(0x3f78a8, 'Blauwe V8 Pickup'), lakeCurve, getLakeLoopBaseElev, getLakeBridgeAtU, 0.22, -1, 16.0, -2.2, true);
+spawnTrafficVehicle(buildPickupTruckMesh(0x3f78a8, 'Blue V8 Pickup'), lakeCurve, getLakeLoopBaseElev, getLakeBridgeAtU, 0.22, -1, 16.0, -2.2, true);
 spawnTrafficVehicle(buildPickupTruckMesh(0x4b8252, 'Ranger Pickup'), lakeCurve, getLakeLoopBaseElev, getLakeBridgeAtU, 0.82, 1, 15.5, 2.2, true);
-spawnTrafficVehicle(buildCargoTruckMesh(0x3a6ea5, 0xf2ece1, 'Blauwe Vrachtwagen'), lakeCurve, getLakeLoopBaseElev, getLakeBridgeAtU, 0.12, 1, 12.5, 2.2, true);
+spawnTrafficVehicle(buildCargoTruckMesh(0x3a6ea5, 0xf2ece1, 'Blue Truck'), lakeCurve, getLakeLoopBaseElev, getLakeBridgeAtU, 0.12, 1, 12.5, 2.2, true);
 spawnTrafficVehicle(buildSnowplowMesh(), lakeCurve, getLakeLoopBaseElev, getLakeBridgeAtU, 0.62, -1, 13.5, -2.2, true);
 spawnTrafficVehicle(buildIceCreamTruckMesh(), lakeCurve, getLakeLoopBaseElev, getLakeBridgeAtU, 0.38, 1, 12.0, 2.2, true);
 
 spawnTrafficVehicle(buildYellowTaxiMesh(), valleyCurve, getValleyBaseElev, getValleyBridgeAtU, 0.28, 1, 16.5, 2.15, false);
 spawnTrafficVehicle(buildPickupTruckMesh(0xc96b38, 'Canyon Pickup'), valleyCurve, getValleyBaseElev, getValleyBridgeAtU, 0.70, -1, 15.5, -2.15, false);
-spawnTrafficVehicle(buildCargoTruckMesh(0xa8382b, 0xede6d6, 'Rode Vrachtwagen'), valleyCurve, getValleyBaseElev, getValleyBridgeAtU, 0.42, 1, 12.0, 2.15, false);
+spawnTrafficVehicle(buildCargoTruckMesh(0xa8382b, 0xede6d6, 'Red Truck'), valleyCurve, getValleyBaseElev, getValleyBridgeAtU, 0.42, 1, 12.0, 2.15, false);
 
 // Verkeer op de nieuwe kustweg rond het eiland
-spawnTrafficVehicle(buildCargoTruckMesh(0x2f7d6d, 0xf2ece1, 'Kust Vrachtwagen'), ringCurve, getRingBaseElev, getRingBridgeAtU, 0.08, 1, 15.0, 2.2, true);
+spawnTrafficVehicle(buildCargoTruckMesh(0x2f7d6d, 0xf2ece1, 'Coastal Truck'), ringCurve, getRingBaseElev, getRingBridgeAtU, 0.08, 1, 15.0, 2.2, true);
 spawnTrafficVehicle(buildYellowTaxiMesh(), ringCurve, getRingBaseElev, getRingBridgeAtU, 0.33, -1, 20.0, -2.2, true);
-spawnTrafficVehicle(buildPickupTruckMesh(0x8a5a3c, 'Kustwacht Pickup'), ringCurve, getRingBaseElev, getRingBridgeAtU, 0.52, 1, 18.5, 2.2, true);
+spawnTrafficVehicle(buildPickupTruckMesh(0x8a5a3c, 'Coast Guard Pickup'), ringCurve, getRingBaseElev, getRingBridgeAtU, 0.52, 1, 18.5, 2.2, true);
 spawnTrafficVehicle(buildSchoolBusMesh(), ringCurve, getRingBaseElev, getRingBridgeAtU, 0.71, -1, 14.0, -2.2, true);
-spawnTrafficVehicle(buildPickupTruckMesh(0xd9b23a, 'Gele Strand Pickup'), ringCurve, getRingBaseElev, getRingBridgeAtU, 0.90, 1, 17.0, 2.2, true);
+spawnTrafficVehicle(buildPickupTruckMesh(0xd9b23a, 'Yellow Beach Pickup'), ringCurve, getRingBaseElev, getRingBridgeAtU, 0.90, 1, 17.0, 2.2, true);
 
 {
   const fox = connectorRoads.find((c) => c.id === 'fox_lake_road');
@@ -700,18 +700,18 @@ spawnTrafficVehicle(buildPickupTruckMesh(0xd9b23a, 'Gele Strand Pickup'), ringCu
 }
 branchRoads.forEach((road, i) => {
   spawnTrafficVehicle(
-    i === 0 ? buildPickupTruckMesh(0x4a6a8a, 'Rivier Pickup') : buildCargoTruckMesh(0xc9a227, 0xf2ece1, 'Prairie Vrachtwagen'),
+    i === 0 ? buildPickupTruckMesh(0x4a6a8a, 'River Pickup') : buildCargoTruckMesh(0xc9a227, 0xf2ece1, 'Prairie Truck'),
     road.curve, road.elevFn, road.bridgeFn, 0.4, 1, i === 0 ? 13.0 : 15.0, 2.15, false
   );
 });
-spawnTrafficVehicle(buildPickupTruckMesh(0x5b7a3a, 'Houthakkers Pickup'), timberTrail.curve, timberTrail.elevFn, timberTrail.bridgeFn, 0.3, 1, 13.0, 2.15, false);
+spawnTrafficVehicle(buildPickupTruckMesh(0x5b7a3a, 'Lumberjack Pickup'), timberTrail.curve, timberTrail.elevFn, timberTrail.bridgeFn, 0.3, 1, 13.0, 2.15, false);
 
 // Geparkeerde auto's bij de diner
 const dinerLot = ruralLots.find((l) => l.type === 'diner');
 if (dinerLot) {
   const c = Math.cos(dinerLot.yaw);
   const s = Math.sin(dinerLot.yaw);
-  [[-7.75, 3.6, buildYellowTaxiMesh()], [-10.25, 11.6, buildPickupTruckMesh(0xc94a38, 'Rode Diner Pickup')]].forEach(([lx, lz, veh]) => {
+  [[-7.75, 3.6, buildYellowTaxiMesh()], [-10.25, 11.6, buildPickupTruckMesh(0xc94a38, 'Red Diner Pickup')]].forEach(([lx, lz, veh]) => {
     veh.root.position.set(dinerLot.x + lx * c + lz * s, dinerLot.roadY + 0.08, dinerLot.z - lx * s + lz * c);
     veh.root.rotation.y = dinerLot.yaw + Math.PI;
     scene.add(veh.root);

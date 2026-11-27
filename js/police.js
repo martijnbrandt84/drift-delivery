@@ -194,20 +194,20 @@ function buildStation() {
       obj = createShrubFast(sc);
       obj.position.set(p.x, y, p.z);
       scene.add(obj);
-      registerDestructible(obj, p.x, y, p.z, Math.max(0.6, 0.85 * sc), 'shrub', 3, 'Struik');
+      registerDestructible(obj, p.x, y, p.z, Math.max(0.6, 0.85 * sc), 'shrub', 3, 'Shrub');
     } else {
       const sc = 0.75 + Math.random() * 0.4;
       obj = kind === 'p' ? createPineFast(sc) : createDeciduousTreeFast(sc);
       obj.position.set(p.x, y, p.z);
       obj.rotation.y = Math.random() * Math.PI * 2;
       scene.add(obj);
-      registerDestructible(obj, p.x, y, p.z, 0.85 * sc, 'tree', 15, kind === 'p' ? 'Dennenboom' : 'Loofboom');
+      registerDestructible(obj, p.x, y, p.z, 0.85 * sc, 'tree', 15, kind === 'p' ? 'Pine tree' : 'Tree');
     }
     markLastPlanted();
   });
 
   const sp = rotLocal(-7.5, padFrontLZ + 2.0);
-  createRoadSign(sp.x, sp.z, surfaceY, lot.yaw, ['SHERIFF', 'Politiebureau']);
+  createRoadSign(sp.x, sp.z, surfaceY, lot.yaw, ['SHERIFF', 'Police station']);
 }
 buildStation();
 

@@ -58,21 +58,21 @@ if (isTouch) {
   const flyCol = document.createElement('div');
   flyCol.className = 'tc-fly';
   right.appendChild(flyCol);
-  makeButton(flyCol, '▲<small>klim</small>', 'ArrowUp', 'small');
-  makeButton(flyCol, '▼<small>daal</small>', 'ArrowDown', 'small');
+  makeButton(flyCol, '▲<small>climb</small>', 'ArrowUp', 'small');
+  makeButton(flyCol, '▼<small>dive</small>', 'ArrowDown', 'small');
   const pedals = document.createElement('div');
   pedals.className = 'tc-pedals';
   right.appendChild(pedals);
-  makeButton(pedals, 'REM<small>achteruit</small>', 'KeyS', 'brake');
+  makeButton(pedals, 'BRAKE<small>reverse</small>', 'KeyS', 'brake');
   makeButton(pedals, 'GAS', 'KeyW', 'gas');
   makeButton(right, 'DRIFT', 'Space', 'drift');
 
   const actions = document.createElement('div');
   actions.id = 'tc-actions';
   document.body.appendChild(actions);
-  makeButton(actions, 'Kaart', 'KeyK', 'mini', { tap: true });
-  makeButton(actions, 'Op weg', 'KeyR', 'mini', { tap: true });
-  makeButton(actions, 'Toeter', 'KeyH', 'mini', { tap: true });
+  makeButton(actions, 'Map', 'KeyK', 'mini', { tap: true });
+  makeButton(actions, 'Reset', 'KeyR', 'mini', { tap: true });
+  makeButton(actions, 'Horn', 'KeyH', 'mini', { tap: true });
 
   // De instap-melding wordt een knop: tikken = F
   const prompt = document.getElementById('hijack-prompt');

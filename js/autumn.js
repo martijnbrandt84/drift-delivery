@@ -67,7 +67,7 @@ ruralLots.forEach((lot) => {
     });
     return;
   }
-  if (lot.type === 'camping' || lot.type === 'sawmill' || lot.type === 'fair' || lot.type === 'airfield' || lot.type === 'coffee' || lot.type === 'police') return;
+  if (lot.type === 'motel' || lot.type === 'sawmill' || lot.type === 'fair' || lot.type === 'airfield' || lot.type === 'coffee' || lot.type === 'police') return;
   if (lot.type === 'villa') {
     [[-2.8, 0.6], [2.8, 0.6], [-3.3, 1.2]].forEach(([lx, lz]) => {
       const w = lotLocalToWorld(lot, lx, lz);
@@ -122,7 +122,7 @@ if (pumpkinSpots.length) {
   pumpkinSpots.forEach((p, i) => {
     registerInstancedDestructible(
       [{ mesh: body, index: i }, { mesh: outline, index: i }, { mesh: stems, index: i }],
-      p.x, p.y - 0.05, p.z, p.rot, p.scale, 0.5 * p.scale + 0.15, 'small', 4, 'Pompoen'
+      p.x, p.y - 0.05, p.z, p.rot, p.scale, 0.5 * p.scale + 0.15, 'small', 4, 'Pumpkin'
     );
     destructibles[destructibles.length - 1].season = 'autumn';
   });
@@ -144,7 +144,7 @@ const leafPileVariants = [0xd9662b, 0xe8a33a, 0xc4472f].map((hex) => {
 });
 
 {
-  const decidTrees = destructibles.filter((d) => d.kind === 'tree' && d.label !== 'Dennenboom' && !d.instRefs);
+  const decidTrees = destructibles.filter((d) => d.kind === 'tree' && d.label !== 'Pine tree' && !d.instRefs);
   let placed = 0;
   for (let i = 0; i < decidTrees.length && placed < 46; i++) {
     const t = decidTrees[(i * 7) % decidTrees.length];
@@ -161,7 +161,7 @@ const leafPileVariants = [0xd9662b, 0xe8a33a, 0xc4472f].map((hex) => {
     pile.scale.setScalar(0.85 + Math.random() * 0.4);
     scene.add(pile);
     deciduousFoliageObjects.push(pile);
-    registerDestructible(pile, x, y, z, 1.2, 'shrub', 3, 'Bladerhoop');
+    registerDestructible(pile, x, y, z, 1.2, 'shrub', 3, 'Leaf pile');
     destructibles[destructibles.length - 1].season = 'autumn';
     placed++;
   }
@@ -219,7 +219,7 @@ ruralLots.filter((l) => l.type === 'farm').forEach((farm, fi) => {
     sc.position.set(w.x, y, w.z);
     sc.rotation.y = farm.yaw + (Math.random() - 0.5) * 0.5;
     scene.add(sc);
-    registerDestructible(sc, w.x, y, w.z, 0.9, 'small', 18, 'Vogelverschrikker');
+    registerDestructible(sc, w.x, y, w.z, 0.9, 'small', 18, 'Scarecrow');
   });
 });
 

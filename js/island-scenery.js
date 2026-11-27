@@ -45,7 +45,7 @@ function isInsideSpecialLot(x, z) {
       const lx = dx * c - dz * s;
       const lz = dx * s + dz * c;
       const fb = lot.flatBox;
-      const m = lot.type === 'camping' ? 2 : lot.type === 'farm' ? 10 : 6;
+      const m = lot.type === 'motel' ? 2 : lot.type === 'farm' ? 10 : 6;
       if (lx > fb.minLX - m && lx < fb.maxLX + m && lz > fb.minLZ - m && lz < fb.maxLZ + m + 4) return true;
       continue;
     }
@@ -207,7 +207,7 @@ function buildOuterForest() {
       snow.main.visible = false;
       pineSnowCapObjects.push(snow.main);
       if (snow.outline) { snow.outline.visible = false; pineSnowCapObjects.push(snow.outline); }
-      registerTrees(pines, [trunk, needles, snow], 'Dennenboom');
+      registerTrees(pines, [trunk, needles, snow], 'Pine tree');
     }
     if (decid.length) {
       const skel = buildInstancedSet(bakedBirchSkeleton, decid, null, true);
@@ -217,7 +217,7 @@ function buildOuterForest() {
       const bSnow = buildInstancedSet(bakedBirchSnow, decid, null, false);
       bSnow.main.visible = false;
       pineSnowCapObjects.push(bSnow.main);
-      registerTrees(decid, [skel, crowns, bSnow], 'Loofboom');
+      registerTrees(decid, [skel, crowns, bSnow], 'Tree');
     }
   });
   return spots.length;
@@ -463,13 +463,13 @@ connectorRoads.forEach((c) => {
   const uStart = clearDistAlong(c, 24, 1);
   const uEnd = clearDistAlong(c, 24, -1);
   // Bij het begin (vanuit het binnenland): wijst naar de kust
-  signAlong(c.curve, uStart, 1, ['COAST HWY', 'Kustweg'], true);
+  signAlong(c.curve, uStart, 1, ['COAST HWY', 'Coast road'], true);
   // Bij het eind (vanaf de kust): wijst naar Pinewood
   signAlong(c.curve, uEnd, 1, ['PINEWOOD', 'Centrum']);
 });
 
-signAlong(timberTrail.curve, clearDistAlong(timberTrail, 24, 1), 1, ['TIMBER TRAIL', 'Uitkijktoren'], true);
-signAlong(timberTrail.curve, clearDistAlong(timberTrail, 24, -1), 1, ['TIMBER TRAIL', 'Uitkijktoren']);
+signAlong(timberTrail.curve, clearDistAlong(timberTrail, 24, 1), 1, ['TIMBER TRAIL', 'Lookout tower'], true);
+signAlong(timberTrail.curve, clearDistAlong(timberTrail, 24, -1), 1, ['TIMBER TRAIL', 'Lookout tower']);
 
 {
   const lodge = ruralLots.find((l) => l.tag === 'moose_lodge');
@@ -499,13 +499,13 @@ export const ISLAND_STATS = { forestCount };
     const tl = Math.hypot(tx, tz) || 1;
     const sx = mall.roadX + ax * 7.5 + (tx / tl) * 3.0;
     const sz = mall.roadZ + az * 7.5 + (tz / tl) * 3.0;
-    createRoadSign(sx, sz, getTerrainHeight(sx, sz), mall.yaw, ['PINEWOOD MALL', 'Ingang']);
+    createRoadSign(sx, sz, getTerrainHeight(sx, sz), mall.yaw, ['PINEWOOD MALL', 'Entrance']);
   }
 }
 
 // Wegwijzers voor de zijtakken
 branchRoads.forEach((road) => {
-  const names = road.id === 'pine_river_road' ? ['PINE RIVER RD', 'Rivier & bos'] : ['PRAIRIE ROAD', 'Moose Lake · Strand'];
+  const names = road.id === 'pine_river_road' ? ['PINE RIVER RD', 'River & forest'] : ['PRAIRIE ROAD', 'Moose Lake · Beach'];
   signAlong(road.curve, clearDistAlong(road, 24, 1), 1, names, true);
   signAlong(road.curve, clearDistAlong(road, 24, -1), 1, names);
 });
@@ -536,20 +536,20 @@ branchRoads.forEach((road) => {
         obj = createShrubFast(sc);
         obj.position.set(p.x, y, p.z);
         scene.add(obj);
-        registerDestructible(obj, p.x, y, p.z, Math.max(0.6, 0.85 * sc), 'shrub', 3, 'Struik');
+        registerDestructible(obj, p.x, y, p.z, Math.max(0.6, 0.85 * sc), 'shrub', 3, 'Shrub');
       } else if (kind === 'p') {
         const sc = 0.75 + Math.random() * 0.35;
         obj = createPineFast(sc);
         obj.position.set(p.x, y, p.z);
         obj.rotation.y = Math.random() * Math.PI * 2;
         scene.add(obj);
-        registerDestructible(obj, p.x, y, p.z, 0.85 * sc, 'tree', 15, 'Dennenboom');
+        registerDestructible(obj, p.x, y, p.z, 0.85 * sc, 'tree', 15, 'Pine tree');
       } else {
         obj = createParkTree();
         obj.position.set(p.x, y, p.z);
         obj.scale.setScalar(1.1 + Math.random() * 0.25);
         scene.add(obj);
-        registerDestructible(obj, p.x, y, p.z, 0.7, 'tree', 15, 'Loofboom');
+        registerDestructible(obj, p.x, y, p.z, 0.7, 'tree', 15, 'Tree');
       }
       markLastPlanted();
     });

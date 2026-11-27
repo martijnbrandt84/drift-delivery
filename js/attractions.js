@@ -2,7 +2,9 @@ import * as THREE from 'three';
 import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
 import { scene, makeToonMat, registerSeasonalMat, createOutlinedMesh } from './scene-setup.js';
 import { ruralLots } from './water-lots.js';
-import { hardColliders, registerDestructible, markLastPlanted } from './demolition.js';
+import { hardColliders, registerDestructible, markLastPlanted, destructibles, syncInstancedDestructible } from './demolition.js';
+import { LOOKOUT_HILL } from './landscape.js';
+import { getClosestNetworkRoad } from './roads.js';
 import { getTerrainHeight } from './terrain.js';
 import { houseWindows, warmWindowMat, createLogCabin } from './town.js';
 import { createRoadSign } from './scenery.js';
@@ -183,63 +185,201 @@ function createCampfire() {
   return g;
 }
 
-function buildCamping(lot) {
-  const { g, collide, toWorld } = lotFrame(lot);
-  const fb = lot.flatBox;
-  const FZ = -4; // kampvuur in het midden van het terrein
-
-  // Geen ondergrond: kamperen gebeurt gewoon in het gras, tussen de bomen
-
-  // Blokhut als receptie bij de ingang
-  const cabin = createLogCabin();
-  cabin.position.set(8.5, 0.05, 12.5);
-  cabin.rotation.y = -0.25;
-  g.add(cabin);
-  collide(8.5, 12.5, 3.6);
-
-  // Tenten in een kring rond het kampvuur
-  [[-9, -10, 0xe8742a, 0.5], [-2.5, -12.5, 0x4c8a4a, 0.1], [5, -11.5, 0x3f78a8, -0.4], [10.5, -5.5, 0xf2c23a, -1.2],
-    [-10.5, -1.5, 0xc94a38, 1.3], [9.5, 2.5, 0x8a5ac4, -1.8]].forEach(([lx, lz, col, rot]) => {
-    const tent = createTent(col);
-    tent.position.set(lx, 0.12, lz);
-    tent.rotation.y = rot;
-    g.add(tent);
-    collide(lx, lz, 1.6);
+// ---------- Wegmotel (vervangt de camping) ----------
+function motelSignTexture(lines) {
+  const c = document.createElement('canvas');
+  c.width = 512;
+  c.height = 256;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#1d2733';
+  ctx.fillRect(0, 0, 512, 256);
+  ctx.strokeStyle = '#f4c430';
+  ctx.lineWidth = 10;
+  ctx.strokeRect(10, 10, 492, 236);
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  lines.forEach(([text, color, size, y]) => {
+    ctx.fillStyle = color;
+    ctx.font = `900 ${size}px system-ui, sans-serif`;
+    ctx.fillText(text, 256, y);
   });
+  const tex = Object.assign(new THREE.CanvasTexture(c), { colorSpace: THREE.SRGBColorSpace });
+  tex.needsUpdate = true;
+  return tex;
+}
 
-  const fire = createCampfire();
-  fire.position.set(0, 0.15, FZ);
-  g.add(fire);
-  collide(0, FZ, 1.1);
-  for (let k = 0; k < 4; k++) {
-    const a = (k / 4) * Math.PI * 2 + 0.4;
-    const bench = createOutlinedMesh(new THREE.CylinderGeometry(0.28, 0.28, 2.0, 8), logWallMat, 0.025, false);
-    bench.rotation.z = Math.PI * 0.5;
-    bench.rotation.y = a + Math.PI * 0.5;
-    bench.position.set(Math.cos(a) * 3.0, 0.42, FZ + Math.sin(a) * 3.0);
-    g.add(bench);
+function buildMotel(lot) {
+  const { g, collide, toWorld } = lotFrame(lot);
+  const wallMat = makeToonMat(0xf2e2c4);
+  const trimMat = makeToonMat(0x2f7a8a);
+  const doorMats = [makeToonMat(0xd94e3a), makeToonMat(0xf4b41a), makeToonMat(0x3f78a8)];
+  const asphalt = makeToonMat(0x4a474c);
+  const lineMat = makeToonMat(0xf2ede4);
+  const roofMat = registerSeasonalMat(0x5a5f66, 0xf2f6fb);
+
+  // Parkeerterrein voor de kamers
+  const pad = tagMap(new THREE.Mesh(new THREE.BoxGeometry(30, 0.3, 16.5), asphalt), 'paved');
+  pad.position.set(0, 0.0, 1.75);
+  g.add(pad);
+
+  // L-vormig gebouw: lange rij kamers achteraan en een korte vleugel links, kantoor rechts
+  const building = tagMap(new THREE.Group(), 'shop');
+  g.add(building);
+  const roomRow = (x0, z0, len, alongX, firstNo) => {
+    const depth = 6.0;
+    const h = 3.3;
+    const cx = alongX ? x0 + len / 2 : x0 - depth / 2;
+    const cz = alongX ? z0 - depth / 2 : z0 + len / 2;
+    const w = alongX ? len : depth;
+    const d = alongX ? depth : len;
+    const body = createOutlinedMesh(new THREE.BoxGeometry(w, h, d), wallMat, 0.05);
+    body.position.set(cx, h / 2 + 0.15, cz);
+    building.add(body);
+    const roof = createOutlinedMesh(new THREE.BoxGeometry(w + 0.6, 0.35, d + 0.6), roofMat, 0.04);
+    roof.position.set(cx, h + 0.32, cz);
+    building.add(roof);
+    // Overdekte galerij langs de kamerdeuren
+    const canopy = createOutlinedMesh(new THREE.BoxGeometry(alongX ? len : 2.2, 0.2, alongX ? 2.2 : len), trimMat, 0.03, false);
+    canopy.position.set(alongX ? cx : x0 + 1.1, h + 0.05, alongX ? z0 + 1.1 : cz);
+    building.add(canopy);
+    const walk = createOutlinedMesh(new THREE.BoxGeometry(alongX ? len : 2.2, 0.2, alongX ? 2.2 : len), makeToonMat(0xd8d2c4), 0.02, false, true);
+    walk.position.set(alongX ? cx : x0 + 1.1, 0.2, alongX ? z0 + 1.1 : cz);
+    building.add(walk);
+    const rooms = Math.floor(len / 3.4);
+    for (let k = 0; k < rooms; k++) {
+      const t = (k + 0.5) * (len / rooms);
+      const px = alongX ? x0 + t : x0;
+      const pz = alongX ? z0 : z0 + t;
+      const door = createOutlinedMesh(new THREE.BoxGeometry(alongX ? 0.95 : 0.08, 2.1, alongX ? 0.08 : 0.95), doorMats[k % 3], 0.015, false);
+      door.position.set(px - (alongX ? 0.8 : -0.04), 1.2, pz + (alongX ? 0.04 : 0.8));
+      building.add(door);
+      const win = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 0.9), warmWindowMat);
+      win.position.set(px + (alongX ? 0.7 : 0.05), 1.6, pz + (alongX ? 0.05 : -0.7));
+      if (!alongX) win.rotation.y = Math.PI / 2;
+      building.add(win);
+      houseWindows.push({ mesh: win, timer: Math.random() * 10 });
+      // Kamernummer
+      const tex = motelSignTexture([[String(firstNo + k), '#ffffff', 170, 135]]);
+      const num = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.25), new THREE.MeshBasicMaterial({ map: tex, ...SIGN_MAT_OPTS }));
+      num.position.set(door.position.x + (alongX ? 0 : 0.06), 2.5, door.position.z + (alongX ? 0.06 : 0));
+      if (!alongX) num.rotation.y = Math.PI / 2;
+      building.add(num);
+      // Posten van de galerij
+      const post = new THREE.Mesh(new THREE.BoxGeometry(0.14, h - 0.1, 0.14), trimMat);
+      post.position.set(alongX ? x0 + (k + 1) * (len / rooms) - 0.1 : x0 + 2.1, h / 2 + 0.1, alongX ? z0 + 2.1 : z0 + (k + 1) * (len / rooms) - 0.1);
+      building.add(post);
+    }
+    for (let k = 0; k <= Math.round(len / 3); k++) {
+      const pc = toWorld(alongX ? x0 + k * 3 : x0 - depth / 2, alongX ? z0 - depth / 2 : z0 + k * 3);
+      hardColliders.push({ x: pc.x, z: pc.z, r: 3.1 });
+    }
+  };
+  roomRow(-14, -6.5, 22, true, 1);       // rij achteraan: kamers 1-6
+  roomRow(-8.0, -6.5, 10.5, false, 7);   // vleugel links: kamers 7-9
+
+  // Kantoor met glazen pui en bord
+  {
+    const office = createOutlinedMesh(new THREE.BoxGeometry(6.5, 4.2, 6.5), wallMat, 0.05);
+    office.position.set(11.5, 2.25, -9.5);
+    building.add(office);
+    const oRoof = createOutlinedMesh(new THREE.BoxGeometry(7.3, 0.4, 7.3), trimMat, 0.04);
+    oRoof.position.set(11.5, 4.5, -9.5);
+    building.add(oRoof);
+    const glass = new THREE.Mesh(new THREE.PlaneGeometry(4.8, 2.4), warmWindowMat);
+    glass.position.set(11.5, 1.7, -6.22);
+    building.add(glass);
+    houseWindows.push({ mesh: glass, timer: Math.random() * 10 });
+    const board = new THREE.Mesh(new THREE.PlaneGeometry(4.6, 0.8), new THREE.MeshBasicMaterial({ map: motelSignTexture([['OFFICE', '#f4c430', 150, 130]]), ...SIGN_MAT_OPTS }));
+    board.position.set(11.5, 3.6, -6.2);
+    building.add(board);
+    const ice = createOutlinedMesh(new THREE.BoxGeometry(1.0, 1.6, 0.8), makeToonMat(0xdfe8ee), 0.02, false);
+    ice.position.set(9.1, 1.0, -5.6);
+    building.add(ice);
+    const vend = createOutlinedMesh(new THREE.BoxGeometry(1.0, 1.9, 0.8), makeToonMat(0xd62839), 0.02, false);
+    vend.position.set(14.0, 1.1, -5.6);
+    building.add(vend);
+    [[11.5, -9.5]].forEach(([lx, lz]) => {
+      const p = toWorld(lx, lz);
+      hardColliders.push({ x: p.x, z: p.z, r: 4.4 });
+    });
   }
 
-  // Picknicktafels (los in de wereld zodat je ze kunt aanrijden)
-  [[-5, 5], [3, 6]].forEach(([lx, lz]) => {
-    const w = toWorld(lx, lz);
-    const y = lot.roadY - 0.16 + 0.12;
-    const t = picnicTable(lightWoodMat);
-    t.position.set(w.x, y, w.z);
-    t.rotation.y = lot.yaw;
-    scene.add(t);
-    registerDestructible(t, w.x, y, w.z, 1.1, 'small', 10, 'Picknicktafel');
+  // Belijning van de parkeervakken voor de kamers
+  for (let k = 0; k <= 5; k++) {
+    const line = new THREE.Mesh(new THREE.PlaneGeometry(0.15, 4.6), lineMat);
+    line.rotation.x = -Math.PI / 2;
+    line.position.set(-5.0 + k * 2.6, 0.16, -2.0);
+    g.add(line);
+  }
+
+  // Klein omheind zwembad rechtsvoor
+  {
+    const deck = createOutlinedMesh(new THREE.BoxGeometry(8.5, 0.2, 6.5), makeToonMat(0xe2d2b4), 0.02, false, true);
+    deck.position.set(10.0, 0.2, 5.5);
+    g.add(deck);
+    const water = new THREE.Mesh(new THREE.BoxGeometry(5.6, 0.06, 3.6), new THREE.MeshBasicMaterial({ color: 0x5fd0e6 }));
+    water.position.set(10.0, 0.32, 5.5);
+    g.add(water);
+    const fenceMat = makeToonMat(0xf6f2ea);
+    [[10.0, 2.25, 8.5, 0.08], [10.0, 8.75, 8.5, 0.08], [5.75, 5.5, 0.08, 6.5], [14.25, 5.5, 0.08, 6.5]].forEach(([fx, fz, fw, fd]) => {
+      const rail = new THREE.Mesh(new THREE.BoxGeometry(fw, 0.08, fd), fenceMat);
+      rail.position.set(fx, 1.1, fz);
+      g.add(rail);
+    });
+    for (let a = 0; a < 14; a++) {
+      const t = a / 14;
+      const per = [[5.75 + t * 8.5, 2.25], [5.75 + t * 8.5, 8.75], [5.75, 2.25 + t * 6.5], [14.25, 2.25 + t * 6.5]];
+      per.forEach(([px, pz]) => {
+        const post = new THREE.Mesh(new THREE.BoxGeometry(0.08, 1.1, 0.08), fenceMat);
+        post.position.set(px, 0.6, pz);
+        g.add(post);
+      });
+    }
+    const p = toWorld(10.0, 5.5);
+    hardColliders.push({ x: p.x, z: p.z, r: 4.6 });
+  }
+
+  // Neonzuil aan de weg: MOTEL + VACANCY (gloeit 's nachts)
+  {
+    const pole = createOutlinedMesh(new THREE.BoxGeometry(0.45, 7.5, 0.45), trimMat, 0.03);
+    pole.position.set(-12.5, 3.75, 15.5);
+    g.add(pole);
+    const tex = motelSignTexture([['MOTEL', '#ff4a4a', 150, 105], ['VACANCY', '#6cff7a', 60, 200]]);
+    [1, -1].forEach((side) => {
+      const face = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 2.1), new THREE.MeshBasicMaterial({ map: tex, ...SIGN_MAT_OPTS }));
+      face.position.set(-12.5, 7.4, 15.5 + side * 0.2);
+      if (side < 0) face.rotation.y = Math.PI;
+      g.add(face);
+    });
+    const frame = createOutlinedMesh(new THREE.BoxGeometry(4.5, 2.4, 0.3), makeToonMat(0x1d2733), 0.03);
+    frame.position.set(-12.5, 7.4, 15.5);
+    g.add(frame);
+    const glow = new THREE.PointLight(0xff5a5a, 0, 22, 1.6);
+    glow.position.set(-12.5, 7.4, 16.5);
+    g.add(glow);
+    nightLights.push({ light: glow, day: 0, night: 2.6 });
+    const p = toWorld(-12.5, 15.5);
+    hardColliders.push({ x: p.x, z: p.z, r: 0.6 });
+  }
+
+  // Twee geparkeerde pickups bij de kamers
+  [[-3.7, -2.0, 0x3f78a8, 'Motel Pickup'], [4.1, -2.0, 0x8a5a3c, 'Brown Pickup']].forEach(([lx, lz, col, name]) => {
+    const truck = buildPickupTruckMesh(col, name);
+    const p = toWorld(lx, lz);
+    truck.root.position.set(p.x, lot.roadY - 0.16 + 0.22, p.z);
+    truck.root.rotation.y = lot.yaw + Math.PI;
+    scene.add(truck.root);
+    parkedCars.push(truck);
   });
 
-  // Bos rondom het compacte terrein (achter en opzij), met een open inrit aan de voorkant
+  // Bos rondom (achter en opzij), open aan de wegkant
   const groundY = lot.roadY - 0.16 + 0.1;
   const treeSpots = [];
-  for (let z = -15; z <= 15; z += 5) {
-    treeSpots.push([-15.5, z + (Math.random() - 0.5) * 1.5, Math.random() < 0.6 ? 'p' : 'd']);
-    treeSpots.push([15.5, z + (Math.random() - 0.5) * 1.5, Math.random() < 0.6 ? 'p' : 'd']);
+  for (let z = -15; z <= 12; z += 5) {
+    treeSpots.push([-17.5, z + (Math.random() - 0.5) * 1.5, Math.random() < 0.6 ? 'p' : 'd']);
+    treeSpots.push([17.5, z + (Math.random() - 0.5) * 1.5, Math.random() < 0.6 ? 'p' : 'd']);
   }
-  for (let x = -11; x <= 11; x += 5.5) treeSpots.push([x + (Math.random() - 0.5) * 1.5, -16, Math.random() < 0.6 ? 'p' : 'd']);
-  treeSpots.push([-13, 17, 'p'], [-7, 15.5, 'd'], [-6.5, -7.5, 'd'], [6.5, -7, 'p'], [-1, 9.5, 'd']);
+  for (let x = -13; x <= 13; x += 5.2) treeSpots.push([x + (Math.random() - 0.5) * 1.5, -16.5, Math.random() < 0.6 ? 'p' : 'd']);
   treeSpots.forEach(([lx, lz, kind]) => {
     const w = toWorld(lx, lz);
     const sc = 0.62 + Math.random() * 0.25;
@@ -247,109 +387,19 @@ function buildCamping(lot) {
     tree.position.set(w.x, groundY, w.z);
     tree.rotation.y = Math.random() * Math.PI * 2;
     scene.add(tree);
-    registerDestructible(tree, w.x, groundY, w.z, 0.85 * sc, 'tree', 15, kind === 'p' ? 'Dennenboom' : 'Loofboom');
+    registerDestructible(tree, w.x, groundY, w.z, 0.85 * sc, 'tree', 15, kind === 'p' ? 'Pine tree' : 'Tree');
     markLastPlanted();
   });
-  const shrubSpots = [[-13.5, -12.5], [13.5, -12], [-13.5, 2], [13.5, 7], [-7.5, -14.5], [8, -14.5], [-3.5, 13], [3.6, 15],
-    [-13, 9], [13, -3], [12.5, 16.5], [-9.5, 11.5], [0.5, -14.8]];
-  shrubSpots.forEach(([lx, lz]) => {
+  [[-15, 10], [15, 12], [-3, 12.5], [3, 12.5]].forEach(([lx, lz]) => {
     const w = toWorld(lx, lz);
-    const big = Math.random() < 0.45;
-    const sc = big ? 1.0 + Math.random() * 0.5 : 0.5 + Math.random() * 0.3;
-    const shrub = createShrubFast(sc);
+    const shrub = createShrubFast(0.8 + Math.random() * 0.4);
     shrub.position.set(w.x, groundY, w.z);
-    shrub.rotation.y = Math.random() * Math.PI * 2;
     scene.add(shrub);
-    registerDestructible(shrub, w.x, groundY, w.z, Math.max(0.6, 0.85 * sc), 'shrub', 3, big ? 'Grote struik' : 'Struik');
+    registerDestructible(shrub, w.x, groundY, w.z, 0.7, 'shrub', 3, 'Shrub');
     markLastPlanted();
   });
 
-  // Klapstoeltjes rond het kampvuur en een hangmat
-  const chairCols = [0xd94e3a, 0x3f78a8, 0xf4b41a, 0x6cc04a, 0xe07ab8];
-  for (let k = 0; k < 5; k++) {
-    const a = (k / 5) * Math.PI * 2 + 1.0;
-    const chair = new THREE.Group();
-    const seat = createOutlinedMesh(new THREE.BoxGeometry(0.55, 0.08, 0.5), makeToonMat(chairCols[k]), 0.015, false);
-    seat.position.y = 0.42;
-    chair.add(seat);
-    const back = createOutlinedMesh(new THREE.BoxGeometry(0.55, 0.55, 0.08), makeToonMat(chairCols[k]), 0.015, false);
-    back.position.set(0, 0.7, -0.24);
-    back.rotation.x = -0.25;
-    chair.add(back);
-    [[-0.24, 0.2], [0.24, 0.2], [-0.24, -0.2], [0.24, -0.2]].forEach(([lx2, lz2]) => {
-      const leg = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.42, 0.04), steelMat);
-      leg.position.set(lx2, 0.21, lz2);
-      chair.add(leg);
-    });
-    const cw = toWorld(Math.cos(a) * 4.4, FZ + Math.sin(a) * 4.4);
-    chair.position.set(cw.x, groundY, cw.z);
-    chair.rotation.y = lot.yaw + Math.atan2(-Math.cos(a), -Math.sin(a));
-    scene.add(chair);
-    registerDestructible(chair, cw.x, groundY, cw.z, 0.45, 'small', 4, 'Klapstoel');
-  }
-  {
-    const hm = new THREE.Group();
-    [-1.8, 1.8].forEach((px2) => {
-      const post = createOutlinedMesh(new THREE.CylinderGeometry(0.1, 0.12, 1.8, 6), darkWoodMat, 0.02, false);
-      post.position.set(px2, 0.9, 0);
-      hm.add(post);
-    });
-    const net = createOutlinedMesh(new THREE.BoxGeometry(3.0, 0.08, 0.9), makeToonMat(0xe8c46a), 0.015, false);
-    net.position.y = 0.95;
-    hm.add(net);
-    const pillow = createOutlinedMesh(new THREE.BoxGeometry(0.5, 0.18, 0.6), makeToonMat(0xd94e3a), 0.015, false);
-    pillow.position.set(1.15, 1.08, 0);
-    hm.add(pillow);
-    hm.position.set(-10, 0.15, 7);
-    hm.rotation.y = 0.3;
-    g.add(hm);
-  }
-
-  // Lantaarnpaaltjes met lichtslingers rond het kampvuur
-  const ringR = 6.2;
-  const postCount = 6;
-  const warmBulbMat = new THREE.MeshBasicMaterial({ color: 0xffd98a });
-  const postTops = [];
-  for (let k = 0; k < postCount; k++) {
-    const a = (k / postCount) * Math.PI * 2 + 0.25;
-    const px = Math.cos(a) * ringR;
-    const pz = FZ + Math.sin(a) * ringR;
-    const post = createOutlinedMesh(new THREE.CylinderGeometry(0.07, 0.09, 2.8, 6), darkWoodMat, 0.02, false);
-    post.position.set(px, 1.5, pz);
-    g.add(post);
-    const lantern = createOutlinedMesh(new THREE.BoxGeometry(0.26, 0.34, 0.26), warmBulbMat, 0.02, false);
-    lantern.position.set(px, 3.0, pz);
-    g.add(lantern);
-    postTops.push(new THREE.Vector3(px, 2.75, pz));
-  }
-  for (let k = 0; k < postCount; k++) {
-    const p0 = postTops[k];
-    const p1 = postTops[(k + 1) % postCount];
-    for (let b = 1; b < 7; b++) {
-      const t = b / 7;
-      const bulb = new THREE.Mesh(bulbGeo, b % 2 ? warmBulbMat : bulbMats[k % bulbMats.length]);
-      bulb.position.lerpVectors(p0, p1, t);
-      bulb.position.y -= Math.sin(t * Math.PI) * 0.45;
-      g.add(bulb);
-    }
-  }
-
-  // Stapel brandhout bij het kampvuur
-  const firewood = logStack(3, 1.6, 0.18, logWallMat);
-  firewood.position.set(4.6, 0.15, -8.6);
-  g.add(firewood);
-
-
-  // Kano's bij het strand
-  [[-6.5, -13.2, 0xd9452f], [-3.0, -13.6, 0x2f9fd0]].forEach(([lx, lz, col]) => {
-    const canoe = createOutlinedMesh(new THREE.CapsuleGeometry(0.4, 3.2, 3, 8), makeToonMat(col), 0.035);
-    canoe.rotation.z = Math.PI * 0.5;
-    canoe.scale.set(1, 1, 0.55);
-    canoe.position.set(lx, 0.35, lz);
-    g.add(canoe);
-  });
-
-  entranceSign(lot, ['CAMPING', 'North Beach']);
+  entranceSign(lot, ['MOTEL', 'North Beach']);
 }
 
 // ---------------------------------------------------------
@@ -447,7 +497,7 @@ function buildSawmill(lot) {
   collide(10.5, 14, 2.9);
 
   // Geparkeerde pickup bij het kantoor
-  const truck = buildPickupTruckMesh(0x7a3a2a, 'Zagerij Pickup');
+  const truck = buildPickupTruckMesh(0x7a3a2a, 'Sawmill Pickup');
   const tc = Math.cos(lot.yaw);
   const ts = Math.sin(lot.yaw);
   const [plx, plz] = [5.5, 12.5];
@@ -456,7 +506,7 @@ function buildSawmill(lot) {
   scene.add(truck.root);
   parkedCars.push(truck);
 
-  entranceSign(lot, ['TIMBER MILL', 'Zagerij']);
+  entranceSign(lot, ['TIMBER MILL', 'Sawmill']);
 }
 const sawBlades = [];
 
@@ -807,12 +857,12 @@ function buildFair(lot) {
 
   // ---- Links: picknickhoek met tafels en hooibalen (alles omrijdbaar) ----
   [[-19, 5, 0.2], [-18.5, 12, -0.15]].forEach(([lx, lz, rot]) => {
-    placeLoose(picnicTable(makeToonMat(0xd94e3a)), lx, lz, rot, 1.1, 10, 'Picknicktafel', -0.03);
+    placeLoose(picnicTable(makeToonMat(0xd94e3a)), lx, lz, rot, 1.1, 10, 'Picnic table', -0.03);
   });
   const hayMat = makeToonMat(0xd9ac4e);
   [[-21.5, 0], [-20, -1.2], [-16, 17], [16, 17.5], [21, 1.5]].forEach(([lx, lz]) => {
     const bale = createOutlinedMesh(new THREE.BoxGeometry(1.6, 0.9, 1.0), hayMat, 0.03);
-    placeLoose(bale, lx, lz, Math.random() * 0.6, 0.8, 8, 'Hooibaal', 0.45);
+    placeLoose(bale, lx, lz, Math.random() * 0.6, 0.8, 8, 'Hay bale', 0.45);
   });
 
   // ---- Toegangspoort: palen ruim naast het bord zodat de naam vrij leesbaar is ----
@@ -913,7 +963,7 @@ function buildFair(lot) {
     const lid = createOutlinedMesh(new THREE.CylinderGeometry(0.38, 0.38, 0.08, 10), whiteMat, 0.015, false);
     lid.position.y = 0.93;
     bin.add(lid);
-    placeLoose(bin, lx, lz, 0, 0.45, 6, 'Prullenbak');
+    placeLoose(bin, lx, lz, 0, 0.45, 6, 'Trash can');
   });
 
   // Lichtslingers boven het middenpad (decor boven je hoofd)
@@ -940,7 +990,7 @@ function buildFair(lot) {
     }
   }
 
-  entranceSign(lot, ['PINEWOOD FAIR', 'Kermis']);
+  entranceSign(lot, ['PINEWOOD FAIR', 'Funfair']);
 }
 
 // Spelletjeskraam: ringwerpen met flessen op de toonbank
@@ -962,7 +1012,7 @@ function createGameStand__build() {
 }
 
 ruralLots.forEach((lot) => {
-  if (lot.type === 'camping') buildCamping(lot);
+  if (lot.type === 'motel') buildMotel(lot);
   else if (lot.type === 'sawmill') buildSawmill(lot);
   else if (lot.type === 'fair') buildFair(lot);
 });
@@ -1002,3 +1052,69 @@ function createFerrisWheel(...args) { return tagMap(createFerrisWheel__build(...
 function createCarousel(...args) { return tagMap(createCarousel__build(...args), 'leisure'); }
 function createFairBooth(...args) { return tagMap(createFairBooth__build(...args), 'leisure'); }
 function createGameStand(...args) { return tagMap(createGameStand__build(...args), 'leisure'); }
+
+// =========================================================
+// KAMPVUUR IN HET BOS BIJ DE UITKIJKTOREN
+// =========================================================
+export function buildLookoutCampfire() {
+  const tx = LOOKOUT_HILL.x;
+  const tz = LOOKOUT_HILL.z;
+  // Zoek een vlak plekje op 10-16 m van de toren, niet op de weg
+  let spot = null;
+  let best = Infinity;
+  for (let a = 0; a < 48; a++) {
+    for (const r of [10, 12, 14, 16]) {
+      const ang = (a / 48) * Math.PI * 2;
+      const x = tx + Math.cos(ang) * r;
+      const z = tz + Math.sin(ang) * r;
+      if (getClosestNetworkRoad(x, z).marginDist < 7) continue;
+      let maxDiff = 0;
+      const h0 = getTerrainHeight(x, z);
+      for (let k = 0; k < 8; k++) {
+        const kx = x + Math.cos(k * 0.785) * 4;
+        const kz = z + Math.sin(k * 0.785) * 4;
+        maxDiff = Math.max(maxDiff, Math.abs(getTerrainHeight(kx, kz) - h0));
+      }
+      if (maxDiff < best) { best = maxDiff; spot = { x, z, ang }; }
+    }
+  }
+  if (!spot) return;
+  // Bomen die precies op de kampvuurplek staan weghalen (de rest van het bos blijft)
+  for (let i = destructibles.length - 1; i >= 0; i--) {
+    const d = destructibles[i];
+    if ((d.kind !== 'tree' && d.kind !== 'shrub') || Math.hypot(d.x - spot.x, d.z - spot.z) > 5.5) continue;
+    if (d.instRefs) {
+      d.mesh.scale.setScalar(0);
+      syncInstancedDestructible(d);
+    } else if (d.mesh && d.mesh.parent) {
+      d.mesh.parent.remove(d.mesh);
+    }
+    destructibles.splice(i, 1);
+  }
+  const y = getTerrainHeight(spot.x, spot.z);
+  const g = new THREE.Group();
+  g.position.set(spot.x, y, spot.z);
+  g.rotation.y = -spot.ang;
+  scene.add(g);
+  const fire = createCampfire();
+  g.add(fire);
+  hardColliders.push({ x: spot.x, z: spot.z, r: 1.1 });
+  // Drie boomstambanken rond het vuur
+  for (let k = 0; k < 3; k++) {
+    const a = (k / 3) * Math.PI * 2 + 0.5;
+    const bench = createOutlinedMesh(new THREE.CylinderGeometry(0.28, 0.3, 2.0, 8), logWallMat, 0.025, false);
+    bench.rotation.z = Math.PI * 0.5;
+    bench.rotation.y = a + Math.PI * 0.5;
+    bench.position.set(Math.cos(a) * 2.8, 0.3, Math.sin(a) * 2.8);
+    g.add(bench);
+  }
+  // Klein tentje en een stapel brandhout
+  const tent = createTent(0xe8742a);
+  tent.position.set(-4.2, 0.05, 1.5);
+  tent.rotation.y = 0.9;
+  g.add(tent);
+  const wood = logStack(3, 1.4, 0.16, logWallMat);
+  wood.position.set(3.4, 0.05, -1.8);
+  g.add(wood);
+}
+

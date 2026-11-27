@@ -709,7 +709,7 @@ function buildFarm(farmLot) {
       fence.position.set(w.x, wy, w.z);
       fence.rotation.y = yaw + Math.PI * 0.5;
       scene.add(fence);
-      registerDestructible(fence, w.x, wy + 0.5, w.z, 1.4, 'small', 12, 'Boerderijhek');
+      registerDestructible(fence, w.x, wy + 0.5, w.z, 1.4, 'small', 12, 'Farm gate');
     });
   }
 
@@ -726,7 +726,7 @@ function buildFarm(farmLot) {
     bale.position.set(w.x, wy, w.z);
     bale.rotation.y = yaw + Math.random() * Math.PI;
     scene.add(bale);
-    registerDestructible(bale, w.x, wy, w.z, 0.8, 'small', 8, 'Hooibaal');
+    registerDestructible(bale, w.x, wy, w.z, 0.8, 'small', 8, 'Hay bale');
   });
 
   // 5. Akkers: twee velden voor het erf (weerszijden van de oprit) en één veld achter, naast de wei
@@ -763,7 +763,7 @@ function buildFarm(farmLot) {
         fence.position.set(w.x, wy, w.z);
         fence.rotation.y = yaw + Math.atan2(-(z2 - z1), x2 - x1);
         scene.add(fence);
-        registerDestructible(fence, w.x, wy + 0.5, w.z, 1.4, 'small', 12, 'Weidehek');
+        registerDestructible(fence, w.x, wy + 0.5, w.z, 1.4, 'small', 12, 'Pasture fence');
       }
     };
     fenceAlong(pMinX, pMaxZ, pMaxX, pMaxZ);

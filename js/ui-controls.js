@@ -17,7 +17,7 @@ import { lighthouseBeacon, lighthouseBeamPivot, lighthouseLanternMat } from './s
 // =========================================================
 export let isNightMode = false;
 export let weatherIndex = 0;
-const weatherNames = ['Zonnig', 'Regen', 'Sneeuw', 'Mist'];
+const weatherNames = ['Sunny', 'Rain', 'Snow', 'Fog'];
 export let isChristmasMode = false;
 export let driftModeIdx = 1;
 export const DRIFT_MODES = [
@@ -32,7 +32,7 @@ export function showToast(msg) {
 
 collapseBtnEl.addEventListener('click', () => {
   cardBodyEl.classList.toggle('collapsed');
-  collapseBtnEl.textContent = cardBodyEl.classList.contains('collapsed') ? 'Menu' : 'Inklappen';
+  collapseBtnEl.textContent = cardBodyEl.classList.contains('collapsed') ? 'Menu' : 'Collapse';
 });
 
 export const WEATHER_COUNT = 650;
@@ -98,10 +98,10 @@ export function toggleNightMode() {
   sound.init();
   if (isNightMode) {
     timeOfDay = 6.6;
-    showToast('De zon komt op boven Pinewood Island');
+    showToast('The sun rises over Pinewood Island');
   } else {
     timeOfDay = 18.0;
-    showToast('De avond valt — koplampen, sterren en dorpslichten gaan aan');
+    showToast('Evening falls — headlights, stars and village lights come on');
   }
   updateEnvironment(0, true);
 }
@@ -110,7 +110,7 @@ function setWeather(idx, announce = true) {
   weatherIndex = idx;
   applyAtmosphereSettings();
   if (announce) {
-    const msg = ['De zon breekt door', 'Het begint te regenen — pas op, de weg is glad!', 'Het begint te sneeuwen', 'Er trekt dichte mist over het eiland'];
+    const msg = ['The sun breaks through', 'It starts to rain — careful, the road is slippery!', 'It starts to snow', 'Thick fog rolls over the island'];
     showToast(msg[idx]);
   }
 }
@@ -122,7 +122,7 @@ export function toggleWeather() {
   const pos = order.indexOf(weatherIndex);
   setWeather(order[(pos + 1) % order.length], false);
   weatherTimer = 150;
-  showToast(`Weer gewisseld naar ${weatherNames[weatherIndex]}`);
+  showToast(`Weather changed to ${weatherNames[weatherIndex]}`);
 }
 
 // =========================================================
@@ -158,7 +158,7 @@ function updateClockLabel(force = false) {
   if (!force && key === clockLabelKey) return;
   clockLabelKey = key;
   nightBtnEl.classList.toggle('night-active', isNightMode);
-  nightBtnEl.innerHTML = `<span>Tijd: ${String(h).padStart(2, '0')}:${String(m5).padStart(2, '0')}</span><span class="kbd-hint">N</span>`;
+  nightBtnEl.innerHTML = `<span>Time: ${String(h).padStart(2, '0')}:${String(m5).padStart(2, '0')}</span><span class="kbd-hint">N</span>`;
 }
 
 function pickAutoWeather() {
@@ -252,14 +252,14 @@ export function toggleChristmasLandscape() {
     weatherIndex = 2;
     weatherTimer = 150;
     xmasBtnEl.classList.add('active-mode');
-    xmasBtnEl.innerHTML = `<span>Winter: AAN</span><span class="kbd-hint">X</span>`;
-    showToast('Winter & Kerst actief — Probeer dit ook samen met Nachtmodus (N)!');
+    xmasBtnEl.innerHTML = `<span>Winter: ON</span><span class="kbd-hint">X</span>`;
+    showToast('Winter & Christmas on — try it together with night mode (N)!');
   } else {
     weatherIndex = 0;
     weatherTimer = 150;
     xmasBtnEl.classList.remove('active-mode');
-    xmasBtnEl.innerHTML = `<span>Winter: UIT</span><span class="kbd-hint">X</span>`;
-    showToast('Terug naar het warme najaar');
+    xmasBtnEl.innerHTML = `<span>Winter: OFF</span><span class="kbd-hint">X</span>`;
+    showToast('Back to the warm autumn');
   }
   applyAtmosphereSettings();
 }
@@ -269,5 +269,5 @@ export function cycleDriftMode() {
   driftModeIdx = (driftModeIdx + 1) % DRIFT_MODES.length;
   const dm = DRIFT_MODES[driftModeIdx];
   driftBtnEl.innerHTML = `<span>Drift: ${dm.name}</span><span class="kbd-hint">V</span>`;
-  showToast(`Rijstijl ingesteld op: ${dm.name}`);
+  showToast(`Driving style set to: ${dm.name}`);
 }

@@ -18,7 +18,7 @@ import {
 import { chimneySmokes, giantStarMesh, houseWindows, townClockHands } from './town.js';
 import { updateWildlife, notifyHorn } from './wildlife-ai.js';
 import { lighthouseBeamPivot, lighthouseBeamMat } from './scenery.js';
-import { updateMinimap, updateFullMap, toggleFullMap, isFullMapOpen } from './minimap.js';
+import { updateMinimap, updateFullMap, toggleFullMap, isFullMapOpen, toggleContours } from './minimap.js';
 import {
   isNightMode, weatherIndex, isChristmasMode, driftModeIdx, DRIFT_MODES, weatherSystem, WEATHER_COUNT,
   showToast, toggleNightMode, toggleWeather, toggleChristmasLandscape, cycleDriftMode, updateEnvironment, sunDirection, sunDiscHeight, timeOfDay
@@ -33,7 +33,7 @@ import './vegetation.js';
 import './autumn.js';
 import './village-extras.js';
 import './christmas.js';
-import { updateAttractions } from './attractions.js';
+import { updateAttractions, buildLookoutCampfire } from './attractions.js';
 import { updateOrcas } from './orcas.js';
 import { race, startRace, cancelRace, updateRace } from './race.js';
 import { bindPolicePool, pickPursuers, startPursuit, releaseFromPursuit, markUnitLost, updatePolicePatrol } from './police.js';
@@ -140,7 +140,7 @@ function clearWantedStars() {
   wantedStars = 0;
   syncPoliceUnitsWithStars();
   updateWantedHUD();
-  showToast('Wanted-sterren gewist — Sheriff trekt zich terug');
+  showToast('Wanted stars cleared — the Sheriff backs off');
 }
 
 function findHijackCandidate() {
@@ -181,7 +181,7 @@ function tryHijackNearbyVehicle() {
   sound.init();
   const target = findHijackCandidate();
   if (!target) {
-    showToast('Rijd eerst vlak naast een andere auto om over te stappen');
+    showToast('Drive right next to another car to switch');
     return;
   }
 
@@ -200,22 +200,22 @@ function tryHijackNearbyVehicle() {
     scene.add(replacement.root);
     tvSlot.veh = replacement;
     tvSlot.u = (tvSlot.u + 0.45) % 1;
-    addCrimeHeat(85, `${playerVeh.name} overgenomen`);
+    addCrimeHeat(85, `${playerVeh.name} hijacked`);
   } else if (target.source === 'police') {
     const copSlot = policePool[target.index];
     playerVeh = copSlot.veh;
     playerVeh.playerSirenOn = true;
     // De politie is deze auto echt kwijt: er komt geen nieuwe voor in de plaats
     markUnitLost(copSlot);
-    addCrimeHeat(135, 'Sheriff Interceptor gestolen');
+    addCrimeHeat(135, 'Sheriff Interceptor stolen');
   } else if (target.source === 'parked') {
     parkedCars.splice(target.index, 1);
     playerVeh = target.veh;
     if (playerVeh.isPoliceModel) {
       playerVeh.playerSirenOn = true;
-      addCrimeHeat(95, 'Sheriff Cruiser meegenomen');
+      addCrimeHeat(95, 'Sheriff Cruiser taken');
     } else {
-      showToast(`Ingestapt in ${playerVeh.name}`);
+      showToast(`Now driving the ${playerVeh.name}`);
     }
   }
 
@@ -235,7 +235,7 @@ function triggerHornOrSiren() {
   sound.init();
   if (playerVeh.isPoliceModel) {
     playerVeh.playerSirenOn = !playerVeh.playerSirenOn;
-    showToast(playerVeh.playerSirenOn ? 'Sirene & Zwaailichten AAN' : 'Sirene UIT');
+    showToast(playerVeh.playerSirenOn ? 'Siren & lights ON' : 'Siren OFF');
   } else {
     sound.playHorn();
   }
@@ -300,7 +300,7 @@ function handleDestructibleImpacts(moverX, moverZ, moverRadius, velX, velZ, vehi
 
         if (isPlayer) {
           sound.playImpact('tree');
-          addCrimeHeat(d.crimePts, `${d.label} omgelegd`);
+          addCrimeHeat(d.crimePts, `${d.label} knocked over`);
           const slowFactor = THREE.MathUtils.clamp(1 - 0.11 / vehicleMass, 0.85, 0.97);
           carState.vx *= slowFactor;
           carState.vz *= slowFactor;
@@ -380,9 +380,11 @@ function resetToClosestRoad() {
 
 teleportToTown();
 bindPolicePool(policePool);
+// Kampvuur bij de uitkijktoren (na het bos, zodat de plek vrijgemaakt kan worden)
+buildLookoutCampfire();
 // Alle geparkeerde auto's (ook die later door andere modules zijn neergezet): lichten uit
 parkedCars.forEach((v) => setVehicleLights(v, false));
-policePool.forEach((u) => { u.onBump = () => addCrimeHeat(60, 'Politieauto geraakt'); });
+policePool.forEach((u) => { u.onBump = () => addCrimeHeat(60, 'Hit a police car'); });
 window.addEventListener('pointerdown', () => sound.init(), { once: true });
 
 nightBtnEl.addEventListener('click', toggleNightMode);
@@ -390,13 +392,13 @@ driftBtnEl.addEventListener('click', cycleDriftMode);
 soundBtnEl.addEventListener('click', () => {
   const active = sound.toggleMute();
   soundBtnEl.classList.toggle('active-mode', active);
-  soundBtnEl.innerHTML = `<span>Geluid: ${active ? 'AAN' : 'UIT'}</span><span class="kbd-hint">M</span>`;
+  soundBtnEl.innerHTML = `<span>Sound: ${active ? 'ON' : 'OFF'}</span><span class="kbd-hint">M</span>`;
 });
 weatherBtnEl.addEventListener('click', toggleWeather);
 xmasBtnEl.addEventListener('click', toggleChristmasLandscape);
 policeBtnEl.addEventListener('click', () => {
   sound.init();
-  addCrimeHeat(105, 'Sheriff opgeroepen');
+  addCrimeHeat(105, 'Sheriff called');
 });
 clearBtnEl.addEventListener('click', clearWantedStars);
 resetBtnEl.addEventListener('click', resetToClosestRoad);
@@ -404,7 +406,7 @@ resetBtnEl.addEventListener('click', resetToClosestRoad);
 function toggleFlight() {
   if (flight.active) {
     if (!canExitPlane()) {
-      showToast('Eerst landen en stilstaan om uit te stappen');
+      showToast('Land and come to a stop before getting out');
       return;
     }
     const spot = exitPlane();
@@ -415,7 +417,7 @@ function toggleFlight() {
     carState.vx = 0;
     carState.vz = 0;
     carState.throttleHold = 0;
-    showToast('Uitgestapt — terug in je auto');
+    showToast('Got out — back in your car');
     return true;
   }
   if (planeIsNear(playerVeh.root.position.x, playerVeh.root.position.z)) {
@@ -457,9 +459,10 @@ window.addEventListener('keydown', (e) => {
     case 'KeyC': toggleWeather(); break;
     case 'KeyX': toggleChristmasLandscape(); break;
     case 'KeyH': triggerHornOrSiren(); break;
-    case 'KeyP': addCrimeHeat(105, 'Sheriff opgeroepen'); break;
+    case 'KeyP': addCrimeHeat(105, 'Sheriff called'); break;
     case 'KeyO': clearWantedStars(); break;
     case 'KeyK': toggleFullMap(); break;
+    case 'KeyL': showToast(toggleContours() ? 'Contour lines on the map: ON' : 'Contour lines on the map: OFF'); break;
     case 'Escape': if (isFullMapOpen()) toggleFullMap(false); break;
   }
 });
@@ -675,19 +678,19 @@ function animate() {
   updateFlight(dt, elapsed);
   setAirfieldNight(isNightMode);
   if (!flight.active) updateRace(dt, playerVeh, carState);
-  else if (race.state !== 'idle') cancelRace('Race afgebroken');
+  else if (race.state !== 'idle') cancelRace('Race cancelled');
   document.body.classList.toggle('flying', flight.active);
   const hijackCand = flight.active ? null : findHijackCandidate();
   if (flight.active && canExitPlane()) {
-    hijackPromptEl.textContent = '[F] Uitstappen';
+    hijackPromptEl.textContent = '[F] Get out';
     hijackPromptEl.classList.add('visible');
   } else if (flight.active) {
     hijackPromptEl.classList.remove('visible');
   } else if (planeIsNear(playerVeh.root.position.x, playerVeh.root.position.z)) {
-    hijackPromptEl.textContent = '[F] Stap in het vliegtuig';
+    hijackPromptEl.textContent = '[F] Board the plane';
     hijackPromptEl.classList.add('visible');
   } else if (hijackCand) {
-    hijackPromptEl.textContent = `[F] Stap over in ${hijackCand.veh.name}`;
+    hijackPromptEl.textContent = `[F] Switch to ${hijackCand.veh.name}`;
     hijackPromptEl.classList.add('visible');
   } else {
     hijackPromptEl.classList.remove('visible');
@@ -749,7 +752,7 @@ function animate() {
       if (tv.hitCooldown <= 0 && totalSpeed > 5.0) {
         tv.hitCooldown = 1.6;
         sound.playImpact('small');
-        addCrimeHeat(55, `Botsing met ${tv.veh.name}`);
+        addCrimeHeat(55, `Crashed into ${tv.veh.name}`);
       }
     }
   });
@@ -873,7 +876,7 @@ function animate() {
       if (newStars < wantedStars) {
         wantedStars = newStars;
         syncPoliceUnitsWithStars();
-        if (wantedStars === 0) showToast('Ontsnapt — De Sheriff is je kwijtgeraakt!');
+        if (wantedStars === 0) showToast('Escaped — the Sheriff lost you!');
       }
     }
   }
