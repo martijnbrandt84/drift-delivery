@@ -12,7 +12,7 @@ export const STREET_HALF_WIDTH = 4.1;
 export const TOWN_ELEV = 1.50;
 export const WATER_LEVEL = -0.20;
 export const MAX_WADING_TERRAIN_Y = -0.88;
-export const TOWN_BOUNDS = { minX: -40, maxX: 40, minZ: 74, maxZ: 135 };
+export const TOWN_BOUNDS = { minX: -46, maxX: 46, minZ: 74, maxZ: 136 };
 
 const lakeLoopWaypoints = [
   new THREE.Vector3(0, 0, -88),
@@ -166,7 +166,21 @@ function getRawValleyElev(u) {
 // Twee extra T-splitsingen op de valleiweg: naar de zuidkust en naar de westkust
 export const U_VALLEY_SOUTH_JUNCTION = 0.31;
 export const U_VALLEY_WEST_JUNCTION = 0.795;
-const valleyJunctionFlats = [U_VALLEY_SOUTH_JUNCTION, U_VALLEY_WEST_JUNCTION].map((uj) => ({ uj, y: getRawValleyElev(uj) }));
+
+// De twee buitenste dorpslanen (x = -28 en x = +28) lopen nu door tot op de valleiweg
+function valleyUAtX(targetX, u0, u1) {
+  let best = u0;
+  let bestD = Infinity;
+  for (let k = 0; k <= 400; k++) {
+    const u = u0 + ((u1 - u0) * k) / 400;
+    const d = Math.abs(valleyCurve.getPointAt(u).x - targetX);
+    if (d < bestD) { bestD = d; best = u; }
+  }
+  return best;
+}
+export const U_VALLEY_WEST_AVE = valleyUAtX(-28, 0.42, 0.6);
+export const U_VALLEY_EAST_AVE = valleyUAtX(28, 0.3, 0.45);
+const valleyJunctionFlats = [U_VALLEY_SOUTH_JUNCTION, U_VALLEY_WEST_JUNCTION, U_VALLEY_WEST_AVE, U_VALLEY_EAST_AVE].map((uj) => ({ uj, y: getRawValleyElev(uj) }));
 
 export function getValleyBaseElev(u) {
   let h = getRawValleyElev(u);
@@ -208,10 +222,35 @@ function makeStraightStreetCurve(x1, z1, x2, z2) {
   return new THREE.LineCurve3(new THREE.Vector3(x1, 0, z1), new THREE.Vector3(x2, 0, z2));
 }
 
+// Laan van de meerweg (z = 80) recht door het dorp tot op de valleiweg
+function makeLongAvenue(id, x, uValley) {
+  const vp = valleyCurve.getPointAt(uValley);
+  const vy = getValleyBaseElev(uValley);
+  const pts = [
+    new THREE.Vector3(x, 0, 80),
+    new THREE.Vector3(x, 0, OAK_ST_Z),
+    new THREE.Vector3(x, 0, 137),
+    new THREE.Vector3(THREE.MathUtils.lerp(x, vp.x, 0.6), 0, (137 + vp.z) * 0.5 + 3),
+    new THREE.Vector3(vp.x, 0, vp.z + 1.2)
+  ];
+  const curve = new THREE.CatmullRomCurve3(pts, false, 'centripetal', 0.5);
+  const L = curve.getLength();
+  const uTownEnd = (137 - 80) / L;
+  return {
+    id,
+    curve,
+    halfWidth: STREET_HALF_WIDTH,
+    samplesCount: Math.round(L / 0.8),
+    elevFn: (u) => (u <= uTownEnd ? TOWN_ELEV : THREE.MathUtils.lerp(TOWN_ELEV, vy, THREE.MathUtils.smoothstep(u, uTownEnd, 0.97))),
+    dashedCenter: true,
+    valleyEnd: { x: vp.x, z: vp.z, y: vy }
+  };
+}
+
 export const townStreetDefs = [
   { id: 'oak_st', curve: makeStraightStreetCurve(-28, OAK_ST_Z, 28, OAK_ST_Z), halfWidth: STREET_HALF_WIDTH, samplesCount: 70, elevFn: () => TOWN_ELEV, dashedCenter: true },
-  { id: 'west_ave', curve: makeStraightStreetCurve(-28, 80, -28, OAK_ST_Z + STREET_HALF_WIDTH - 0.2), halfWidth: STREET_HALF_WIDTH, samplesCount: 48, elevFn: () => TOWN_ELEV, dashedCenter: false },
-  { id: 'east_ave', curve: makeStraightStreetCurve(28, 80, 28, OAK_ST_Z + STREET_HALF_WIDTH - 0.2), halfWidth: STREET_HALF_WIDTH, samplesCount: 48, elevFn: () => TOWN_ELEV, dashedCenter: false },
+  makeLongAvenue('west_ave', -28, U_VALLEY_WEST_AVE),
+  makeLongAvenue('east_ave', 28, U_VALLEY_EAST_AVE),
   {
     id: 'center_ave',
     curve: new THREE.CatmullRomCurve3([
@@ -836,6 +875,8 @@ export const INTERSECTIONS = [
   { x: 0, z: OAK_ST_Z, y: TOWN_ELEV, r: 7.0 },
   { x: 28, z: OAK_ST_Z, y: TOWN_ELEV, r: 6.6 },
   { x: valleySouthHitPt.x, z: valleySouthHitPt.z, y: valleySouthHitY, r: 7.6 },
+  // De doorgetrokken dorpslanen sluiten aan op de valleiweg
+  ...townStreetDefs.filter((d) => d.valleyEnd).map((d) => ({ x: d.valleyEnd.x, z: d.valleyEnd.z, y: d.valleyEnd.y, r: 7.0 })),
   // Nieuwe T-splitsingen van de verbindingswegen en de spiraalweg
   ...connectorRoads.flatMap((c) => [
     { x: c.host.x, z: c.host.z, y: c.host.y, r: 7.8 },

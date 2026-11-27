@@ -693,6 +693,269 @@ function placeRowHouseHelper(x, z, rotY, w, h, d, color, altRoof = false) {
 }
 
 // =========================================================
+// HERKENBARE WINKELS: elk met eigen kleuren, naambord en typisch detail
+// =========================================================
+const SHOP_TYPES = {
+  bakery: { wall: 0xe8c9a0, awn: 0xb8432f, trim: 0x7a4a2a, label: 'BAKERY', bg: '#7a4a2a', fg: '#fff3de' },
+  books: { wall: 0x2f5d50, awn: 0xe8c46a, trim: 0x1d3a32, label: 'BOOKS', bg: '#1d3a32', fg: '#f3e3c3' },
+  pharmacy: { wall: 0xf2f0ea, awn: 0x2f8a4e, trim: 0x2f8a4e, label: 'PHARMACY', bg: '#2f8a4e', fg: '#ffffff' },
+  hardware: { wall: 0x8c3a2a, awn: 0x3a3f45, trim: 0x3a3f45, label: 'HARDWARE', bg: '#3a3f45', fg: '#f4b41a' },
+  barber: { wall: 0xdfe6ee, awn: 0x2f4f8a, trim: 0xb8243a, label: 'BARBER', bg: '#b8243a', fg: '#ffffff' },
+  icecream: { wall: 0xf7c6d9, awn: 0x7fd1c7, trim: 0xe07ab8, label: 'ICE CREAM', bg: '#e07ab8', fg: '#ffffff' },
+  post: { wall: 0xd8d2c4, awn: 0x2a4a8a, trim: 0x2a4a8a, label: 'POST OFFICE', bg: '#2a4a8a', fg: '#ffffff' },
+  bank: { wall: 0xe6dcc6, awn: 0x4a4a4a, trim: 0x8a7a5a, label: 'BANK', bg: '#3a3a3a', fg: '#e8c46a' },
+  cafe: { wall: 0x6b4a3a, awn: 0xe8dcc8, trim: 0x3a2a20, label: 'COFFEE', bg: '#3a2a20', fg: '#f3e3c3' },
+  florist: { wall: 0xf3e8f0, awn: 0x8ac06a, trim: 0x6a9a4a, label: 'FLOWERS', bg: '#6a9a4a', fg: '#ffffff' },
+  toys: { wall: 0xf4b41a, awn: 0x3f78a8, trim: 0xd94e3a, label: 'TOYS', bg: '#d94e3a', fg: '#ffffff' },
+  grocery: { wall: 0x9ab06a, awn: 0xf5ead3, trim: 0x4a6a3a, label: 'GROCERY', bg: '#4a6a3a', fg: '#fff3de' },
+  laundry: { wall: 0xbfdbe8, awn: 0x3f78a8, trim: 0x3f78a8, label: 'LAUNDRY', bg: '#3f78a8', fg: '#ffffff' },
+  music: { wall: 0x4a3a6a, awn: 0xf4b41a, trim: 0x2a2040, label: 'RECORDS', bg: '#2a2040', fg: '#f4b41a' },
+  pizza: { wall: 0xf2e6d0, awn: 0xd62839, trim: 0x2f8a4e, label: 'PIZZA', bg: '#2f8a4e', fg: '#ffffff' }
+};
+
+const shopSignTexCache = new Map();
+function getShopSignTexture(cfg) {
+  if (shopSignTexCache.has(cfg.label)) return shopSignTexCache.get(cfg.label);
+  const canvas = document.createElement('canvas');
+  canvas.width = 384;
+  canvas.height = 96;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = cfg.bg;
+  ctx.fillRect(0, 0, 384, 96);
+  ctx.fillStyle = cfg.fg;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  const size = cfg.label.length > 8 ? 46 : 60;
+  ctx.font = `900 ${size}px system-ui, sans-serif`;
+  ctx.fillText(cfg.label, 192, 52);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.needsUpdate = true;
+  shopSignTexCache.set(cfg.label, tex);
+  return tex;
+}
+
+function addHangingSign(g, x, y, z, mesh) {
+  const bracket = createOutlinedMesh(new THREE.BoxGeometry(0.08, 0.08, 0.9), streetPostMat, 0.015, false);
+  bracket.position.set(x, y + 0.45, z + 0.45);
+  g.add(bracket);
+  mesh.position.set(x, y, z + 0.8);
+  g.add(mesh);
+}
+
+function createNamedShop(type, width, height, depth) {
+  const cfg = SHOP_TYPES[type];
+  const g = createAttachedShop(width, height, depth, cfg.wall, cfg.awn, cfg.trim);
+  const sign = new THREE.Mesh(new THREE.PlaneGeometry(width * 0.72, 0.5), new THREE.MeshBasicMaterial({ map: getShopSignTexture(cfg) }));
+  sign.position.set(0, height - 0.55, depth * 0.5 + 0.185);
+  g.add(sign);
+  const front = depth * 0.5;
+  const sideX = width * 0.5 - 0.25;
+
+  if (type === 'bakery') {
+    const pretzel = createOutlinedMesh(new THREE.TorusKnotGeometry(0.28, 0.08, 40, 6, 2, 3), makeToonMat(0xc98a3a), 0.02, false);
+    addHangingSign(g, sideX, 3.4, front, pretzel);
+  } else if (type === 'barber') {
+    const pole = new THREE.Group();
+    const tube = createOutlinedMesh(new THREE.CylinderGeometry(0.14, 0.14, 1.1, 10), makeToonMat(0xffffff), 0.02, false);
+    pole.add(tube);
+    for (let k = 0; k < 4; k++) {
+      const band = new THREE.Mesh(new THREE.TorusGeometry(0.145, 0.035, 4, 12), makeToonMat(k % 2 ? 0x2f4f8a : 0xd62839));
+      band.rotation.x = Math.PI * 0.5 + 0.4;
+      band.position.y = -0.4 + k * 0.27;
+      pole.add(band);
+    }
+    [0.6, -0.6].forEach((cy) => {
+      const cap = createOutlinedMesh(new THREE.SphereGeometry(0.16, 8, 6), makeToonMat(0xe8c46a), 0.015, false);
+      cap.position.y = cy;
+      pole.add(cap);
+    });
+    pole.position.set(-sideX + 0.1, 1.9, front + 0.3);
+    g.add(pole);
+  } else if (type === 'pharmacy') {
+    const cross = new THREE.Group();
+    const greenMat = new THREE.MeshBasicMaterial({ color: 0x3fd07a });
+    cross.add(new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.7, 0.24), greenMat));
+    cross.add(new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.24, 0.7), greenMat));
+    cross.rotation.y = Math.PI * 0.5;
+    addHangingSign(g, sideX, 3.5, front, cross);
+  } else if (type === 'icecream') {
+    const cone = new THREE.Group();
+    const wafer = createOutlinedMesh(new THREE.ConeGeometry(0.45, 1.3, 10), makeToonMat(0xd9a45a), 0.03, false);
+    wafer.rotation.x = Math.PI;
+    cone.add(wafer);
+    [[0xf7c6d9, 0.75], [0x7fd1c7, 1.25], [0xfff3de, 1.7]].forEach(([c, y]) => {
+      const scoop = createOutlinedMesh(new THREE.SphereGeometry(0.42, 10, 8), makeToonMat(c), 0.025, false);
+      scoop.position.y = y - 0.2;
+      cone.add(scoop);
+    });
+    cone.position.set(0, height + 1.4, front - 0.25);
+    g.add(cone);
+  } else if (type === 'post') {
+    const flagPole = createOutlinedMesh(new THREE.CylinderGeometry(0.05, 0.06, 4.0, 6), makeToonMat(0xd9d9d9), 0.015, false);
+    flagPole.position.set(sideX, height + 1.6, front - 0.4);
+    g.add(flagPole);
+    const flag = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 0.65), new THREE.MeshBasicMaterial({ color: 0x2a4a8a, side: THREE.DoubleSide }));
+    flag.position.set(sideX + 0.58, height + 3.2, front - 0.4);
+    g.add(flag);
+    const stripe = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 0.12), new THREE.MeshBasicMaterial({ color: 0xd62839, side: THREE.DoubleSide }));
+    stripe.position.set(sideX + 0.58, height + 3.0, front - 0.39);
+    g.add(stripe);
+  } else if (type === 'bank') {
+    [-0.85, 0.85].forEach((cx) => {
+      const col = createOutlinedMesh(new THREE.CylinderGeometry(0.16, 0.18, 2.4, 10), makeToonMat(0xf3ead6), 0.02, false);
+      col.position.set(cx, 1.2, front + 0.25);
+      g.add(col);
+    });
+  } else if (type === 'books') {
+    const book = createOutlinedMesh(new THREE.BoxGeometry(0.12, 0.55, 0.42), makeToonMat(0xb8432f), 0.015, false);
+    addHangingSign(g, sideX, 3.4, front, book);
+  } else if (type === 'cafe') {
+    const cup = new THREE.Group();
+    const body = createOutlinedMesh(new THREE.CylinderGeometry(0.22, 0.17, 0.35, 10), makeToonMat(0xffffff), 0.015, false);
+    cup.add(body);
+    const handle = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.03, 4, 8), makeToonMat(0xffffff));
+    handle.position.x = 0.24;
+    cup.add(handle);
+    addHangingSign(g, sideX, 3.4, front, cup);
+  } else if (type === 'florist' || type === 'grocery') {
+    [-width * 0.28, width * 0.28].forEach((bx) => {
+      const box = createOutlinedMesh(new THREE.BoxGeometry(1.2, 0.3, 0.35), makeToonMat(0x6b4a2b), 0.015, false);
+      box.position.set(bx, 0.6, front + 0.25);
+      g.add(box);
+      for (let k = 0; k < 4; k++) {
+        const bloom = new THREE.Mesh(new THREE.SphereGeometry(0.13, 6, 5), makeToonMat(type === 'grocery' ? [0xd94e3a, 0xf4b41a, 0x6cc04a, 0xe0762f][k] : [0xe07ab8, 0xffd23f, 0xd94e3a, 0xffffff][k]));
+        bloom.position.set(bx - 0.42 + k * 0.28, 0.85, front + 0.25);
+        g.add(bloom);
+      }
+    });
+  } else if (type === 'hardware') {
+    const saw = createOutlinedMesh(new THREE.BoxGeometry(0.1, 0.4, 0.75), makeToonMat(0xc9d2da), 0.015, false);
+    addHangingSign(g, sideX, 3.4, front, saw);
+  } else if (type === 'pizza') {
+    const pie = createOutlinedMesh(new THREE.CylinderGeometry(0.42, 0.42, 0.08, 14), makeToonMat(0xf0b84a), 0.015, false);
+    pie.rotation.z = Math.PI * 0.5;
+    addHangingSign(g, sideX, 3.4, front, pie);
+  } else if (type === 'music') {
+    const record = createOutlinedMesh(new THREE.CylinderGeometry(0.4, 0.4, 0.05, 16), makeToonMat(0x1a1a1a), 0.015, false);
+    record.rotation.z = Math.PI * 0.5;
+    addHangingSign(g, sideX, 3.4, front, record);
+  }
+  return g;
+}
+
+function placeNamedShop(x, z, rotY, type, w, h, d) {
+  const shop = createNamedShop(type, w, h, d);
+  shop.position.set(x, TOWN_ELEV + 0.14, z);
+  shop.rotation.y = rotY;
+  scene.add(shop);
+  hardColliders.push({ x, z, r: Math.min(w, d) * 0.48 });
+  addRoofStringLights(shop, shop.userData.lightSpecs.width, shop.userData.lightSpecs.yPos, shop.userData.lightSpecs.zFront);
+}
+
+// =========================================================
+// APPARTEMENTENGEBOUWEN: 4 verdiepingen met balkons, entree-luifel en watertoren op het dak
+// =========================================================
+function createApartmentBuilding(width, floors, depth, wallHex, trimHex, withTower = true) {
+  const g = new THREE.Group();
+  const floorH = 3.0;
+  const h = floors * floorH + 0.6;
+  const wallMat = makeToonMat(wallHex);
+  const trimMat = registerSeasonalMat(trimHex, 0xf2f7fc);
+
+  const body = createOutlinedMesh(new THREE.BoxGeometry(width, h, depth), wallMat, 0.055);
+  body.position.y = h * 0.5;
+  g.add(body);
+  for (let f = 1; f < floors; f++) {
+    const band = new THREE.Mesh(new THREE.BoxGeometry(width + 0.08, 0.16, depth + 0.08), trimMat);
+    band.position.y = f * floorH + 0.3;
+    g.add(band);
+  }
+  const parapet = createOutlinedMesh(new THREE.BoxGeometry(width + 0.3, 0.6, depth + 0.3), trimMat, 0.04, false);
+  parapet.position.y = h + 0.2;
+  g.add(parapet);
+  const roofFill = new THREE.Mesh(new THREE.BoxGeometry(width - 0.2, 0.1, depth - 0.2), makeToonMat(0x5a5a60));
+  roofFill.position.y = h + 0.45;
+  g.add(roofFill);
+
+  const cols = Math.max(2, Math.floor(width / 2.1));
+  const colStep = width / cols;
+  for (let f = 0; f < floors; f++) {
+    const wy = f * floorH + 1.8;
+    for (let c = 0; c < cols; c++) {
+      const wx = -width * 0.5 + colStep * (c + 0.5);
+      if (f === 0 && Math.abs(wx) < 1.1) continue; // entree
+      const glass = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 1.3), warmWindowMat);
+      glass.position.set(wx, wy, depth * 0.5 + 0.06);
+      g.add(glass);
+      houseWindows.push({ mesh: glass, timer: Math.random() * 10 });
+      // Balkons op de verdiepingen, om en om
+      if (f > 0 && (c + f) % 2 === 0) {
+        const slab = createOutlinedMesh(new THREE.BoxGeometry(1.5, 0.14, 0.9), trimMat, 0.02, false);
+        slab.position.set(wx, wy - 0.95, depth * 0.5 + 0.45);
+        g.add(slab);
+        const rail = createOutlinedMesh(new THREE.BoxGeometry(1.5, 0.55, 0.06), streetPostMat, 0.015, false);
+        rail.position.set(wx, wy - 0.6, depth * 0.5 + 0.88);
+        g.add(rail);
+      }
+    }
+    // Zijramen
+    [-1, 1].forEach((side) => {
+      for (let c = 0; c < Math.max(1, Math.floor(depth / 3)); c++) {
+        const glass = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 1.2), warmWindowMat);
+        glass.position.set(side * (width * 0.5 + 0.06), wy, -depth * 0.5 + (depth / Math.floor(depth / 3)) * (c + 0.5));
+        glass.rotation.y = side * Math.PI * 0.5;
+        g.add(glass);
+        houseWindows.push({ mesh: glass, timer: Math.random() * 10 });
+      }
+    });
+  }
+  // Entree met luifel en dubbele deur
+  const door = createOutlinedMesh(new THREE.BoxGeometry(1.6, 2.3, 0.12), makeToonMat(0x3a2a20), 0.025, false);
+  door.position.set(0, 1.15, depth * 0.5 + 0.04);
+  g.add(door);
+  const canopy = createOutlinedMesh(new THREE.BoxGeometry(2.6, 0.18, 1.4), trimMat, 0.03, false);
+  canopy.position.set(0, 2.6, depth * 0.5 + 0.7);
+  g.add(canopy);
+  const steps = createOutlinedMesh(new THREE.BoxGeometry(2.2, 0.2, 0.8), stoneMat, 0.02, false, true);
+  steps.position.set(0, 0.1, depth * 0.5 + 0.4);
+  g.add(steps);
+
+  if (withTower) {
+    // Houten watertoren op het dak — typisch voor oude Amerikaanse appartementen
+    const tower = new THREE.Group();
+    [[-0.7, -0.7], [0.7, -0.7], [-0.7, 0.7], [0.7, 0.7]].forEach(([lx, lz]) => {
+      const leg = new THREE.Mesh(new THREE.BoxGeometry(0.12, 1.6, 0.12), streetPostMat);
+      leg.position.set(lx, 0.8, lz);
+      tower.add(leg);
+    });
+    const tank = createOutlinedMesh(new THREE.CylinderGeometry(1.05, 1.05, 1.8, 12), makeToonMat(0x8a5a33), 0.035);
+    tank.position.y = 2.5;
+    tower.add(tank);
+    const cap = createOutlinedMesh(new THREE.ConeGeometry(1.15, 0.8, 12), registerSeasonalMat(0x5a5a60, 0xf2f6fb), 0.03, false);
+    cap.position.y = 3.8;
+    tower.add(cap);
+    tower.position.set(width * 0.22, h + 0.5, -depth * 0.15);
+    g.add(tower);
+  }
+  g.userData.lightSpecs = { width: width * 0.94, yPos: h + 0.4, zFront: depth * 0.5 + 0.2 };
+  return g;
+}
+
+function placeApartment(x, z, rotY, width, floors, depth, wallHex, trimHex, withTower = true) {
+  const apt = createApartmentBuilding(width, floors, depth, wallHex, trimHex, withTower);
+  apt.position.set(x, TOWN_ELEV + 0.14, z);
+  apt.rotation.y = rotY;
+  scene.add(apt);
+  // Botscirkels verdeeld over de breedte (lokale x-as volgt de rotatie)
+  const n = Math.max(1, Math.round(width / 4));
+  for (let k = 0; k < n; k++) {
+    const lx = -width * 0.5 + (width / n) * (k + 0.5);
+    hardColliders.push({ x: x + Math.cos(rotY) * lx, z: z - Math.sin(rotY) * lx, r: Math.min(depth, width / n) * 0.55 });
+  }
+  addRoofStringLights(apt, apt.userData.lightSpecs.width, apt.userData.lightSpecs.yPos, apt.userData.lightSpecs.zFront);
+}
+
+// =========================================================
 // OPBOUW PINEWOOD CREEK CENTRUM
 // =========================================================
 function buildPinewoodTown() {
@@ -702,18 +965,17 @@ function buildPinewoodTown() {
   createSeamlessBlockBase(-23.95, -4.05, 84.75, 107.95, SW, courtyardPaverMat);
   placeCornerLamps(-23.95, -4.05, 84.75, 107.95, 1.0);
 
-  const swMainShops = [
-    { x: -19.9625, w: 3.975, h: 6.2, wall: 0xd96b43, awn: 0xfff3de, trim: 0x6e3824 },
-    { x: -15.9875, w: 3.975, h: 5.3, wall: 0x6289a6, awn: 0xe69f38, trim: 0x385063 },
-    { x: -12.0125, w: 3.975, h: 6.8, wall: 0xebdcd0, awn: 0xd64535, trim: 0xb83b2b },
-    { x: -8.0375,  w: 3.975, h: 5.7, wall: 0x73946b, awn: 0xf5ead3, trim: 0x3f5939 }
-  ];
-  swMainShops.forEach((s) => placeShopHelper(s.x, 89.85, Math.PI, s.w, s.h, 6.2, s.wall, s.awn, s.trim));
+  [
+    { x: -19.9625, h: 6.2, type: 'bakery' },
+    { x: -15.9875, h: 5.3, type: 'books' },
+    { x: -12.0125, h: 6.8, type: 'pharmacy' },
+    { x: -8.0375,  h: 5.7, type: 'hardware' }
+  ].forEach((s) => placeNamedShop(s.x, 89.85, Math.PI, s.type, 3.975, s.h, 6.2));
 
-  placeShopHelper(-8.75, 94.8, Math.PI / 2, 3.7, 5.4, 5.4, 0xd49a45, 0x385063, 0x7a521d);
+  placeNamedShop(-8.75, 94.8, Math.PI / 2, 'cafe', 3.7, 5.4, 5.4);
   placeShopHelper(-8.75, 98.5, Math.PI / 2, 3.7, 5.9, 5.4, 0xb85242, 0xfff3de, 0x6b281e);
 
-  placeShopHelper(-19.25, 94.8, -Math.PI / 2, 3.7, 5.6, 5.4, 0x5c7d99, 0xd95d30, 0x2e4354);
+  placeNamedShop(-19.25, 94.8, -Math.PI / 2, 'florist', 3.7, 5.6, 5.4);
   placeShopHelper(-19.25, 98.5, -Math.PI / 2, 3.7, 5.1, 5.4, 0xc98b63, 0x2d6e3e, 0x6e4429);
 
   const swOakHouses = [
@@ -767,13 +1029,12 @@ function buildPinewoodTown() {
   createSeamlessBlockBase(-23.95, -4.05, 116.05, 134.85, SW, courtyardPaverMat);
   placeCornerLamps(-23.95, -4.05, 116.05, 134.85, 1.0);
 
-  const nwOakShops = [
-    { x: -19.9625, w: 3.975, h: 5.5, wall: 0xc45a41, awn: 0xf7ebd2, trim: 0x6e2b1c },
-    { x: -15.9875, w: 3.975, h: 6.3, wall: 0x4f758c, awn: 0xf4b41a, trim: 0x2b4352 },
-    { x: -12.0125, w: 3.975, h: 5.2, wall: 0xe3cfa8, awn: 0x2d6e3e, trim: 0x7a6542 },
-    { x: -8.0375,  w: 3.975, h: 6.0, wall: 0x8c584c, awn: 0xfff3de, trim: 0x4a2a22 }
-  ];
-  nwOakShops.forEach((s) => placeShopHelper(s.x, 121.05, Math.PI, s.w, s.h, 6.0, s.wall, s.awn, s.trim));
+  [
+    { x: -19.9625, h: 5.5, type: 'barber' },
+    { x: -15.9875, h: 6.3, type: 'icecream' },
+    { x: -12.0125, h: 5.2, type: 'post' },
+    { x: -8.0375,  h: 6.0, type: 'bank' }
+  ].forEach((s) => placeNamedShop(s.x, 121.05, Math.PI, s.type, 3.975, s.h, 6.0));
 
   placeRowHouseHelper(-18.6, 126.4, -Math.PI / 2, 4.3, 4.5, 5.0, 0xe6a147, false);
   placeRowHouseHelper(-18.6, 130.7, -Math.PI / 2, 4.3, 4.2, 5.0, 0x84a876, true);
@@ -784,8 +1045,8 @@ function buildPinewoodTown() {
   createSeamlessBlockBase(4.05, 23.95, 116.05, 134.85, SW, courtyardPaverMat);
   placeCornerLamps(4.05, 23.95, 116.05, 134.85, 1.0);
 
-  placeShopHelper(8.0375,  121.05, Math.PI, 3.975, 6.4, 6.0, 0x3f6a82, 0xe69f38, 0x233d4d);
-  placeShopHelper(12.0125, 121.05, Math.PI, 3.975, 5.6, 6.0, 0xd97b48, 0xfff3de, 0x753c1d);
+  placeNamedShop(8.0375,  121.05, Math.PI, 'toys', 3.975, 6.4, 6.0);
+  placeNamedShop(12.0125, 121.05, Math.PI, 'music', 3.975, 5.6, 6.0);
   placeRowHouseHelper(15.9875, 121.4, Math.PI, 3.975, 4.7, 5.0, 0xe3b857, false);
   placeRowHouseHelper(19.9625, 121.4, Math.PI, 3.975, 4.4, 5.0, 0x7a9e7e, true);
 
@@ -798,12 +1059,11 @@ function buildPinewoodTown() {
   createSeamlessBlockBase(-42.6, -32.05, 84.75, 116.1, SW, courtyardPaverMat);
   placeCornerLamps(-42.6, -32.05, 84.75, 116.1, 1.0);
 
-  placeShopHelper(-37.05, 89.05,  Math.PI / 2, 4.6, 5.8, 6.0, 0xc9643b, 0xfff3de, 0x6b2f18);
-  placeShopHelper(-37.05, 93.65,  Math.PI / 2, 4.6, 5.2, 6.0, 0x567d65, 0xf4b41a, 0x2d4536);
+  placeNamedShop(-37.05, 89.05,  Math.PI / 2, 'grocery', 4.6, 5.8, 6.0);
+  placeNamedShop(-37.05, 93.65,  Math.PI / 2, 'laundry', 4.6, 5.2, 6.0);
   placeRowHouseHelper(-37.4, 98.2,  Math.PI / 2, 4.5, 4.4, 5.0, 0xe3b857, false);
   placeRowHouseHelper(-37.4, 102.7, Math.PI / 2, 4.5, 4.6, 5.0, 0x6792ab, true);
-  placeRowHouseHelper(-37.4, 107.2, Math.PI / 2, 4.5, 4.3, 5.0, 0xd66853, false);
-  placeRowHouseHelper(-37.4, 111.7, Math.PI / 2, 4.5, 4.5, 5.0, 0x9ab06a, true);
+  placeApartment(-37.3, 109.45, Math.PI / 2, 9.0, 4, 9.0, 0xb5654a, 0xe8dcc8, true);
 
   createSeamlessBlockBase(32.05, 42.6, 84.75, 116.1, SW, courtyardPaverMat);
   placeCornerLamps(32.05, 42.6, 84.75, 116.1, 1.0);
@@ -812,8 +1072,19 @@ function buildPinewoodTown() {
   placeShopHelper(37.05, 93.65,  -Math.PI / 2, 4.6, 5.3, 6.0, 0xd49a45, 0xfff3de, 0x73501c);
   placeRowHouseHelper(37.4, 98.2,  -Math.PI / 2, 4.5, 4.5, 5.0, 0x7a9e7e, true);
   placeRowHouseHelper(37.4, 102.7, -Math.PI / 2, 4.5, 4.3, 5.0, 0xc9966b, false);
-  placeRowHouseHelper(37.4, 107.2, -Math.PI / 2, 4.5, 4.6, 5.0, 0xb84a39, true);
-  placeRowHouseHelper(37.4, 111.7, -Math.PI / 2, 4.5, 4.4, 5.0, 0xd8a948, false);
+  placeApartment(37.3, 109.45, -Math.PI / 2, 9.0, 4, 9.0, 0x6b8aa6, 0xf2ece0, false);
+
+  // ---- Twee nieuwe blokken ten zuiden van Oak Street, langs de doorgetrokken lanen ----
+  createSeamlessBlockBase(-44.0, -32.05, 116.05, 134.85, SW, courtyardPaverMat);
+  placeCornerLamps(-44.0, -32.05, 116.05, 134.85, 1.0);
+  placeApartment(-38.0, 121.4, Math.PI / 2, 8.5, 4, 9.2, 0xd9b26a, 0x7a5a3a, true);
+  placeApartment(-38.0, 130.6, Math.PI / 2, 7.4, 3, 9.2, 0x7a9e7e, 0xf2ece0, false);
+
+  createSeamlessBlockBase(32.05, 44.0, 116.05, 134.85, SW, courtyardPaverMat);
+  placeCornerLamps(32.05, 44.0, 116.05, 134.85, 1.0);
+  placeApartment(38.0, 121.4, -Math.PI / 2, 8.5, 3, 9.2, 0xc4705a, 0xf2ece0, false);
+  placeNamedShop(37.6, 129.0, -Math.PI / 2, 'pizza', 4.4, 5.4, 6.0);
+  placeRowHouseHelper(38.0, 133.0, -Math.PI / 2, 3.4, 4.4, 5.0, 0x5b83a1, true);
 
   [
     [-14.0, 85.95],
@@ -825,7 +1096,9 @@ function buildPinewoodTown() {
     [-5.0,  96.5],
     [5.0,   96.5],
     [-33.0, 100.5],
-    [33.0,  100.5]
+    [33.0,  100.5],
+    [-33.0, 126.0],
+    [33.0,  125.5]
   ].forEach(([hx, hz]) => createSmashableHydrant(hx, hz));
 
   [
@@ -840,7 +1113,9 @@ function buildPinewoodTown() {
     [10.0,  117.0],
     [-5.0,  125.0],
     [-33.0, 91.5],
-    [33.0,  109.5]
+    [33.0,  109.5],
+    [-33.0, 118.5],
+    [33.0,  133.5]
   ].forEach(([tx, tz]) => createTrashBin(tx, tz));
 
   buildChristmasTownCenterpiece();
