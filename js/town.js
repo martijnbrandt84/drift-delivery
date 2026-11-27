@@ -1133,6 +1133,64 @@ function rotateLocal(lx, lz, yaw) {
 
 let mallExclusionZone = null;
 
+function mallTextPlane(label, bg, fg, w, h) {
+  return new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: getShopSignTexture({ label, bg, fg }) }));
+}
+
+// Winkelwagentje (los, omrijdbaar op de parkeerplaats; of in de karrenstalling)
+const cartWireMat = makeToonMat(0xb8c2cc);
+const cartRedMat = makeToonMat(0xd62839);
+function createShoppingCart() {
+  const g = new THREE.Group();
+  const basket = createOutlinedMesh(new THREE.BoxGeometry(0.6, 0.45, 0.9), cartWireMat, 0.015, false);
+  basket.position.y = 0.75;
+  g.add(basket);
+  const inner = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.36, 0.8), makeToonMat(0x5a646e));
+  inner.position.y = 0.8;
+  g.add(inner);
+  const handle = createOutlinedMesh(new THREE.BoxGeometry(0.62, 0.07, 0.07), cartRedMat, 0.01, false);
+  handle.position.set(0, 1.05, -0.5);
+  g.add(handle);
+  const frame = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.5, 0.06), cartWireMat);
+  frame.position.set(0, 0.32, -0.38);
+  g.add(frame);
+  [[-0.25, 0.35], [0.25, 0.35], [-0.25, -0.35], [0.25, -0.35]].forEach(([wx, wz]) => {
+    const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.05, 8), makeToonMat(0x2b2b2b));
+    wheel.rotation.z = Math.PI * 0.5;
+    wheel.position.set(wx, 0.08, wz);
+    g.add(wheel);
+  });
+  return g;
+}
+
+function createProduceStand() {
+  const g = new THREE.Group();
+  const table = createOutlinedMesh(new THREE.BoxGeometry(2.4, 0.8, 1.0), makeToonMat(0x8a5a33), 0.025, false);
+  table.position.y = 0.4;
+  g.add(table);
+  [[0xd94e3a, -0.8], [0xf4b41a, 0], [0x6cc04a, 0.8]].forEach(([c, x]) => {
+    const crate = createOutlinedMesh(new THREE.BoxGeometry(0.7, 0.28, 0.8), makeToonMat(0xc9a273), 0.015, false);
+    crate.position.set(x, 0.95, 0);
+    crate.rotation.x = -0.25;
+    g.add(crate);
+    for (let k = 0; k < 6; k++) {
+      const fruit = new THREE.Mesh(new THREE.SphereGeometry(0.11, 6, 5), makeToonMat(c));
+      fruit.position.set(x - 0.22 + (k % 3) * 0.22, 1.12, -0.15 + Math.floor(k / 3) * 0.3);
+      g.add(fruit);
+    }
+  });
+  const awn = createOutlinedMesh(new THREE.BoxGeometry(2.6, 0.12, 1.3), makeToonMat(0x2d8a4e), 0.02, false);
+  awn.position.set(0, 2.1, 0.1);
+  awn.rotation.x = 0.2;
+  g.add(awn);
+  [-1.2, 1.2].forEach((px) => {
+    const pole = new THREE.Mesh(new THREE.BoxGeometry(0.07, 1.4, 0.07), streetPostMat);
+    pole.position.set(px, 1.4, 0.55);
+    g.add(pole);
+  });
+  return g;
+}
+
 function createSupermarketWing() {
   const g = new THREE.Group();
   const w = 11.4, h = 5.8, d = 8.8;
@@ -1152,6 +1210,9 @@ function createSupermarketWing() {
   const signBoard = createOutlinedMesh(new THREE.BoxGeometry(7.0, 0.95, 0.24), trimWhiteMat, 0.035, false);
   signBoard.position.set(0, h + 0.38, d * 0.5 - 0.15);
   g.add(signBoard);
+  const superText = mallTextPlane('SUPERMARKET', '#2d8a4e', '#ffffff', 6.7, 0.82);
+  superText.position.set(0, h + 0.38, d * 0.5 - 0.01);
+  g.add(superText);
 
   const canopy = createOutlinedMesh(new THREE.BoxGeometry(5.4, 0.26, 1.55), makeToonMat(0x236e3d), 0.038, false);
   canopy.position.set(0, 2.85, d * 0.5 + 0.72);
@@ -1204,6 +1265,18 @@ function createMallAtriumCenter() {
   const mallSign = createOutlinedMesh(new THREE.BoxGeometry(7.6, 1.18, 0.28), trimWhiteMat, 0.04, false);
   mallSign.position.set(0, h - 0.85, d * 0.5 + 0.14);
   g.add(mallSign);
+  const mallText = mallTextPlane('PINEWOOD MALL', '#c9643b', '#fff8ee', 7.3, 0.98);
+  mallText.position.set(0, h - 0.85, d * 0.5 + 0.29);
+  g.add(mallText);
+  // Vlaggen op het dak
+  [-3.6, 3.6].forEach((fx, i) => {
+    const pole = createOutlinedMesh(new THREE.CylinderGeometry(0.05, 0.06, 3.0, 6), makeToonMat(0xd9d9d9), 0.015, false);
+    pole.position.set(fx, h + 2.2, d * 0.5 - 0.6);
+    g.add(pole);
+    const flag = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 0.7), new THREE.MeshBasicMaterial({ color: i ? 0x2d8a4e : 0xc9643b, side: THREE.DoubleSide }));
+    flag.position.set(fx + 0.62, h + 3.3, d * 0.5 - 0.6);
+    g.add(flag);
+  });
 
   [-2.6, 0, 2.6].forEach((gx) => {
     [2.15, 5.5].forEach((gy) => {
@@ -1248,6 +1321,13 @@ function createMallRetailWing() {
     { x: -2.85, awn: 0xd95d30 },
     { x: 2.85,  awn: 0x3b7ea1 }
   ].forEach((bt) => {
+    const shopBoard = createOutlinedMesh(new THREE.BoxGeometry(4.0, 0.62, 0.14), trimWhiteMat, 0.025, false);
+    shopBoard.position.set(bt.x, 3.55, d * 0.5 + 0.08);
+    g.add(shopBoard);
+    const shopText = bt.x < 0 ? mallTextPlane('SHOES', '#d95d30', '#ffffff', 3.8, 0.52) : mallTextPlane('FASHION', '#3b7ea1', '#ffffff', 3.8, 0.52);
+    shopText.position.set(bt.x, 3.55, d * 0.5 + 0.16);
+    g.add(shopText);
+
     const awning = createOutlinedMesh(new THREE.BoxGeometry(4.5, 0.22, 1.3), makeToonMat(bt.awn), 0.035, false);
     awning.position.set(bt.x, 2.75, d * 0.5 + 0.58);
     awning.rotation.x = 0.24;
@@ -1312,9 +1392,92 @@ function buildGeneralStore() {
   retailWing.position.set(11.1, 0.16, -2.3 - 4.4);
   complexGroup.add(retailWing);
 
-  const cartBay = createOutlinedMesh(new THREE.BoxGeometry(2.6, 1.3, 1.2), trimWhiteMat, 0.025, false);
-  cartBay.position.set(-15.3, 0.81, -1.15);
-  complexGroup.add(cartBay);
+  // Karrenstalling met een rij in elkaar geschoven winkelwagentjes
+  const corralRoof = createOutlinedMesh(new THREE.BoxGeometry(3.2, 0.12, 1.4), makeToonMat(0x2d8a4e), 0.02, false);
+  corralRoof.position.set(-15.3, 2.0, -1.15);
+  complexGroup.add(corralRoof);
+  [-1.5, 1.5].forEach((px) => {
+    const post = new THREE.Mesh(new THREE.BoxGeometry(0.08, 1.9, 0.08), streetPostMat);
+    post.position.set(-15.3 + px, 1.1, -1.15);
+    complexGroup.add(post);
+  });
+  for (let k = 0; k < 5; k++) {
+    const cart = createShoppingCart();
+    cart.position.set(-16.6 + k * 0.6, 0.16, -1.15);
+    cart.rotation.y = Math.PI * 0.5;
+    cart.scale.setScalar(0.95);
+    complexGroup.add(cart);
+  }
+
+  // Groente- en fruitkramen voor de supermarkt
+  {
+    const stand = createProduceStand();
+    stand.position.set(-7.4, 0.16, -1.3);
+    complexGroup.add(stand);
+    const sp = rotateLocal(-7.4, -1.3, yaw);
+    hardColliders.push({ x: baseX + sp.x, z: baseZ + sp.z, r: 1.1 });
+  }
+
+  // Reclamezuil naast de inrit met de winkels eronder
+  const pylon = new THREE.Group();
+  [-1.2, 1.2].forEach((px) => {
+    const leg = createOutlinedMesh(new THREE.BoxGeometry(0.35, 8.0, 0.35), makeToonMat(0x52657a), 0.03);
+    leg.position.set(px, 4.0, 0);
+    pylon.add(leg);
+  });
+  const pylonTop = createOutlinedMesh(new THREE.BoxGeometry(4.2, 1.4, 0.4), makeToonMat(0xc9643b), 0.04, false);
+  pylonTop.position.y = 7.6;
+  pylon.add(pylonTop);
+  [1, -1].forEach((side) => {
+    const t = mallTextPlane('PINEWOOD MALL', '#c9643b', '#fff8ee', 4.0, 1.2);
+    t.position.set(0, 7.6, side * 0.21);
+    if (side < 0) t.rotation.y = Math.PI;
+    pylon.add(t);
+  });
+  [['SUPERMARKET', '#2d8a4e'], ['SHOES', '#d95d30'], ['FASHION', '#3b7ea1']].forEach(([label, bg], i) => {
+    const panel = createOutlinedMesh(new THREE.BoxGeometry(3.6, 0.6, 0.3), trimWhiteMat, 0.02, false);
+    panel.position.y = 6.4 - i * 0.72;
+    pylon.add(panel);
+    [1, -1].forEach((side) => {
+      const t = mallTextPlane(label, bg, '#ffffff', 3.4, 0.5);
+      t.position.set(0, 6.4 - i * 0.72, side * 0.16);
+      if (side < 0) t.rotation.y = Math.PI;
+      pylon.add(t);
+    });
+  });
+  pylon.position.set(-9.5, 0, 21.0);
+  complexGroup.add(pylon);
+  {
+    const pp = rotateLocal(-9.5, 21.0, yaw);
+    hardColliders.push({ x: baseX + pp.x, z: baseZ + pp.z, r: 1.4 });
+  }
+
+  // Hoge lantaarnpalen op de parkeerplaats
+  [[-16.5, 6.4], [16.5, 6.4], [-16.5, 15.5], [16.5, 15.5]].forEach(([lx, lz]) => {
+    const pole = createOutlinedMesh(new THREE.CylinderGeometry(0.1, 0.14, 6.5, 6), streetPostMat, 0.02, false);
+    pole.position.set(lx, 3.25, lz);
+    complexGroup.add(pole);
+    const head = createOutlinedMesh(new THREE.BoxGeometry(1.2, 0.25, 0.5), streetPostMat, 0.02, false);
+    head.position.set(lx, 6.5, lz);
+    complexGroup.add(head);
+    const lamp = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.08, 0.35), new THREE.MeshBasicMaterial({ color: 0xffe9a8 }));
+    lamp.position.set(lx, 6.35, lz);
+    complexGroup.add(lamp);
+    const lp = rotateLocal(lx, lz, yaw);
+    hardColliders.push({ x: baseX + lp.x, z: baseZ + lp.z, r: 0.35 });
+  });
+
+  // Losse winkelwagentjes op de parkeerplaats (omrijdbaar)
+  [[-5.5, 7.0, 0.4], [6.8, 14.2, 2.2], [-12.5, 14.0, -1.0]].forEach(([lx, lz, rot]) => {
+    const lp = rotateLocal(lx, lz, yaw);
+    const cart = createShoppingCart();
+    const wx = baseX + lp.x;
+    const wz = baseZ + lp.z;
+    cart.position.set(wx, surfaceY, wz);
+    cart.rotation.y = yaw + rot;
+    scene.add(cart);
+    registerDestructible(cart, wx, surfaceY, wz, 0.55, 'small', 6, 'Winkelwagentje');
+  });
 
   complexGroup.updateMatrixWorld(true);
   [superWing, atrium, retailWing].forEach((wing) => {
