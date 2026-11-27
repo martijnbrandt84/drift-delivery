@@ -2,6 +2,9 @@ import * as THREE from 'three';
 import { lakeSamples, valleySamples, ringSamples, outerRoadDefs, streetSampleSets, riverCurves, VALLEY_POND, getDistToRivers } from './roads.js';
 import { getNaturalGroundBase } from './landscape.js';
 
+// Terreinen die dichter bij het natuurlijke land mogen liggen (niet: mall, horeca, politie, vliegveld, boerderijen)
+const NATURAL_ADJUST_TYPES = new Set(['house_red', 'house_blue', 'house_yellow', 'cabin', 'camping', 'sawmill', 'cinema']);
+
 const timberTrailSamples = outerRoadDefs.find((d) => d.id === 'timber_trail').samples;
 const foxRoadSamples = outerRoadDefs.find((d) => d.id === 'fox_lake_road').samples;
 const westAveSamples = streetSampleSets.find((s) => s.def.id === 'west_ave').samples;
@@ -273,6 +276,47 @@ ruralLots.forEach((lot) => {
   }
   lot.yaw = Math.atan2(-rs.nx * side, -rs.nz * side) + lot.yawOff;
 
+  // Terrein dichter bij het natuurlijke land leggen waar het onnodig hoog of diep ligt, binnen een
+  // berijdbare opritheling (huizen max ~12%, grotere terreinen max ~8%)
+  let padShift = 0;
+  // (huizen aan de dorpslanen liggen in het vlakke dorpsgebied en blijven op straathoogte)
+  const onTownAvenue = lot.netSamples === westAveSamples || lot.netSamples === eastAveSamples;
+  if (NATURAL_ADJUST_TYPES.has(lot.type) && !lot.yardFromNatural && !onTownAvenue) {
+    const yaw0 = Math.atan2(-rs.nx * side, -rs.nz * side) + lot.yawOff;
+    const c0 = Math.cos(yaw0);
+    const s0 = Math.sin(yaw0);
+    let sum = 0;
+    let n = 0;
+    const box = lot.flatBox;
+    if (box) {
+      for (let lx = box.minLX; lx <= box.maxLX; lx += 3) {
+        for (let lz = box.minLZ; lz <= box.maxLZ; lz += 3) {
+          sum += Math.max(getNaturalGroundBase(lot.x + lx * c0 + lz * s0, lot.z - lx * s0 + lz * c0), 0.6);
+          n++;
+        }
+      }
+    } else {
+      const r = lot.padRadius ?? 8.8;
+      for (let a = 0; a < 12; a++) {
+        for (const rr of [0, r * 0.5, r]) {
+          sum += Math.max(getNaturalGroundBase(lot.x + Math.cos(a * 0.524) * rr, lot.z + Math.sin(a * 0.524) * rr), 0.6);
+          n++;
+        }
+      }
+    }
+    const natMean = sum / n;
+    const baseY = box ? rs.y : lot.y;
+    const rampLen = Math.max(2, lot.dist - (lot.drivewayStopShort ?? 0) - rs.halfWidth);
+    const grade = box ? 0.08 : 0.12;
+    const want = natMean - baseY;
+    let maxShift = grade * rampLen;
+    // Bij grote terreinen moet het hoogteverschil met de weg ook flauw kunnen aflopen tussen de
+    // voorkant van het terrein en de weg (anders ontstaat daar een steile kant)
+    if (box) maxShift = Math.min(maxShift, 0.27 * Math.max(1, lot.dist - rs.halfWidth - box.maxLZ) + 0.3);
+    if (Math.abs(want) > 0.8) padShift = THREE.MathUtils.clamp(want, -maxShift, maxShift);
+    lot.y += padShift;
+  }
+
   if (!lot.noDriveway) {
     driveways.push({
       x1: lot.roadX,
@@ -285,6 +329,8 @@ ruralLots.forEach((lot) => {
       asphalt: lot.type === 'store' || lot.type === 'cinema' || lot.type === 'airfield' || lot.type === 'coffee' || lot.type === 'police' || lot.type === 'diner'
     });
   }
+  // Vlakke terreinen gebruiken roadY als hoogte van het plein: mee verschuiven (de oprit begint wel op de echte weg)
+  if (padShift !== 0 && lot.flatBox) lot.roadY += padShift;
 });
 
 // Hulpfunctie: afstand van wereldpunt (x, z) tot een meegedraaide flatBox van een kavel (0 = binnen het vlakke plateau)

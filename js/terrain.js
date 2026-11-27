@@ -21,8 +21,8 @@ function getOrientedBoxDist(x, z, lot, minLX, maxLX, minLZ, maxLZ) {
 ruralLots.forEach((lot) => {
   const fb = lot.flatBox;
   lot.terrainReach = fb
-    ? Math.hypot(Math.max(-fb.minLX, fb.maxLX), Math.max(-fb.minLZ, fb.maxLZ)) + 26
-    : (lot.blendRadius ?? 18.0) + 1;
+    ? Math.hypot(Math.max(-fb.minLX, fb.maxLX), Math.max(-fb.minLZ, fb.maxLZ)) + 40
+    : (lot.blendRadius ?? 18.0) + 14;
 });
 driveways.forEach((d) => {
   const m = d.halfWidth + 8;
@@ -56,9 +56,12 @@ function getRawTerrainHeight(x, z) {
     } else if (lot.flatBox && lot.type !== 'farm') {
       const fb = lot.flatBox;
       const dBox = getOrientedBoxDist(x, z, lot, fb.minLX - 1, fb.maxLX + 1, fb.minLZ - 1, fb.maxLZ + 1);
-      if (dBox < 16.0) {
-        const t = THREE.MathUtils.smoothstep(dBox, 0.0, 16.0);
-        h = THREE.MathUtils.lerp(lot.roadY - 0.16, h, t);
+      // Is het land hoger dan het terrein (afgegraven), dan loopt de wand flauwer uit: een dal, geen put
+      const padY = lot.roadY - 0.16;
+      const outerG = h > padY ? 16.0 + Math.min(14.0, (h - padY) * 2.0) : 16.0;
+      if (dBox < outerG) {
+        const t = THREE.MathUtils.smoothstep(dBox, 0.0, outerG);
+        h = THREE.MathUtils.lerp(padY, h, t);
         specialFlatBlend = Math.min(specialFlatBlend, t);
       }
     } else if (lot.type === 'farm') {
@@ -93,7 +96,8 @@ function getRawTerrainHeight(x, z) {
     } else {
       const dLot = Math.hypot(x - lot.x, z - lot.z);
       const padR = lot.padRadius ?? 8.8;
-      const blendR = lot.blendRadius ?? 18.0;
+      // Afgegraven (land hoger dan het huis): de helling erachter loopt flauwer uit, geen kuil
+      const blendR = (lot.blendRadius ?? 18.0) + (h > lot.y ? Math.min(12.0, (h - lot.y) * 2.5) : 0);
       if (dLot < blendR) {
         const t = THREE.MathUtils.smoothstep(dLot, padR, blendR);
         h = THREE.MathUtils.lerp(lot.y, h, t);
