@@ -46,7 +46,7 @@ function getRawTerrainHeight(x, z) {
   for (const lot of ruralLots) {
     if (Math.abs(x - lot.x) > lot.terrainReach || Math.abs(z - lot.z) > lot.terrainReach) continue;
     if (lot.type === 'store') {
-      const dBox = getOrientedBoxDist(x, z, lot, -20.5, 20.5, -15.0, 19.5);
+      const dBox = getOrientedBoxDist(x, z, lot, -22.8, 22.8, -18.8, 24.6);
       if (dBox < 18.0) {
         const t = THREE.MathUtils.smoothstep(dBox, 0.0, 18.0);
         const targetY = lot.roadY - 0.16;
@@ -136,7 +136,7 @@ function getRawTerrainHeight(x, z) {
 
   const dIsland = Math.hypot(x - SANDBAR_ISLAND.x, z - SANDBAR_ISLAND.z);
   if (dIsland < SANDBAR_ISLAND.r + 9.0) {
-    const islandH = THREE.MathUtils.lerp(0.65, -0.62, THREE.MathUtils.smoothstep(dIsland, SANDBAR_ISLAND.r * 0.45, SANDBAR_ISLAND.r + 9.0));
+    const islandH = THREE.MathUtils.lerp(1.15, -0.62, THREE.MathUtils.smoothstep(dIsland, SANDBAR_ISLAND.r * 0.45, SANDBAR_ISLAND.r + 9.0));
     h = Math.max(h, islandH);
   }
   const fordProj = THREE.MathUtils.clamp(((x - 24) * 24 + (z - 6) * 4) / (24 * 24 + 16), 0, 1);

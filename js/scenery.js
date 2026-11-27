@@ -5,6 +5,7 @@ import {
 } from './roads.js';
 import { getLakeShoreRadius, SANDBAR_ISLAND, getDistToRivers, ruralLots } from './water-lots.js';
 import { hardColliders, registerDestructible } from './demolition.js';
+import { createPineFast, createShrubFast } from './props.js';
 import { getTerrainHeight } from './terrain.js';
 
 // Tekst op borden: altijd net vóór het bord tekenen (geen flikkeren/wegvallen op afstand)
@@ -365,9 +366,52 @@ function buildLighthouse() {
   lighthouseBeamPivot = beamPivot;
   lighthouseBeamMat = beamMat;
 
+  // Flink groter: een echte vuurtoren die boven het meer uitsteekt
+  g.scale.setScalar(1.75);
   g.position.set(x, baseY, z);
   scene.add(g);
-  hardColliders.push({ x, z, r: 2.1 });
+  hardColliders.push({ x, z, r: 3.4 });
 }
 
 buildLighthouse();
+
+// Groen op het vuurtoreneiland: struiken, een paar dennetjes en rotsen langs de rand
+{
+  const ix = SANDBAR_ISLAND.x;
+  const iz = SANDBAR_ISLAND.z;
+  const greenSpots = [
+    [5.2, 0.3, 's'], [6.0, 1.2, 's'], [5.6, 2.2, 'p'], [6.4, 3.0, 's'], [5.0, 3.9, 's'],
+    [6.2, 4.7, 'p'], [5.4, 5.5, 's'], [7.0, 0.8, 's'], [7.2, 5.9, 's'], [4.8, 2.7, 's']
+  ];
+  greenSpots.forEach(([rr, ang, kind]) => {
+    const px = ix + Math.cos(ang) * rr;
+    const pz = iz + Math.sin(ang) * rr;
+    const py = getTerrainHeight(px, pz);
+    if (py < WATER_LEVEL + 0.2) return;
+    if (kind === 'p') {
+      const sc = 0.55 + Math.random() * 0.2;
+      const pine = createPineFast(sc);
+      pine.position.set(px, py, pz);
+      pine.rotation.y = Math.random() * Math.PI * 2;
+      scene.add(pine);
+      registerDestructible(pine, px, py, pz, 0.85 * sc, 'tree', 15, 'Dennenboom');
+    } else {
+      const sc = 0.6 + Math.random() * 0.6;
+      const shrub = createShrubFast(sc);
+      shrub.position.set(px, py, pz);
+      shrub.rotation.y = Math.random() * Math.PI * 2;
+      scene.add(shrub);
+      registerDestructible(shrub, px, py, pz, Math.max(0.6, 0.85 * sc), 'shrub', 3, 'Struik');
+    }
+  });
+  const rockMat = makeToonMat(0x8d8379);
+  [[8.6, 0.0], [9.0, 2.6], [8.4, 4.4], [9.2, 5.4]].forEach(([rr, ang]) => {
+    const px = ix + Math.cos(ang) * rr;
+    const pz = iz + Math.sin(ang) * rr;
+    const rock = createOutlinedMesh(new THREE.DodecahedronGeometry(0.7 + Math.random() * 0.5, 0), rockMat, 0.04, false);
+    rock.position.set(px, Math.max(getTerrainHeight(px, pz), WATER_LEVEL - 0.3) + 0.2, pz);
+    rock.rotation.set(Math.random(), Math.random() * 3, 0);
+    rock.scale.y = 0.6;
+    scene.add(rock);
+  });
+}

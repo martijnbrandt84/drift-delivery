@@ -1433,7 +1433,9 @@ function createMallRetailWing() {
   return g;
 }
 
+const MALL_SCALE = 1.25;
 function buildGeneralStore() {
+  const rl = (lx, lz, yw) => rotateLocal(lx * MALL_SCALE, lz * MALL_SCALE, yw);
   const lot = ruralLots.find((l) => l.type === 'store');
   if (!lot) return;
   const { x: baseX, y: baseY, z: baseZ, yaw } = lot;
@@ -1446,6 +1448,8 @@ function buildGeneralStore() {
   const complexGroup = new THREE.Group();
   complexGroup.position.set(baseX, surfaceY, baseZ);
   complexGroup.rotation.y = yaw;
+  // Iets groter dan voorheen: alles (gebouwen, parkeerplaats) 25% groter
+  complexGroup.scale.setScalar(MALL_SCALE);
   scene.add(complexGroup);
 
   const pad = new THREE.Mesh(new THREE.BoxGeometry(33.6, slabDepthH, 19.6), storeAsphaltMat);
@@ -1495,8 +1499,8 @@ function buildGeneralStore() {
     const stand = createProduceStand();
     stand.position.set(-7.4, 0.16, -1.3);
     complexGroup.add(stand);
-    const sp = rotateLocal(-7.4, -1.3, yaw);
-    hardColliders.push({ x: baseX + sp.x, z: baseZ + sp.z, r: 1.1 });
+    const sp = rl(-7.4, -1.3, yaw);
+    hardColliders.push({ x: baseX + sp.x, z: baseZ + sp.z, r: 1.1 * MALL_SCALE });
   }
 
   // Reclamezuil naast de inrit met de winkels eronder
@@ -1526,10 +1530,12 @@ function buildGeneralStore() {
       pylon.add(t);
     });
   });
-  pylon.position.set(-9.5, 0, 21.0);
-  complexGroup.add(pylon);
+  // De zuil staat buiten de geschaalde groep, net naast de inrit aan de rand van de parkeerplaats
   {
-    const pp = rotateLocal(-9.5, 21.0, yaw);
+    const pp = rotateLocal(-13.5, 24.6, yaw);
+    pylon.position.set(baseX + pp.x, surfaceY, baseZ + pp.z);
+    pylon.rotation.y = yaw;
+    scene.add(pylon);
     hardColliders.push({ x: baseX + pp.x, z: baseZ + pp.z, r: 1.4 });
   }
 
@@ -1544,13 +1550,13 @@ function buildGeneralStore() {
     const lamp = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.08, 0.35), new THREE.MeshBasicMaterial({ color: 0xffe9a8 }));
     lamp.position.set(lx, 6.35, lz);
     complexGroup.add(lamp);
-    const lp = rotateLocal(lx, lz, yaw);
+    const lp = rl(lx, lz, yaw);
     hardColliders.push({ x: baseX + lp.x, z: baseZ + lp.z, r: 0.35 });
   });
 
   // Losse winkelwagentjes op de parkeerplaats (omrijdbaar)
   [[-5.5, 7.0, 0.4], [6.8, 14.2, 2.2], [-12.5, 14.0, -1.0]].forEach(([lx, lz, rot]) => {
-    const lp = rotateLocal(lx, lz, yaw);
+    const lp = rl(lx, lz, yaw);
     const cart = createShoppingCart();
     const wx = baseX + lp.x;
     const wz = baseZ + lp.z;
@@ -1566,8 +1572,8 @@ function buildGeneralStore() {
   });
 
   [-13.8, -8.2, -2.7, 2.7, 8.2, 13.8].forEach((cx) => {
-    const wc = rotateLocal(cx, -6.8, yaw);
-    hardColliders.push({ x: baseX + wc.x, z: baseZ + wc.z, r: 4.35 });
+    const wc = rl(cx, -6.8, yaw);
+    hardColliders.push({ x: baseX + wc.x, z: baseZ + wc.z, r: 4.35 * MALL_SCALE });
   });
 
   const bayWidth = 2.35;
@@ -1610,23 +1616,23 @@ function buildGeneralStore() {
     const island = createParkingIslandTree(1.9);
     island.position.set(tx, 0, tz);
     complexGroup.add(island);
-    const wp = rotateLocal(tx, tz, yaw);
-    hardColliders.push({ x: baseX + wp.x, z: baseZ + wp.z, r: 0.95 });
+    const wp = rl(tx, tz, yaw);
+    hardColliders.push({ x: baseX + wp.x, z: baseZ + wp.z, r: 0.95 * MALL_SCALE });
   });
 
   const promY = surfaceY + 0.16;
   [-15.8, -5.4, 5.4, 15.8].forEach((lx) => {
-    const wp = rotateLocal(lx, -0.5, yaw);
+    const wp = rl(lx, -0.5, yaw);
     createSmashableStreetLampAt(baseX + wp.x, promY, baseZ + wp.z);
   });
 
   [-7.8, 7.8].forEach((lx) => {
-    const wp = rotateLocal(lx, -1.5, yaw);
+    const wp = rl(lx, -1.5, yaw);
     createBenchAt(baseX + wp.x, promY, baseZ + wp.z, yaw);
   });
 
   [-13.0, -1.9, 13.0].forEach((lx) => {
-    const wp = rotateLocal(lx, -0.6, yaw);
+    const wp = rl(lx, -0.6, yaw);
     createTrashBinAt(baseX + wp.x, promY, baseZ + wp.z);
   });
 }

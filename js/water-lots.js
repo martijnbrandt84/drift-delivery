@@ -17,7 +17,7 @@ export function getLakeShoreRadius(theta) {
   return 47 + Math.sin(theta * 2 - 0.4) * 6.0 + Math.cos(theta * 3 + 1.1) * 4.5 + Math.sin(theta * 5) * 1.8 + northGrow;
 }
 
-export const SANDBAR_ISLAND = { x: 24, z: 6, r: 8.5 };
+export const SANDBAR_ISLAND = { x: 24, z: 6, r: 12 };
 
 // Rivieren worden nu in roads.js gedefinieerd (nodig om bruggen op de nieuwe wegen automatisch te plaatsen)
 export { riverCurves, VALLEY_POND, getDistToRivers };
@@ -39,9 +39,9 @@ export const ruralLots = [
     type: 'store',
     yawOff: 0,
     // Brede geasfalteerde inrit van de weg tot aan de rand van de parkeerplaats (lz = 19.6)
-    drivewayStopShort: 19.4,
+    drivewayStopShort: 24.3,
     flatElevOffset: -0.06,
-    flatBox: { minLX: -19.5, maxLX: 19.5, minLZ: -14.0, maxLZ: 26.0, blend: 12.0 }
+    flatBox: { minLX: -22.5, maxLX: 22.5, minLZ: -18.0, maxLZ: 26.0, blend: 12.0 }
   },
 
   // Huizen en hutten langs de kustweg en het bospad (near = wereldpunt, u wordt opgezocht)
