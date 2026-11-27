@@ -511,99 +511,130 @@ body {
 #race-count.lost { color: #e85d4a; font-size: 4.5rem; }
 
 /* =========================================================
-   MOBIEL: TOUCHKNOPPEN EN COMPACTE HUD
+   MOBIEL: COMPACTE TOUCHKNOPPEN (de wereld blijft zichtbaar)
    ========================================================= */
-html, body { touch-action: none; -webkit-touch-callout: none; overscroll-behavior: none; }
+html, body { touch-action: none; -webkit-touch-callout: none; overscroll-behavior: none; -webkit-user-select: none; user-select: none; }
 
 .tc-btn {
-  pointer-events: auto;
   touch-action: none;
   -webkit-tap-highlight-color: transparent;
-  border: 3px solid var(--ink);
-  border-radius: 18px;
-  background: rgba(255, 249, 240, 0.78);
+  border: 2px solid rgba(42, 24, 16, 0.75);
+  border-radius: 14px;
+  background: rgba(255, 249, 240, 0.42);
   color: var(--ink);
-  font: 900 1rem system-ui, sans-serif;
-  box-shadow: 0 4px 0 var(--ink);
+  font: 900 0.8rem system-ui, sans-serif;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   line-height: 1;
+  pointer-events: none; /* invoer loopt centraal via touch-controls.js */
+  transition: transform 0.05s, background 0.05s;
 }
-.tc-btn small { font-size: 0.6rem; font-weight: 700; margin-top: 3px; }
-.tc-btn.down { transform: translateY(3px); box-shadow: 0 1px 0 var(--ink); background: #ffd9b8; }
+.tc-btn small { font-size: 0.55rem; font-weight: 700; margin-top: 2px; }
+.tc-btn.down { transform: scale(0.94); background: rgba(255, 217, 184, 0.85); }
 
-#tc-left, #tc-right, #tc-actions { position: fixed; z-index: 35; display: flex; gap: 12px; }
+#tc-left, #tc-right, #tc-actions { position: fixed; z-index: 35; display: flex; gap: 10px; pointer-events: none; }
 #tc-left {
-  left: calc(14px + env(safe-area-inset-left, 0px));
-  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  left: calc(12px + env(safe-area-inset-left, 0px));
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
 }
-#tc-left .steer { width: 84px; height: 84px; font-size: 2rem; border-radius: 50%; }
+#tc-left .steer { width: 62px; height: 62px; font-size: 1.5rem; border-radius: 50%; }
 #tc-right {
-  right: calc(14px + env(safe-area-inset-right, 0px));
-  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  right: calc(12px + env(safe-area-inset-right, 0px));
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
   flex-direction: column;
   align-items: flex-end;
-  gap: 10px;
+  gap: 8px;
 }
-.tc-pedals { display: flex; gap: 12px; align-items: flex-end; }
-#tc-right .gas { width: 86px; height: 112px; background: rgba(140, 214, 110, 0.85); font-size: 1.15rem; }
-#tc-right .brake { width: 72px; height: 76px; background: rgba(240, 130, 110, 0.85); }
-#tc-right .drift { width: 170px; height: 46px; background: rgba(255, 210, 63, 0.85); }
-.tc-fly { display: none; gap: 10px; }
-.tc-fly .small { width: 72px; height: 56px; background: rgba(140, 190, 240, 0.85); }
+.tc-pedals { display: flex; gap: 8px; align-items: flex-end; }
+#tc-right .gas { width: 60px; height: 78px; background: rgba(140, 214, 110, 0.5); }
+#tc-right .brake { width: 52px; height: 52px; background: rgba(240, 130, 110, 0.5); }
+#tc-right .drift { width: 52px; height: 52px; background: rgba(255, 210, 63, 0.5); font-size: 0.62rem; }
+#tc-right .gas.down { background: rgba(140, 214, 110, 0.9); }
+#tc-right .brake.down { background: rgba(240, 130, 110, 0.9); }
+#tc-right .drift.down { background: rgba(255, 210, 63, 0.9); }
+.tc-fly { display: none; gap: 8px; }
+.tc-fly .small { width: 52px; height: 42px; background: rgba(140, 190, 240, 0.5); }
 body.flying .tc-fly { display: flex; }
 #tc-actions {
   left: 50%;
   transform: translateX(-50%);
-  top: calc(10px + env(safe-area-inset-top, 0px));
+  top: calc(6px + env(safe-area-inset-top, 0px));
+  gap: 6px;
 }
-#tc-actions .mini { padding: 6px 10px; font-size: 0.72rem; border-radius: 10px; box-shadow: 0 3px 0 var(--ink); border-width: 2px; }
+#tc-actions .mini { padding: 4px 8px; font-size: 0.62rem; border-radius: 8px; border-width: 1.5px; background: rgba(255, 249, 240, 0.6); }
+#tc-actions .fs { font-size: 0.8rem; padding: 3px 8px; }
 
+#tc-hint {
+  position: fixed;
+  left: 50%;
+  top: calc(40px + env(safe-area-inset-top, 0px));
+  transform: translateX(-50%);
+  background: rgba(42, 24, 16, 0.85);
+  color: #fff8ee;
+  font: 800 0.75rem system-ui, sans-serif;
+  padding: 6px 12px;
+  border-radius: 10px;
+  z-index: 50;
+  opacity: 0;
+  transition: opacity 0.25s;
+  pointer-events: none;
+  white-space: nowrap;
+}
+#tc-hint.show { opacity: 1; }
+
+/* Compacte HUD op touchschermen */
 body.touch #speedo-card {
   bottom: auto;
-  top: calc(62px + env(safe-area-inset-top, 0px));
+  top: calc(36px + env(safe-area-inset-top, 0px));
   right: calc(8px + env(safe-area-inset-right, 0px));
-  width: 150px;
-  padding: 7px 10px;
-  border-radius: 12px;
+  width: 104px;
+  padding: 4px 8px;
+  border-radius: 10px;
+  border-width: 2px;
+  box-shadow: 0 3px 0 var(--ink);
+  background: rgba(255, 249, 240, 0.78);
 }
-body.touch #speed-val { font-size: 1.8rem; }
+body.touch #speedo-card .veh-header { font-size: 0.55rem; margin-bottom: 1px; }
+body.touch #speed-val { font-size: 1.25rem; }
+body.touch .speed-unit { font-size: 0.55rem; }
+body.touch .rpm-track { height: 4px; }
 body.touch #minimap-card,
 body.touch #minimap {
-  width: 112px;
-  height: 112px;
+  width: 92px;
+  height: 92px;
 }
 body.touch #minimap-card {
   bottom: auto;
-  top: calc(58px + env(safe-area-inset-top, 0px));
+  top: calc(36px + env(safe-area-inset-top, 0px));
   left: calc(8px + env(safe-area-inset-left, 0px));
 }
+body.touch #minimap-north { font-size: 0.55rem; }
 body.touch #minimap-hint { display: none; }
-body.touch #menu-card { top: calc(8px + env(safe-area-inset-top, 0px)); left: calc(8px + env(safe-area-inset-left, 0px)); width: min(325px, calc(100vw - 16px)); max-height: calc(100vh - 16px); overflow-y: auto; }
+body.touch #menu-card { top: calc(6px + env(safe-area-inset-top, 0px)); left: calc(8px + env(safe-area-inset-left, 0px)); width: min(300px, calc(100vw - 16px)); max-height: calc(100vh - 12px); overflow-y: auto; transform-origin: top left; }
+body.touch #menu-card .card-header { padding: 4px 8px; }
+body.touch #menu-card .brand-title { font-size: 0.75rem; }
 body.touch #menu-card .keybind-list { display: none; }
-body.touch #top-right-hud { top: calc(8px + env(safe-area-inset-top, 0px)); right: calc(8px + env(safe-area-inset-right, 0px)); }
-body.touch #toast-pill { max-width: 46vw; font-size: 0.66rem; }
+body.touch #top-right-hud { top: calc(6px + env(safe-area-inset-top, 0px)); right: calc(8px + env(safe-area-inset-right, 0px)); gap: 4px; }
+body.touch .wanted-pill { padding: 2px 8px; transform: scale(0.82); transform-origin: top right; }
+body.touch #toast-pill { max-width: 40vw; font-size: 0.6rem; padding: 4px 8px; }
 body.touch #hijack-prompt {
-  pointer-events: auto;
-  bottom: calc(150px + env(safe-area-inset-bottom, 0px));
-  font-size: 1rem;
-  padding: 12px 22px;
+  bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+  font-size: 0.8rem;
+  padding: 8px 14px;
 }
-body.touch #hijack-prompt:not(.visible) { pointer-events: none; }
-body.touch #race-hud { top: calc(48px + env(safe-area-inset-top, 0px)); font-size: 0.78rem; padding: 6px 10px; gap: 8px; }
-body.touch #race-count { font-size: 4rem; }
-body.touch #busted-banner { font-size: 1.5rem; padding: 14px 20px; max-width: 90vw; }
+body.touch #race-hud { top: calc(32px + env(safe-area-inset-top, 0px)); font-size: 0.7rem; padding: 4px 8px; gap: 6px; border-width: 2px; }
+body.touch #race-count { font-size: 3.2rem; }
+body.touch #busted-banner { font-size: 1.3rem; padding: 12px 18px; max-width: 90vw; }
 
-/* Smalle schermen (staand) */
-@media (max-width: 600px) {
-  body.touch #tc-left .steer { width: 70px; height: 70px; }
-  body.touch #tc-right .gas { width: 74px; height: 96px; }
-  body.touch #tc-right .brake { width: 62px; height: 66px; }
-  body.touch #tc-right .drift { width: 148px; }
-  body.touch #speedo-card { width: 118px; }
-  body.touch #race-hud { top: calc(96px + env(safe-area-inset-top, 0px)); }
+/* Lage schermen (telefoon liggend): nog compacter */
+@media (max-height: 430px) {
+  body.touch #tc-left .steer { width: 54px; height: 54px; }
+  body.touch #tc-right .gas { width: 54px; height: 66px; }
+  body.touch #tc-right .brake, body.touch #tc-right .drift { width: 46px; height: 46px; }
+  body.touch #minimap-card, body.touch #minimap { width: 80px; height: 80px; }
+  body.touch #hijack-prompt { bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
 }
 
 .fullmap-chip {
