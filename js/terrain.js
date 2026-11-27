@@ -63,8 +63,25 @@ function getRawTerrainHeight(x, z) {
       }
     } else if (lot.type === 'farm') {
       const fb = lot.terrainBox ?? lot.flatBox;
-      const dBox = getOrientedBoxDist(x, z, lot, fb.minLX - 1, fb.maxLX + 1, fb.minLZ - 2, fb.maxLZ + 1.5);
       const targetY = lot.raiseYard ? lot.y - 0.08 : Math.min(lot.y - 0.08, lot.roadY - 0.18);
+      // Akkers tussen erf en weg (terrainBox): een glooiing die van het erf geleidelijk naar de weg afloopt.
+      // Alleen bulten die hoger liggen dan die glooiing worden weggegraven; lager land (bijv. bij de rivier) blijft.
+      if (lot.terrainBox) {
+        const ffb = lot.flatBox;
+        const dField = getOrientedBoxDist(x, z, lot, ffb.minLX, ffb.maxLX, fb.maxLZ, ffb.maxLZ + 4);
+        const outerF = lot.blendOuter ?? 22.0;
+        if (dField < outerF) {
+          const c = Math.cos(lot.yaw);
+          const s = Math.sin(lot.yaw);
+          const lz = (x - lot.x) * s + (z - lot.z) * c;
+          const roadLZ = lot.dist - 5.0;
+          const f = THREE.MathUtils.clamp((lz - fb.maxLZ) / (roadLZ - fb.maxLZ), 0, 1);
+          const rampY = THREE.MathUtils.lerp(targetY, lot.roadY - 0.22, f);
+          const tF = THREE.MathUtils.smoothstep(dField, 0.0, outerF);
+          h = THREE.MathUtils.lerp(Math.min(h, rampY), h, tF);
+        }
+      }
+      const dBox = getOrientedBoxDist(x, z, lot, fb.minLX - 1, fb.maxLX + 1, fb.minLZ - 2, fb.maxLZ + 1.5);
       // Afgraven (land hoger dan het erf): lange, flauwe helling. Ophogen (lager land): kort talud, zodat
       // het erf geen grote aarden wal de omgeving (of een rivieroever) in duwt
       const outer = h > targetY ? (lot.blendOuter ?? 22.0) : 14.0;
@@ -86,6 +103,7 @@ function getRawTerrainHeight(x, z) {
     }
   }
 
+  let nearDriveway = false;
   for (const d of driveways) {
     if (x < d.bbox.minX || x > d.bbox.maxX || z < d.bbox.minZ || z > d.bbox.maxZ) continue;
     const l2 = (d.x2 - d.x1) ** 2 + (d.z2 - d.z1) ** 2;
@@ -94,6 +112,7 @@ function getRawTerrainHeight(x, z) {
       const px = d.x1 + proj * (d.x2 - d.x1);
       const pz = d.z1 + proj * (d.z2 - d.z1);
       const dDrv = Math.hypot(x - px, z - pz);
+      if (dDrv < d.halfWidth + 1.5) nearDriveway = true;
       if (dDrv < d.halfWidth + 7.5) {
         const drvTargetY = THREE.MathUtils.lerp(d.y1, d.y2, proj) - 0.22;
         const w = THREE.MathUtils.smoothstep(dDrv, d.halfWidth + 1.2, d.halfWidth + 7.5);
@@ -119,7 +138,8 @@ function getRawTerrainHeight(x, z) {
     if (marginDist < outer) {
       const roadBlend = THREE.MathUtils.smoothstep(marginDist, 2.2, outer);
       const roadAdjustedH = THREE.MathUtils.lerp(rs.y - 0.24, h, roadBlend);
-      const keepPlateau = marginDist <= 2.4 ? 1.0 : specialFlatBlend;
+      // Op een oprit bepaalt de oprit zelf de hoogte (behalve direct aan de wegrand)
+      const keepPlateau = marginDist <= 2.4 ? 1.0 : nearDriveway ? 0.0 : specialFlatBlend;
       h = THREE.MathUtils.lerp(h, roadAdjustedH, keepPlateau);
       if (marginDist <= 0.6) h = Math.min(h, rs.y - 0.26);
     }
@@ -185,7 +205,7 @@ function getRawTerrainHeight(x, z) {
 
   // Laatste stap: onder een weg en zijn berm komt het terrein nooit lager dan de weg
   // (geen zwevende aanloop naar een brug, wat oevers, plassen of zandbanken eerder ook deden)
-  if (rs && !rs.onBridge && marginDist < 2.4) h = Math.max(h, rs.y - 0.3);
+  if (rs && !rs.onBridge && marginDist < 2.4 && !nearDriveway) h = Math.max(h, rs.y - 0.3);
 
   return h;
 }

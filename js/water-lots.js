@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { lakeSamples, valleySamples, ringSamples, outerRoadDefs, streetSampleSets, riverCurves, VALLEY_POND, getDistToRivers } from './roads.js';
+import { getNaturalGroundBase } from './landscape.js';
 
 const timberTrailSamples = outerRoadDefs.find((d) => d.id === 'timber_trail').samples;
 const foxRoadSamples = outerRoadDefs.find((d) => d.id === 'fox_lake_road').samples;
@@ -199,6 +200,12 @@ export const ruralLots = [
     variant: 'wheat',
     yawOff: 0,
     flatElevOffset: -0.04,
+    // Het erf ligt op de hoogte van het natuurlijke land (de weg ligt hier op een rug, veel hoger);
+    // de akkers volgen het land en lopen af van de weg naar de boerderij
+    yardFromNatural: true,
+    raiseYard: true,
+    blendOuter: 30,
+    terrainBox: { minLX: -40, maxLX: 40, minLZ: -42, maxLZ: 0 },
     flatBox: { minLX: -40, maxLX: 40, minLZ: -42, maxLZ: 40, blend: 16 }
   },
 
@@ -213,7 +220,8 @@ export const ruralLots = [
     name: 'PINEWOOD FARM',
     variant: 'corn',
     yawOff: 0,
-    flatElevOffset: -0.04,
+    flatElevOffset: 0.9,
+    raiseYard: true,
     blendOuter: 36,
     // Alleen het erf met de gebouwen wordt vlak gemaakt; de akkers ervoor volgen de natuurlijke glooiing
     terrainBox: { minLX: -40, maxLX: 40, minLZ: -40, maxLZ: 2 },
@@ -245,6 +253,24 @@ ruralLots.forEach((lot) => {
   lot.x = rs.x + rs.nx * side * lot.dist;
   lot.z = rs.z + rs.nz * side * lot.dist;
   lot.y = Math.max(1.15, rs.y + (lot.flatElevOffset ?? 0.15));
+  if (lot.yardFromNatural && lot.terrainBox) {
+    // Erfhoogte = gemiddelde natuurlijke hoogte onder het erf (niet de weghoogte)
+    const tb = lot.terrainBox;
+    const yaw0 = Math.atan2(-rs.nx * side, -rs.nz * side) + lot.yawOff;
+    const cx = rs.x + rs.nx * side * lot.dist;
+    const cz = rs.z + rs.nz * side * lot.dist;
+    const c = Math.cos(yaw0);
+    const s = Math.sin(yaw0);
+    let sum = 0;
+    let n = 0;
+    for (let lx = tb.minLX; lx <= tb.maxLX; lx += 4) {
+      for (let lz = tb.minLZ; lz <= tb.maxLZ; lz += 4) {
+        sum += getNaturalGroundBase(cx + lx * c + lz * s, cz - lx * s + lz * c);
+        n++;
+      }
+    }
+    lot.y = Math.max(1.6, sum / n + 0.3);
+  }
   lot.yaw = Math.atan2(-rs.nx * side, -rs.nz * side) + lot.yawOff;
 
   if (!lot.noDriveway) {
