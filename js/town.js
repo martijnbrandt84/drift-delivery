@@ -8,7 +8,8 @@ import { hardColliders, registerDestructible, destructibles, markLastPlanted } f
 import { getTerrainHeight } from './terrain.js';
 
 // Tekst op borden: altijd net vóór het bord tekenen (geen flikkeren/wegvallen op afstand)
-const SIGN_MAT_OPTS = { polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 };
+// Borden: echte sRGB-kleuren en geen filmische tonemapping, zodat rood rood blijft en tekst scherp is
+const SIGN_MAT_OPTS = { polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4, toneMapped: false };
 // =========================================================
 // STADJE PINEWOOD CREEK — VOLGEBOUWDE BLOKKEN, AANEENGESLOTEN
 // WINKELSTRATEN, RIJTJESHUIZEN & BREED STADSPLEIN ZONDER KIEREN
@@ -122,7 +123,7 @@ function createSeamlessBlockBase(minX, maxX, minZ, maxZ, sw = 1.9, innerMat = co
   }
 }
 
-function createParkTree() {
+export function createParkTree() {
   const g = new THREE.Group();
   const trunk = createOutlinedMesh(new THREE.CylinderGeometry(0.19, 0.27, 1.75, 7), parkTreeTrunkMat, 0.03);
   trunk.position.y = 0.88;
@@ -755,7 +756,7 @@ function getShopSignTexture(cfg) {
   const size = cfg.label.length > 8 ? 46 : 60;
   ctx.font = `900 ${size}px system-ui, sans-serif`;
   ctx.fillText(cfg.label, 192, 52);
-  const tex = new THREE.CanvasTexture(canvas);
+  const tex = Object.assign(new THREE.CanvasTexture(canvas), { colorSpace: THREE.SRGBColorSpace });
   tex.needsUpdate = true;
   shopSignTexCache.set(cfg.label, tex);
   return tex;
@@ -1813,11 +1814,6 @@ function buildRoadsideDiner() {
   [[-25, -9, 0xd62839], [-25, -4, 0xffd23f], [-25, 1, 0xd62839]].forEach(([lx, lz, c]) => placeTable(lx, lz, c));
   [[12, -12, 0xd62839], [16, -12, 0xffd23f]].forEach(([lx, lz, c]) => placeTable(lx, lz, c));
 
-  // ---- Kleine speeltuin ----
-  const play = createPlayground();
-  play.position.set(-25, 0.16, 6.5);
-  g.add(play);
-  collide(-25, 6.5, 2.6);
 
   // ---- Parkeervakken (twee rijen voor het restaurant) ----
   const bayW = 2.5;
@@ -1892,7 +1888,7 @@ function makeBurgerLogoTexture() {
   ctx.fillStyle = '#ffd23f';
   ctx.font = 'bold 26px system-ui, sans-serif';
   ctx.fillText('DRIVE THRU · 24/7', 218, 216);
-  const tex = new THREE.CanvasTexture(canvas);
+  const tex = Object.assign(new THREE.CanvasTexture(canvas), { colorSpace: THREE.SRGBColorSpace });
   tex.needsUpdate = true;
   return tex;
 }
@@ -1918,7 +1914,7 @@ function makeCoffeeLogoTexture() {
   ctx.textAlign = 'center';
   ctx.font = '900 30px system-ui, sans-serif';
   ctx.fillText('PINE COFFEE', 128, 200);
-  const tex = new THREE.CanvasTexture(canvas);
+  const tex = Object.assign(new THREE.CanvasTexture(canvas), { colorSpace: THREE.SRGBColorSpace });
   tex.needsUpdate = true;
   return tex;
 }
@@ -2049,33 +2045,6 @@ function createCoffeePylon() {
   return g;
 }
 
-function createPlayground() {
-  const g = new THREE.Group();
-  const deck = createOutlinedMesh(new THREE.BoxGeometry(2.0, 0.2, 2.0), dinerYellowMat, 0.025, false);
-  deck.position.y = 1.6;
-  g.add(deck);
-  [[-0.9, -0.9], [0.9, -0.9], [-0.9, 0.9], [0.9, 0.9]].forEach(([px, pz]) => {
-    const post = createOutlinedMesh(new THREE.BoxGeometry(0.16, 2.8, 0.16), dinerRedMat, 0.02, false);
-    post.position.set(px, 1.4, pz);
-    g.add(post);
-  });
-  const roof = createOutlinedMesh(new THREE.ConeGeometry(1.6, 0.9, 4), makeToonMat(0x3f78a8), 0.03, false);
-  roof.position.y = 3.2;
-  roof.rotation.y = Math.PI / 4;
-  g.add(roof);
-  const slide = createOutlinedMesh(new THREE.BoxGeometry(0.9, 0.12, 3.2), makeToonMat(0x6cc04a), 0.02, false);
-  slide.position.set(0, 0.9, 2.3);
-  slide.rotation.x = 0.55;
-  g.add(slide);
-  const ladder = createOutlinedMesh(new THREE.BoxGeometry(0.8, 1.7, 0.1), dinerRedMat, 0.015, false);
-  ladder.position.set(0, 0.85, -1.1);
-  ladder.rotation.x = -0.2;
-  g.add(ladder);
-  const sand = new THREE.Mesh(new THREE.BoxGeometry(5, 0.06, 6), makeToonMat(0xe6c284));
-  sand.position.set(0, 0.03, 0.8);
-  g.add(sand);
-  return g;
-}
 
 export const dinerNightLights = [];
 buildRoadsideDiner();
@@ -2100,10 +2069,10 @@ function buildCoffeeStop() {
   };
   const roadEdgeLZ = lot.dist - 4.6;
   const slabH = 3.2;
-  const padMinLZ = -10;
+  const padMinLZ = -8;
   const padDepth = roadEdgeLZ - padMinLZ;
-  const pad = new THREE.Mesh(new THREE.BoxGeometry(24, slabH, padDepth), storeAsphaltMat);
-  pad.position.set(0, -slabH * 0.5, padMinLZ + padDepth * 0.5);
+  const pad = new THREE.Mesh(new THREE.BoxGeometry(16, slabH, padDepth), storeAsphaltMat);
+  pad.position.set(-1, -slabH * 0.5, padMinLZ + padDepth * 0.5);
   pad.receiveShadow = true;
   g.add(pad);
 
@@ -2114,12 +2083,12 @@ function buildCoffeeStop() {
 
   // Drive-thru baan langs het zijloket, met pijlen
   const laneMat = makeToonMat(0x2f2d33, { polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
-  const lane = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.04, 17), laneMat);
-  lane.position.set(3.6, 0.02, -1.5);
+  const lane = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.04, 15), laneMat);
+  lane.position.set(3.6, 0.02, -0.5);
   g.add(lane);
   const arrowGeo = new THREE.ConeGeometry(0.55, 1.2, 3);
   arrowGeo.rotateX(-Math.PI / 2);
-  [[3.6, 4.5], [3.6, -7]].forEach(([ax, az]) => {
+  [[3.6, 4.5], [3.6, -5.5]].forEach(([ax, az]) => {
     const arrow = new THREE.Mesh(arrowGeo, storeLineMat);
     arrow.scale.y = 0.05;
     arrow.position.set(ax, 0.06, az);
@@ -2150,33 +2119,25 @@ function buildCoffeeStop() {
     scene.add(t);
     registerDestructible(t, w.x, surfaceY, w.z, 0.9, 'small', 8, 'Terrastafel');
   };
-  [[-8.5, -5, 0x2f7a4e], [-8.5, 0, 0xf6f2ea], [-8.5, 5, 0x2f7a4e]].forEach(([lx, lz, c]) => placeTable(lx, lz, c));
+  [[-7.2, -5.5, 0x2f7a4e], [-7.2, -1.5, 0xf6f2ea]].forEach(([lx, lz, c]) => placeTable(lx, lz, c));
 
   // Drie parkeervakjes
   const stripeGeo = new THREE.PlaneGeometry(0.16, 4.0);
   for (let k = 0; k <= 3; k++) {
     const stripe = new THREE.Mesh(stripeGeo, storeLineMat);
     stripe.rotation.x = -Math.PI * 0.5;
-    stripe.position.set(-6 + k * 2.5, 0.02, 5);
+    stripe.position.set(-7.5 + k * 2.5, 0.02, 4.5);
     g.add(stripe);
   }
 
   // Ronde koffiezuil aan de weg
   const coffeePylon = createCoffeePylon();
-  coffeePylon.position.set(-10, 0, roadEdgeLZ - 2.2);
+  coffeePylon.position.set(-11, 0, roadEdgeLZ - 2.2);
   coffeePylon.rotation.y = Math.PI * 0.5;
   g.add(coffeePylon);
-  collide(-10, roadEdgeLZ - 2.2, 0.8);
+  collide(-11, roadEdgeLZ - 2.2, 0.8);
 
-  // Een paar geplante boompjes rondom
-  [[-11.5, -9], [11, -9], [11, 3]].forEach(([lx, lz]) => {
-    const p = toWorld(lx, lz);
-    const tree = createParkTree();
-    tree.position.set(p.x, surfaceY, p.z);
-    scene.add(tree);
-    registerDestructible(tree, p.x, surfaceY, p.z, 0.7, 'tree', 15, 'Boom');
-    markLastPlanted();
-  });
+
 
   const p = toWorld(-2, 0);
   const glow = new THREE.PointLight(0x7fe0a0, 0, 26, 1.6);
@@ -2206,7 +2167,7 @@ function makeMarqueeTexture() {
   ctx.fillText('DRIFT KINGS', 256, 66);
   ctx.font = 'bold 24px system-ui, sans-serif';
   ctx.fillText('& PINEWOOD NIGHTS', 256, 104);
-  const tex = new THREE.CanvasTexture(canvas);
+  const tex = Object.assign(new THREE.CanvasTexture(canvas), { colorSpace: THREE.SRGBColorSpace });
   tex.needsUpdate = true;
   return tex;
 }
@@ -2225,7 +2186,7 @@ function makeBladeTexture() {
   ctx.textBaseline = 'middle';
   ctx.font = '900 62px system-ui, sans-serif';
   'CINEMA'.split('').forEach((ch, i) => ctx.fillText(ch, 48, 52 + i * 82));
-  const tex = new THREE.CanvasTexture(canvas);
+  const tex = Object.assign(new THREE.CanvasTexture(canvas), { colorSpace: THREE.SRGBColorSpace });
   tex.needsUpdate = true;
   return tex;
 }
@@ -2245,7 +2206,7 @@ function makePosterTexture(bg, fg, title) {
   ctx.textAlign = 'center';
   ctx.font = '900 20px system-ui, sans-serif';
   ctx.fillText(title, 64, 160);
-  const tex = new THREE.CanvasTexture(canvas);
+  const tex = Object.assign(new THREE.CanvasTexture(canvas), { colorSpace: THREE.SRGBColorSpace });
   tex.needsUpdate = true;
   return tex;
 }

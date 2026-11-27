@@ -560,7 +560,7 @@ export function buildSportsCarMesh(paintHex = 0xd62839, label = 'Pine Racer GT',
   nctx.textAlign = 'center';
   nctx.textBaseline = 'middle';
   nctx.fillText(String(number), 64, 70);
-  const numMat = new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(numCanvas), transparent: true, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 });
+  const numMat = new THREE.MeshBasicMaterial({ map: Object.assign(new THREE.CanvasTexture(numCanvas), { colorSpace: THREE.SRGBColorSpace }), transparent: true, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4, toneMapped: false });
   [-1, 1].forEach((side) => {
     const disc = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 0.62), numMat);
     disc.position.set(side * 1.08, 0.66, 0.1);

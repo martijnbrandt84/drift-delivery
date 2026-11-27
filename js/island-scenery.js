@@ -10,12 +10,12 @@ import { ruralLots } from './water-lots.js';
 import {
   ISLAND_CENTER, getIslandPolar, getCoastRadius, getCliffiness, MOOSE_LAKE, FOX_LAKE, LOOKOUT_HILL
 } from './landscape.js';
-import { hardColliders, destructibles, registerInstancedDestructible } from './demolition.js';
-import { houseWindows, warmWindowMat } from './town.js';
+import { hardColliders, destructibles, registerInstancedDestructible, registerDestructible, markLastPlanted } from './demolition.js';
+import { houseWindows, warmWindowMat, createParkTree } from './town.js';
 import { getTerrainHeight, getLocalSlope } from './terrain.js';
 import {
   bakedPineTrunk, pineNeedleParts, bakedPineSnow, bakedBirchSkeleton, bakedBirchSnow, crownParts, bakedRock,
-  isInsideTownFootprint, isNearAnyDriveway
+  isInsideTownFootprint, isNearAnyDriveway, createPineFast, createShrubFast
 } from './props.js';
 import { createMergedToonProp } from './scene-setup.js';
 import { createRoadSign } from './scenery.js';
@@ -479,3 +479,49 @@ branchRoads.forEach((road) => {
   signAlong(road.curve, clearDistAlong(road, 24, 1), 1, names, true);
   signAlong(road.curve, clearDistAlong(road, 24, -1), 1, names);
 });
+
+// Groen rond Pine Coffee
+{
+  const lot = ruralLots.find((l) => l.type === 'coffee');
+  if (lot) {
+    const c = Math.cos(lot.yaw);
+    const sn = Math.sin(lot.yaw);
+    const toWorld = (lx, lz) => ({ x: lot.x + lx * c + lz * sn, z: lot.z - lx * sn + lz * c });
+    // Groene omlijsting: bomen, dennen en struiken rondom (je kunt ze omrijden)
+    const greenery = [
+      // achterkant
+      [-11, -11, 'd'], [-6.5, -12, 'p'], [-2, -11.5, 'd'], [2.5, -12.5, 'p'], [7, -11, 'd'], [11, -12, 'p'],
+      [-8.5, -9.6, 's'], [0.5, -9.6, 's'], [5.5, -9.4, 's'],
+      // linkerkant (bij het terras)
+      [-12, -6, 'p'], [-12.5, -1, 'd'], [-12, 4, 'p'], [-10.4, -3.5, 's'], [-10.4, 1.5, 's'], [-10.4, 6.5, 's'],
+      // rechterkant (langs de drive-thru)
+      [9, -6, 'd'], [10.5, -1.5, 'p'], [9, 3, 'd'], [10.5, 7, 'p'], [7.2, -7.5, 's'], [7.2, 0.5, 's'], [7.4, 6, 's']
+    ];
+    greenery.forEach(([lx, lz, kind]) => {
+      const p = toWorld(lx, lz);
+      const y = getTerrainHeight(p.x, p.z);
+      let obj;
+      if (kind === 's') {
+        const sc = 0.65 + Math.random() * 0.5;
+        obj = createShrubFast(sc);
+        obj.position.set(p.x, y, p.z);
+        scene.add(obj);
+        registerDestructible(obj, p.x, y, p.z, Math.max(0.6, 0.85 * sc), 'shrub', 3, 'Struik');
+      } else if (kind === 'p') {
+        const sc = 0.75 + Math.random() * 0.35;
+        obj = createPineFast(sc);
+        obj.position.set(p.x, y, p.z);
+        obj.rotation.y = Math.random() * Math.PI * 2;
+        scene.add(obj);
+        registerDestructible(obj, p.x, y, p.z, 0.85 * sc, 'tree', 15, 'Dennenboom');
+      } else {
+        obj = createParkTree();
+        obj.position.set(p.x, y, p.z);
+        obj.scale.setScalar(1.1 + Math.random() * 0.25);
+        scene.add(obj);
+        registerDestructible(obj, p.x, y, p.z, 0.7, 'tree', 15, 'Loofboom');
+      }
+      markLastPlanted();
+    });
+  }
+}

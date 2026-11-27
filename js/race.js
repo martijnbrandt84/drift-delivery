@@ -97,7 +97,7 @@ function makeBannerTexture() {
   ctx.fillStyle = '#ffd23f';
   ctx.font = 'bold 30px system-ui, sans-serif';
   ctx.fillText(RACE_NAME.toUpperCase(), 512, 116);
-  const tex = new THREE.CanvasTexture(c);
+  const tex = Object.assign(new THREE.CanvasTexture(c), { colorSpace: THREE.SRGBColorSpace });
   tex.needsUpdate = true;
   return tex;
 }
@@ -126,7 +126,7 @@ function makeBannerTexture() {
   beam.position.y = 6.6;
   g.add(beam);
   [1, -1].forEach((side) => {
-    const face = new THREE.Mesh(new THREE.PlaneGeometry(half * 2 + 0.3, 1.45), new THREE.MeshBasicMaterial({ map: tex, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 }));
+    const face = new THREE.Mesh(new THREE.PlaneGeometry(half * 2 + 0.3, 1.45), new THREE.MeshBasicMaterial({ map: tex, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4, toneMapped: false }));
     face.position.set(0, 6.6, side * 0.2);
     if (side < 0) face.rotation.y = Math.PI;
     g.add(face);
@@ -146,7 +146,7 @@ function makeBannerTexture() {
   }
   const checker = new THREE.Mesh(
     new THREE.PlaneGeometry(MAIN_HALF_WIDTH * 2 - 0.4, 1.1),
-    new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c), polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 })
+    new THREE.MeshBasicMaterial({ map: Object.assign(new THREE.CanvasTexture(c), { colorSpace: THREE.SRGBColorSpace }), polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3, toneMapped: false })
   );
   checker.rotation.x = -Math.PI / 2;
   checker.position.y = 0.06;

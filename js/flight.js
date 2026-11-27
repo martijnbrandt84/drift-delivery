@@ -15,7 +15,8 @@ import { showToast } from './ui-controls.js';
 // Lokale assen van het vliegveld: lx dwars op de baan, lz richting de weg (+).
 // De startbaan loopt van het platform naar -lz (pal naar het westen).
 // =========================================================
-const SIGN_MAT_OPTS = { polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 };
+// Borden: echte sRGB-kleuren en geen filmische tonemapping, zodat rood rood blijft en tekst scherp is
+const SIGN_MAT_OPTS = { polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4, toneMapped: false };
 const lot = ruralLots.find((l) => l.type === 'airfield');
 
 const concreteMat = registerSeasonalMat(0xb8b4ac, 0xe8eff6);
@@ -48,7 +49,7 @@ function makeNumberTexture(text) {
   ctx.textBaseline = 'middle';
   ctx.font = '900 92px system-ui, sans-serif';
   ctx.fillText(text, 64, 68);
-  const tex = new THREE.CanvasTexture(canvas);
+  const tex = Object.assign(new THREE.CanvasTexture(canvas), { colorSpace: THREE.SRGBColorSpace });
   tex.needsUpdate = true;
   return tex;
 }

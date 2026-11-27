@@ -9,7 +9,8 @@ import { createPineFast, createShrubFast } from './props.js';
 import { getTerrainHeight } from './terrain.js';
 
 // Tekst op borden: altijd net vóór het bord tekenen (geen flikkeren/wegvallen op afstand)
-const SIGN_MAT_OPTS = { polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 };
+// Borden: echte sRGB-kleuren en geen filmische tonemapping, zodat rood rood blijft en tekst scherp is
+const SIGN_MAT_OPTS = { polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4, toneMapped: false };
 // =========================================================
 // GROENE WEGBORDEN, STEIGER, VUURTOREN, LICHTSTRAAL & RIET
 // =========================================================
@@ -41,7 +42,7 @@ function makeSignCanvasTexture(lines) {
     ctx.font = `bold ${i === 0 ? 38 : 28}px system-ui, sans-serif`;
     ctx.fillText(line, canvas.width / 2, lineHeight * (i + 1));
   });
-  const tex = new THREE.CanvasTexture(canvas);
+  const tex = Object.assign(new THREE.CanvasTexture(canvas), { colorSpace: THREE.SRGBColorSpace });
   tex.needsUpdate = true;
   return tex;
 }

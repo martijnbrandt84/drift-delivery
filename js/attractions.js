@@ -10,7 +10,8 @@ import { buildPickupTruckMesh, parkedCars } from './vehicles.js';
 import { createPineFast, createDeciduousTreeFast, createShrubFast } from './props.js';
 
 // Tekst op borden: altijd net vóór het bord tekenen (geen flikkeren/wegvallen op afstand)
-const SIGN_MAT_OPTS = { polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 };
+// Borden: echte sRGB-kleuren en geen filmische tonemapping, zodat rood rood blijft en tekst scherp is
+const SIGN_MAT_OPTS = { polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4, toneMapped: false };
 // =========================================================
 // NIEUWE PLEKKEN: STRANDCAMPING, ZAGERIJ & HERFSTKERMIS
 // Lokale assen per kavel: lx langs de weg, lz richting de weg (+). De oprit loopt over lx = 0.
@@ -501,7 +502,7 @@ function makeFairSignTexture() {
   ctx.font = 'bold 34px system-ui, sans-serif';
   ctx.fillStyle = '#ffd23f';
   ctx.fillText('★ RIDES · GAMES · FOOD ★', 512, 214);
-  const tex = new THREE.CanvasTexture(canvas);
+  const tex = Object.assign(new THREE.CanvasTexture(canvas), { colorSpace: THREE.SRGBColorSpace });
   tex.anisotropy = 4;
   tex.needsUpdate = true;
   return tex;
@@ -519,7 +520,7 @@ function makeStandSignTexture(text, bg, fg) {
   ctx.textBaseline = 'middle';
   ctx.font = '900 38px system-ui, sans-serif';
   ctx.fillText(text, 128, 34);
-  const tex = new THREE.CanvasTexture(canvas);
+  const tex = Object.assign(new THREE.CanvasTexture(canvas), { colorSpace: THREE.SRGBColorSpace });
   tex.needsUpdate = true;
   return tex;
 }
