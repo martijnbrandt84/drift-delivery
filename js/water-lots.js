@@ -66,8 +66,8 @@ export const ruralLots = [
     dist: 31.0,
     type: 'store',
     yawOff: 0,
-    // Brede geasfalteerde inrit van de weg tot aan de rand van de parkeerplaats (lz = 19.6)
-    drivewayStopShort: 19.0,
+    // Brede geasfalteerde inrit van de weg tot aan de rand van de parkeerplaats (lz = 23.1)
+    drivewayStopShort: 22.6,
     flatElevOffset: -0.06,
     flatBox: { minLX: -19.5, maxLX: 37.5, minLZ: -14.0, maxLZ: 26.0, blend: 12.0 }
   },

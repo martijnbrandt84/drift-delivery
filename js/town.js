@@ -1619,8 +1619,15 @@ function buildGeneralStore() {
   complexGroup.rotation.y = yaw;
   scene.add(complexGroup);
 
-  const pad = tagMap(new THREE.Mesh(new THREE.BoxGeometry(33.6, slabDepthH, 19.6), storeAsphaltMat), 'paved');
-  pad.position.set(0, -slabDepthH * 0.5, 9.8);
+  const PARK_Z1 = 23.1; // voorrand van de parkeerplaats (drie rijen)
+  const pad = tagMap(new THREE.Mesh(new THREE.BoxGeometry(33.6, slabDepthH, PARK_Z1), storeAsphaltMat), 'paved');
+  pad.position.set(0, -slabDepthH * 0.5, PARK_Z1 / 2);
+  // Stenen keermuurtje langs de linkervoorhoek: daar loopt de grond af naar de beek
+  [[-16.95, 20.0, 0.3, 6.5], [-12.0, 23.25, 10.2, 0.3]].forEach(([kx, kz, kw, kd]) => {
+    const kw2 = createOutlinedMesh(new THREE.BoxGeometry(kw, 1.9, kd), stoneMat, 0.03, false, true);
+    kw2.position.set(kx, -0.66, kz);
+    complexGroup.add(kw2);
+  });
   pad.receiveShadow = true;
   complexGroup.add(pad);
 
@@ -1701,7 +1708,7 @@ function buildGeneralStore() {
   });
   // De zuil staat buiten de geschaalde groep, net naast de inrit aan de rand van de parkeerplaats
   {
-    const pp = rotateLocal(-9.5, 21.0, yaw);
+    const pp = rotateLocal(-19.0, 21.5, yaw);
     pylon.position.set(baseX + pp.x, surfaceY, baseZ + pp.z);
     pylon.rotation.y = yaw;
     scene.add(pylon);
@@ -1709,7 +1716,7 @@ function buildGeneralStore() {
   }
 
   // Losse winkelwagentjes op de parkeerplaats (omrijdbaar)
-  [[-5.5, 7.0, 0.4], [7.4, 6.4, 2.2], [-12.5, 7.4, -1.0]].forEach(([lx, lz, rot]) => {
+  [[-5.5, 6.8, 0.4], [7.4, 6.2, 2.2], [-12.5, 19.4, -1.0]].forEach(([lx, lz, rot]) => {
     const lp = rl(lx, lz, yaw);
     const cart = createShoppingCart();
     const wx = baseX + lp.x;
@@ -1727,8 +1734,8 @@ function buildGeneralStore() {
 
   // ---- Uitbreiding rechts: bouwmarkt met tuincentrum, een café en een tweede parkeervak ----
   {
-    const extPad = tagMap(new THREE.Mesh(new THREE.BoxGeometry(19.8, slabDepthH, 19.6), storeAsphaltMat), 'paved');
-    extPad.position.set(26.5, -slabDepthH * 0.5, 9.8);
+    const extPad = tagMap(new THREE.Mesh(new THREE.BoxGeometry(19.8, slabDepthH, PARK_Z1), storeAsphaltMat), 'paved');
+    extPad.position.set(26.5, -slabDepthH * 0.5, PARK_Z1 / 2);
     extPad.receiveShadow = true;
     complexGroup.add(extPad);
     const extProm = createOutlinedMesh(new THREE.BoxGeometry(19.8, slabDepthH + 0.16, 2.3), sidewalkMat, 0.042, false, true);
@@ -1806,7 +1813,7 @@ function buildGeneralStore() {
   });
 
   const bayWidth = 2.35;
-  const bayDepth = 3.8;
+  const bayDepth = 3.7;
   const stripeGeo = new THREE.PlaneGeometry(0.16, bayDepth);
   const stopGeo = new THREE.BoxGeometry(1.55, 0.1, 0.22);
 
@@ -1831,36 +1838,54 @@ function buildGeneralStore() {
     });
   }
 
-  // Twee rijen op één raster (de lijnen lopen door), met één ruim rijpad ertussen (z 4,1 .. 9,7).
-  // Voorste rij met de neus naar de groenstrook; in het midden de inrit en het looppad naar de ingang.
+  // Drie rijen op één raster (de lijnen lopen door):
+  //   rij A  z 0,2..3,9   neus naar de mall          rijpad 1  z 3,9..9,1
+  //   rij B  z 9,1..12,8  neus naar de weg  ┐ rug aan rug
+  //   rij C  z 12,8..16,5 neus naar de mall ┘        rijpad 2  z 16,5..21,7 (hier komt de inrit op uit)
+  // In het midden een doorsteek tussen de twee rijpaden en het looppad naar de ingang.
   const gridMain = [-13.2, -10.85, -8.5, -6.15, -3.8, 3.8, 6.15, 8.5, 10.85, 13.2];
   const gridExt = [19.6, 21.95, 24.3, 26.65, 29.0, 31.35, 33.7];
-  addParkingRow(gridMain, 11.6, 1.5);
-  addParkingRow(gridMain, 2.2, -1.5);
-  addParkingRow(gridExt, 11.6, 1.5);
-  addParkingRow(gridExt, 2.2, -1.5);
-  // Zebrapad over het rijpad, van de inrit naar de ingang van de mall
+  [gridMain, gridExt].forEach((grid) => {
+    addParkingRow(grid, 2.05, -1.5);
+    addParkingRow(grid, 10.95, 1.5);
+    addParkingRow(grid, 14.65, -1.5);
+  });
+  // Middenlijn tussen de rug-aan-rugrijen
+  [[-8.5, 11.8], [8.5, 11.8], [26.65, 16.5]].forEach(([mx, mw]) => {
+    const ml = new THREE.Mesh(new THREE.PlaneGeometry(mw, 0.14), storeLineMat);
+    ml.rotation.x = -Math.PI * 0.5;
+    ml.position.set(mx, 0.016, 12.8);
+    complexGroup.add(ml);
+  });
+  // Zebrapad over rijpad 1 naar de ingang van de mall
   for (let k = 0; k < 6; k++) {
     const bar = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 0.5), storeLineMat);
     bar.rotation.x = -Math.PI * 0.5;
-    bar.position.set(0, 0.016, 4.6 + k * 0.95);
+    bar.position.set(0, 0.016, 4.35 + k * 0.95);
     complexGroup.add(bar);
   }
 
-  // Plantenstroken rondom de parkeerplaats. De lange stroken stoppen precies waar de voorstroken beginnen,
-  // zodat de hoeken netjes als een L aansluiten. Opening voor de inrit (midden) en een doorgang naar de bouwmarkt.
-  const STRIP = 1.4;
-  const FRONT_Z0 = 13.9; // brede groenstrook voor de parkeerplaats: van 13,9 tot 19,6 (geen loze strook asfalt meer)
+  // Plantenstroken rondom de parkeerplaats (smal, met een lage haag die openvalt bij bomen en lantaarns)
+  const FRONT_Z0 = 21.7; // voorstrook loopt van 21,7 tot 23,1
   const planterStrips = [
     // [x0, x1, z0, z1]
     [-16.7, -15.3, 0, FRONT_Z0],       // linkerrand
-    [-16.7, -5.9, FRONT_Z0, 19.6],     // voor links (tot de inrit)
-    [5.9, 16.7, FRONT_Z0, 19.6],       // voor rechts (vanaf de inrit)
-    [15.3, 16.7, 0, 5.2],              // middenstrook (deel 1)
-    [15.3, 16.7, 12.9, FRONT_Z0],      // middenstrook (deel 2) — daartussen de doorgang
-    [16.7, 36.4, FRONT_Z0, 19.6],      // voor bouwmarkt-vak
+    [-16.7, -5.9, FRONT_Z0, PARK_Z1],  // voor links (tot de inrit)
+    [5.9, 16.7, FRONT_Z0, PARK_Z1],    // voor rechts (vanaf de inrit)
+    [15.3, 16.7, 0, 3.9],              // middenstrook naast rij A
+    [15.3, 16.7, 9.1, 16.5],           // middenstrook naast rij B/C (de rijpaden lopen door naar de bouwmarkt)
+    [16.7, 36.4, FRONT_Z0, PARK_Z1],   // voor bouwmarkt-vak
     [35.0, 36.4, 0, FRONT_Z0]          // rechterrand
   ];
+  // Bomen en lantaarns op de stroken, op vaste plekken in de lengte
+  const treeSpots = [
+    [-16.0, 1.6], [-16.0, 11.0], [-16.0, 19.0],
+    [-13.0, 22.4], [-8.6, 22.4], [8.6, 22.4], [13.0, 22.4],
+    [16.0, 12.8],
+    [20.4, 22.4], [25.9, 22.4], [31.4, 22.4],
+    [35.7, 1.6], [35.7, 11.0], [35.7, 19.0]
+  ];
+  const lampSpots = [[-16.0, 6.5], [-16.0, 15.0], [16.0, 1.9], [16.0, 9.8], [35.7, 6.5], [35.7, 15.0]];
   const hedgeMat = registerSeasonalMat(0x3f6e3c, 0xe8eff4);
   planterStrips.forEach(([x0, x1, z0, z1]) => {
     const w = x1 - x0;
@@ -1873,22 +1898,27 @@ function buildGeneralStore() {
     const grass = new THREE.Mesh(new THREE.BoxGeometry(w - 0.24, 0.06, d - 0.24), blockLawnMat);
     grass.position.set(cx, 0.28, cz);
     complexGroup.add(grass);
-    // Lage haag in het midden van de strook (0,7 m breed), doorlopend tot de hoek
+    // Lage haag over het midden van de strook, met een opening rond elke boom en lantaarn
     const along = w > d;
-    const hedge = createOutlinedMesh(new THREE.BoxGeometry(along ? w - 0.3 : 0.7, 0.5, along ? 0.7 : d - 0.3), hedgeMat, 0.025, false);
-    // brede voorstroken: haag aan de wegkant, ruimte voor bomen aan de parkeerkant
-    hedge.position.set(cx, 0.55, d > 3 ? z1 - 0.75 : cz);
-    complexGroup.add(hedge);
+    const a0 = (along ? x0 : z0) + 0.3;
+    const a1 = (along ? x1 : z1) - 0.3;
+    const gaps = [...treeSpots, ...lampSpots]
+      .filter(([px, pz]) => px >= x0 && px <= x1 && pz >= z0 && pz <= z1)
+      .map(([px, pz]) => (along ? px : pz))
+      .sort((p, q) => p - q);
+    let from = a0;
+    [...gaps, null].forEach((gp) => {
+      const to = gp == null ? a1 : gp - 1.0;
+      if (to - from > 0.6) {
+        const len = to - from;
+        const mid = (from + to) / 2;
+        const hedge = createOutlinedMesh(new THREE.BoxGeometry(along ? len : 0.7, 0.5, along ? 0.7 : len), hedgeMat, 0.025, false);
+        hedge.position.set(along ? mid : cx, 0.55, along ? cz : mid);
+        complexGroup.add(hedge);
+      }
+      if (gp != null) from = gp + 1.0;
+    });
   });
-  // Bomen: overal dezelfde regelmaat (~5,5 m), niet op de plek van een lantaarn
-  const treeSpots = [
-    [-16.0, 1.6], [-16.0, 9.6], [-16.0, 17.0],
-    [-12.6, 16.2], [-8.4, 16.6],
-    [8.6, 16.3], [12.8, 16.7],
-    [16.0, 1.6], [16.0, 17.0],
-    [20.6, 16.4], [24.6, 16.8], [28.4, 16.2], [32.2, 16.6],
-    [35.7, 1.6], [35.7, 9.6], [35.7, 17.0]
-  ];
   treeSpots.forEach(([tx, tz]) => {
     const wp = rl(tx, tz, yaw);
     const tree = createParkTree();
@@ -1899,8 +1929,8 @@ function buildGeneralStore() {
     registerDestructible(tree, baseX + wp.x, ty, baseZ + wp.z, 0.7, 'tree', 15, 'Parking lot tree');
     markLastPlanted();
   });
-  // Lantaarns: op alle drie de lange stroken op dezelfde hoogtes (z = 4,3 en 14,5)
-  [[-16.0, 4.3], [-16.0, 14.5], [16.0, 4.3], [16.0, 14.5], [35.7, 4.3], [35.7, 14.5]].forEach(([lx, lz]) => {
+  // Lantaarns op de lange stroken (in de openingen van de haag)
+  lampSpots.forEach(([lx, lz]) => {
     const wp = rl(lx, lz, yaw);
     createSmashableStreetLampAt(baseX + wp.x, surfaceY + 0.3, baseZ + wp.z);
   });
