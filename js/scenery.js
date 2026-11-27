@@ -52,6 +52,21 @@ const signPostMat = makeToonMat(0x3a3f33);
 const signBackingMat = makeToonMat(0x1f6b3a);
 
 export function createRoadSign(x, z, baseY, yaw, lines) {
+  // Staat het bord te dicht bij (of op) de weg, schuif het dan de berm in
+  {
+    const rs = getClosestNetworkRoad(x, z);
+    if (rs.sample && rs.marginDist < 1.8) {
+      let dx = x - rs.sample.x;
+      let dz = z - rs.sample.z;
+      const l = Math.hypot(dx, dz) || 1;
+      dx /= l;
+      dz /= l;
+      const shift = 1.8 - rs.marginDist;
+      x += dx * shift;
+      z += dz * shift;
+      baseY = Math.max(baseY, getTerrainHeight(x, z));
+    }
+  }
   const g = new THREE.Group();
   const tex = makeSignCanvasTexture(lines);
   const panelW = 2.0;

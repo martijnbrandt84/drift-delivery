@@ -711,14 +711,14 @@ const dinerLot = ruralLots.find((l) => l.type === 'diner');
 if (dinerLot) {
   const c = Math.cos(dinerLot.yaw);
   const s = Math.sin(dinerLot.yaw);
-  [[-8.75, 3.6, buildYellowTaxiMesh()], [1.25, 11.6, buildPickupTruckMesh(0xc94a38, 'Rode Diner Pickup')]].forEach(([lx, lz, veh]) => {
+  [[-7.75, 3.6, buildYellowTaxiMesh()], [-10.25, 11.6, buildPickupTruckMesh(0xc94a38, 'Rode Diner Pickup')]].forEach(([lx, lz, veh]) => {
     veh.root.position.set(dinerLot.x + lx * c + lz * s, dinerLot.roadY + 0.08, dinerLot.z - lx * s + lz * c);
     veh.root.rotation.y = dinerLot.yaw + Math.PI;
     scene.add(veh.root);
     parkedCars.push(veh);
   });
   const racer = buildSportsCarMesh(0xd62839, 'Pine Racer GT', 7);
-  const rlx = -3.75;
+  const rlx = -5.25;
   const rlz = 11.6;
   racer.root.position.set(dinerLot.x + rlx * c + rlz * s, dinerLot.roadY + 0.08, dinerLot.z - rlx * s + rlz * c);
   racer.root.rotation.y = dinerLot.yaw;

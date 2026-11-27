@@ -1984,170 +1984,64 @@ function buildRoadsideDiner() {
   g.add(speaker);
 
 
-  // ---- Modern fastfood-terras tegen de zijgevel: lichte tegels, glazen windschermen,
-  //      plantenbakken met siergras, tafeltjes met rode/gele kuipstoeltjes en lichtslingers ----
+  // ---- Eenvoudig terras tegen de zijgevel: tegelvloer, tafeltjes met parasols, haagje en één lichtslinger ----
   {
     const x0 = -24.0;
     const x1 = -14.7;
     const z0 = -12.4;
     const z1 = 2.4;
-    const cx = (x0 + x1) * 0.5;
-    const cz = (z0 + z1) * 0.5;
-    const tw = x1 - x0;
-    const td = z1 - z0;
-    const floor = createOutlinedMesh(new THREE.BoxGeometry(tw, 0.16, td), makeToonMat(0xd2cdc4), 0.02, false, true);
-    floor.position.set(cx, 0.08, cz);
+    const floor = createOutlinedMesh(new THREE.BoxGeometry(x1 - x0, 0.16, z1 - z0), makeToonMat(0xe2d6c2), 0.02, false, true);
+    floor.position.set((x0 + x1) * 0.5, 0.08, (z0 + z1) * 0.5);
     g.add(floor);
-    const groutMat = makeToonMat(0xb3ada3);
-    for (let x = x0 + 1.55; x < x1 - 0.2; x += 1.55) {
-      const line = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.01, td - 0.1), groutMat);
-      line.position.set(x, 0.165, cz);
-      g.add(line);
-    }
-    for (let z = z0 + 1.55; z < z1 - 0.2; z += 1.55) {
-      const line = new THREE.Mesh(new THREE.BoxGeometry(tw - 0.1, 0.01, 0.05), groutMat);
-      line.position.set(cx, 0.165, z);
-      g.add(line);
-    }
-
-    // Glazen windschermen in een donker frame: achter, buitenkant en voorkant (met ingang bij de gevel)
-    const frameMat = makeToonMat(0x2f3638);
-    const glassMat = new THREE.MeshBasicMaterial({ color: 0xcfeaf3, transparent: true, opacity: 0.35, depthWrite: false });
-    const screen = (ax, az, bx, bz) => {
-      const len = Math.hypot(bx - ax, bz - az);
-      const ang = Math.atan2(bx - ax, bz - az);
-      const mx = (ax + bx) * 0.5;
-      const mz = (az + bz) * 0.5;
-      const glass = new THREE.Mesh(new THREE.BoxGeometry(0.06, 1.0, len), glassMat);
-      glass.position.set(mx, 0.75, mz);
-      glass.rotation.y = ang;
-      g.add(glass);
-      const top = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.08, len), frameMat);
-      top.position.set(mx, 1.27, mz);
-      top.rotation.y = ang;
-      g.add(top);
-      const n = Math.max(1, Math.round(len / 1.8));
-      for (let k = 0; k <= n; k++) {
-        const px = ax + ((bx - ax) * k) / n;
-        const pz = az + ((bz - az) * k) / n;
-        const post = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.15, 0.1), frameMat);
-        post.position.set(px, 0.72, pz);
-        g.add(post);
-        collide(px, pz, 0.35);
-      }
-    };
-    screen(x0, z0, x1 - 0.2, z0);   // achterkant (langs de drive-thru)
-    screen(x0, z0, x0, z1);         // buitenkant (langs de drive-thru)
-    screen(x0, z1, x1 - 3.4, z1);   // voorkant, met een ingang van 3 m bij de gevel
-
-    // Strakke plantenbakken met siergras en struikjes, en een boompje op de hoek
-    const planterMat = makeToonMat(0x5a5f66);
-    const grassMats = [makeToonMat(0x9ab04a), makeToonMat(0x7a9a3c), makeToonMat(0xb8b060)];
-    const planter = (px, pz, w, d) => {
-      const box = createOutlinedMesh(new THREE.BoxGeometry(w, 0.55, d), planterMat, 0.025, false);
-      box.position.set(px, 0.43, pz);
-      g.add(box);
-      const soil = new THREE.Mesh(new THREE.BoxGeometry(w - 0.16, 0.04, d - 0.16), makeToonMat(0x4a3424));
-      soil.position.set(px, 0.71, pz);
-      g.add(soil);
-      const n = Math.max(2, Math.round(Math.max(w, d) / 0.6));
-      for (let k = 0; k < n; k++) {
-        const f = (k + 0.5) / n;
-        const gx = w > d ? px - w / 2 + f * w : px;
-        const gz = w > d ? pz : pz - d / 2 + f * d;
-        if (k % 3 === 1) {
-          const bush = createOutlinedMesh(new THREE.IcosahedronGeometry(0.32, 1), makeToonMat(0x4f8a3c), 0.02, false);
-          bush.position.set(gx, 0.95, gz);
-          g.add(bush);
-        } else {
-          for (let b2 = 0; b2 < 5; b2++) {
-            const blade = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.75, 3), grassMats[(k + b2) % 3]);
-            blade.position.set(gx + (b2 - 2) * 0.06, 1.05, gz + ((b2 % 2) - 0.5) * 0.08);
-            blade.rotation.set(((b2 % 2) - 0.5) * 0.5, 0, (b2 - 2) * 0.18);
-            g.add(blade);
-          }
-        }
-      }
-    };
-    planter(x0 + 0.5, cz, 0.7, td - 3.2);           // langs het buitenscherm
-    planter(cx - 1.2, z0 + 0.5, tw - 4.2, 0.7);     // langs het achterscherm
-    planter(x0 + 2.4, z1 - 0.5, 2.6, 0.7);          // naast de ingang
-    {
-      const tree = createParkTree();
-      const w = toWorld(x0 + 0.9, z1 - 0.9);
-      tree.position.set(w.x, surfaceY + 0.16, w.z);
-      tree.scale.setScalar(0.95);
-      scene.add(tree);
-      registerDestructible(tree, w.x, surfaceY + 0.16, w.z, 0.6, 'tree', 15, 'Terrasboom');
-      markLastPlanted();
-    }
-
-    // Tafeltjes met kuipstoeltjes (los, omrijdbaar)
-    const tableTop = makeToonMat(0xf4f1ea);
-    const chairMats = [makeToonMat(0xd62839), makeToonMat(0xf4b41a)];
-    const placeModernTable = (lx, lz, k) => {
+    // Lage haag langs de buitenkant (tegen de drive-thru), met een opening aan de voorkant
+    const hedgeMat = registerSeasonalMat(0x3f6e3c, 0xe8eff4);
+    const hedge = createOutlinedMesh(new THREE.BoxGeometry(0.7, 0.8, z1 - z0 - 0.4), hedgeMat, 0.025, false);
+    hedge.position.set(x0 + 0.45, 0.56, (z0 + z1) * 0.5);
+    g.add(hedge);
+    const hedgeBack = createOutlinedMesh(new THREE.BoxGeometry(x1 - x0 - 1.0, 0.8, 0.7), hedgeMat, 0.025, false);
+    hedgeBack.position.set((x0 + x1) * 0.5 + 0.3, 0.56, z0 + 0.45);
+    g.add(hedgeBack);
+    for (let z = z0 + 0.5; z <= z1 - 0.4; z += 2.0) collide(x0 + 0.45, z, 0.5);
+    for (let x = x0 + 1.5; x <= x1 - 0.6; x += 2.0) collide(x, z0 + 0.45, 0.5);
+    // Tafeltjes met parasols (los, omrijdbaar)
+    const placeTable = (lx, lz, hex) => {
       const t = new THREE.Group();
-      const top = createOutlinedMesh(new THREE.BoxGeometry(0.95, 0.06, 0.95), tableTop, 0.015, false);
-      top.position.y = 0.76;
+      const top = createOutlinedMesh(new THREE.CylinderGeometry(0.6, 0.6, 0.08, 12), makeToonMat(0xf6f2ea), 0.015, false);
+      top.position.y = 0.78;
       t.add(top);
-      const ped = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.72, 6), frameMat);
-      ped.position.y = 0.38;
-      t.add(ped);
-      const foot = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.04, 10), frameMat);
-      foot.position.y = 0.02;
-      t.add(foot);
-      [[0, 0.8, 0], [0, -0.8, Math.PI], [0.8, 0, -Math.PI / 2], [-0.8, 0, Math.PI / 2]].forEach(([sx, sz, rot], ci) => {
-        const chair = new THREE.Group();
-        const seat = createOutlinedMesh(new THREE.BoxGeometry(0.46, 0.07, 0.44), chairMats[(k + ci) % 2], 0.012, false);
-        seat.position.y = 0.46;
-        chair.add(seat);
-        const back = createOutlinedMesh(new THREE.BoxGeometry(0.46, 0.42, 0.06), chairMats[(k + ci) % 2], 0.012, false);
-        back.position.set(0, 0.7, 0.21);
-        back.rotation.x = 0.12;
-        chair.add(back);
-        const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.44, 5), frameMat);
-        leg.position.y = 0.22;
-        chair.add(leg);
-        chair.position.set(sx, 0, sz);
-        chair.rotation.y = rot;
-        t.add(chair);
+      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 2.4, 6), streetPostMat);
+      leg.position.y = 1.2;
+      t.add(leg);
+      const umb = createOutlinedMesh(new THREE.ConeGeometry(1.4, 0.55, 8), makeToonMat(hex), 0.025, false);
+      umb.position.y = 2.45;
+      t.add(umb);
+      [-0.85, 0.85].forEach((sx) => {
+        const stool = createOutlinedMesh(new THREE.CylinderGeometry(0.22, 0.22, 0.45, 8), makeToonMat(hex), 0.015, false);
+        stool.position.set(sx, 0.23, 0);
+        t.add(stool);
       });
       const w = toWorld(lx, lz);
       t.position.set(w.x, surfaceY + 0.16, w.z);
       t.rotation.y = yaw;
       scene.add(t);
-      registerDestructible(t, w.x, surfaceY + 0.16, w.z, 1.0, 'small', 8, 'Terrastafel');
+      registerDestructible(t, w.x, surfaceY + 0.16, w.z, 0.9, 'small', 8, 'Terrastafel');
     };
-    [[-21.0, -9.2], [-17.4, -9.2], [-21.0, -5.0], [-17.4, -5.0], [-21.0, -0.8], [-17.4, -0.8]]
-      .forEach(([lx, lz], k) => placeModernTable(lx, lz, k));
-
-    // Twee grote vierkante rode parasols
-    [[-19.2, -7.1], [-19.2, -2.9]].forEach(([px, pz]) => {
-      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 2.7, 6), frameMat);
-      pole.position.set(px, 1.5, pz);
+    [[-20.8, -8.6, 0xd62839], [-17.4, -8.6, 0xffd23f], [-20.8, -4.0, 0xffd23f], [-17.4, -4.0, 0xd62839], [-20.8, 0.4, 0xd62839], [-17.4, 0.4, 0xffd23f]]
+      .forEach(([lx, lz, c]) => placeTable(lx, lz, c));
+    // Eén lichtslinger in de lengte van het terras
+    const bulbMat = new THREE.MeshBasicMaterial({ color: 0xffe08a });
+    const bulbGeo = new THREE.SphereGeometry(0.09, 6, 5);
+    [z0 + 1.0, z1 - 0.6].forEach((pz) => {
+      const pole = createOutlinedMesh(new THREE.CylinderGeometry(0.06, 0.07, 3.6, 6), makeToonMat(0x3a3a3a), 0.015, false);
+      pole.position.set(x0 + 1.2, 1.9, pz);
       g.add(pole);
-      const canopy = createOutlinedMesh(new THREE.ConeGeometry(2.0, 0.5, 4), dinerRedMat, 0.025, false);
-      canopy.rotation.y = Math.PI / 4;
-      canopy.position.set(px, 2.95, pz);
-      g.add(canopy);
-      collide(px, pz, 0.2);
     });
-
-    // Lichtslingers: van de zijgevel naar slanke palen langs het buitenscherm
-    const bulbMats = [new THREE.MeshBasicMaterial({ color: 0xffe08a }), new THREE.MeshBasicMaterial({ color: 0xfff4d0 })];
-    const bulbGeo = new THREE.SphereGeometry(0.08, 6, 5);
-    [-10.6, -6.0, -1.4].forEach((sz) => {
-      const pole = createOutlinedMesh(new THREE.CylinderGeometry(0.05, 0.06, 3.4, 6), frameMat, 0.015, false);
-      pole.position.set(x0 + 0.15, 1.85, sz);
-      g.add(pole);
-      const n = 11;
-      for (let k = 0; k <= n; k++) {
-        const f = k / n;
-        const bulb = new THREE.Mesh(bulbGeo, bulbMats[k % 2]);
-        bulb.position.set(THREE.MathUtils.lerp(x0 + 0.15, x1, f), 3.5 - Math.sin(f * Math.PI) * 0.5, sz);
-        g.add(bulb);
-      }
-    });
+    for (let k = 0; k <= 14; k++) {
+      const f = k / 14;
+      const bulb = new THREE.Mesh(bulbGeo, bulbMat);
+      bulb.position.set(x0 + 1.2, 3.6 - Math.sin(f * Math.PI) * 0.6, THREE.MathUtils.lerp(z0 + 1.0, z1 - 0.6, f));
+      g.add(bulb);
+    }
   }
 
   // ---- Parkeervakken (twee rijen voor het restaurant) ----
@@ -2155,14 +2049,15 @@ function buildRoadsideDiner() {
   const bayD = 4.0;
   const stripeGeo = new THREE.PlaneGeometry(0.16, bayD);
   const stopGeo = new THREE.BoxGeometry(1.55, 0.1, 0.22);
+  // Parkeervakken links van de inrit; de inrit en de weg naar de drive-thru blijven vrij
   [3.6, 11.6].forEach((rowZ) => {
-    for (let k = 0; k <= 7; k++) {
-      const lx = -15 + k * bayW;
+    for (let k = 0; k <= 5; k++) {
+      const lx = -16.5 + k * bayW;
       const stripe = new THREE.Mesh(stripeGeo, storeLineMat);
       stripe.rotation.x = -Math.PI * 0.5;
       stripe.position.set(lx, 0.02, rowZ);
       g.add(stripe);
-      if (k < 7) {
+      if (k < 5) {
         const stop = new THREE.Mesh(stopGeo, wheelStopMat);
         stop.position.set(lx + bayW * 0.5, 0.05, rowZ - bayD * 0.5 + 0.35);
         g.add(stop);
@@ -2173,16 +2068,16 @@ function buildRoadsideDiner() {
   // ---- Reclamezuilen aan de weg ----
   const pylon = createDinerPylon();
   pylon.scale.setScalar(1.25);
-  pylon.position.set(-27, 0, roadEdgeLZ - 3.6);
+  pylon.position.set(-25.5, 0, roadEdgeLZ - 7.0);
   pylon.rotation.y = Math.PI * 0.5;
   g.add(pylon);
-  collide(-27, roadEdgeLZ - 3.6, 2.3);
+  collide(-25.5, roadEdgeLZ - 7.0, 2.3);
 
   g.updateMatrixWorld(true);
   addRoofStringLights(restaurant, restaurant.userData.lightSpecs.width, restaurant.userData.lightSpecs.yPos, restaurant.userData.lightSpecs.zFront);
 
   // Nachtgloed van de borden
-  [toWorld(-27, roadEdgeLZ - 3.6), toWorld(-6, 0)].forEach((p, i) => {
+  [toWorld(-25.5, roadEdgeLZ - 7.0), toWorld(-6, 0)].forEach((p, i) => {
     const glow = new THREE.PointLight(0xff6a4a, 0, 30, 1.6);
     glow.position.set(p.x, surfaceY + (i === 0 ? 9 : 4.5), p.z);
     scene.add(glow);

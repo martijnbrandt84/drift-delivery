@@ -222,7 +222,7 @@ function buildAirfield() {
     const lx2 = dx * c - dz * s;
     const lz2 = dx * s + dz * c;
     const fb = o.flatBox;
-    return lx2 > fb.minLX - 5 && lx2 < fb.maxLX + 5 && lz2 > fb.minLZ - 5 && lz2 < fb.maxLZ + 8;
+    return lx2 > fb.minLX + 2 && lx2 < fb.maxLX - 2 && lz2 > fb.minLZ + 2 && lz2 < fb.maxLZ;
   });
   const plant = (lx, lz, kind) => {
     const w = toWorld(lx, lz);

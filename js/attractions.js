@@ -188,9 +188,7 @@ function buildCamping(lot) {
   const fb = lot.flatBox;
   const FZ = -4; // kampvuur in het midden van het terrein
 
-  const ground = tagMap(createOutlinedMesh(new THREE.BoxGeometry(26, 0.3, 22), gravelMat, 0.03, false, true), 'yard');
-  ground.position.set(0, 0.05, -2.5);
-  g.add(ground);
+  // Geen ondergrond: kamperen gebeurt gewoon in het gras, tussen de bomen
 
   // Blokhut als receptie bij de ingang
   const cabin = createLogCabin();

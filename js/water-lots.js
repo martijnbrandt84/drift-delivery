@@ -52,8 +52,8 @@ export const ruralLots = [
   // Politiebureau (Sheriff's Office) tussen het dorp en het vliegveld
   {
     netSamples: valleySamples, u: 0.36, outward: true, dist: 19.0, type: 'police', yawOff: 0,
-    drivewayStopShort: 8.5, flatElevOffset: -0.12,
-    flatBox: { minLX: -14, maxLX: 14, minLZ: -14, maxLZ: 11.5, blend: 10 }
+    drivewayStopShort: 8.9, flatElevOffset: -0.12,
+    flatBox: { minLX: -14.5, maxLX: 14.5, minLZ: -13, maxLZ: 12, blend: 10 }
   },
 
   // Supermarkt & Pinewood Mall op het vlakke noordoostelijke stuk van de meerweg (u=0.055, vlakke weg!).
@@ -66,7 +66,7 @@ export const ruralLots = [
     type: 'store',
     yawOff: 0,
     // Brede geasfalteerde inrit van de weg tot aan de rand van de parkeerplaats (lz = 19.6)
-    drivewayStopShort: 19.4,
+    drivewayStopShort: 19.0,
     flatElevOffset: -0.06,
     flatBox: { minLX: -19.5, maxLX: 37.5, minLZ: -14.0, maxLZ: 26.0, blend: 12.0 }
   },
@@ -101,7 +101,7 @@ export const ruralLots = [
     outward: false,
     dist: 22.0,
     type: 'diner',
-    drivewayStopShort: 14.6,
+    drivewayStopShort: 14.0,
     yawOff: 0,
     flatElevOffset: -0.06,
     flatBox: { minLX: -32, maxLX: 12.5, minLZ: -19, maxLZ: 18.5, blend: 12 }
@@ -116,7 +116,7 @@ export const ruralLots = [
     type: 'cinema',
     name: 'PINEWOOD CINEMA',
     yawOff: 0,
-    drivewayStopShort: 16.5,
+    drivewayStopShort: 14.4,
     flatElevOffset: -0.05,
     flatBox: { minLX: -15, maxLX: 15, minLZ: -14, maxLZ: 16, blend: 12 }
   },
@@ -130,7 +130,7 @@ export const ruralLots = [
     type: 'coffee',
     name: 'PINE COFFEE',
     yawOff: 0,
-    drivewayStopShort: 8.0,
+    drivewayStopShort: 7.4,
     flatElevOffset: -0.1,
     flatBox: { minLX: -13, maxLX: 12, minLZ: -11, maxLZ: 11, blend: 12 }
   },
@@ -252,7 +252,7 @@ ruralLots.forEach((lot) => {
       x2: rs.x + rs.nx * side * (lot.dist - (lot.drivewayStopShort ?? 0)),
       y2: lot.y,
       z2: rs.z + rs.nz * side * (lot.dist - (lot.drivewayStopShort ?? 0)),
-      halfWidth: lot.type === 'farm' ? 3.2 : lot.type === 'store' ? 4.4 : lot.type === 'cinema' ? 3.4 : lot.type === 'villa' ? 2.8 : 2.5,
+      halfWidth: lot.type === 'farm' ? 3.2 : lot.type === 'store' ? 4.4 : ['cinema', 'diner', 'coffee', 'police'].includes(lot.type) ? 3.4 : lot.type === 'villa' ? 2.8 : 2.5,
       asphalt: lot.type === 'store' || lot.type === 'cinema' || lot.type === 'airfield' || lot.type === 'coffee' || lot.type === 'police' || lot.type === 'diner'
     });
   }

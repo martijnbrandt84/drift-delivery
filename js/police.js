@@ -11,6 +11,9 @@ import { houseWindows, warmWindowMat } from './town.js';
 import { createRoadSign } from './scenery.js';
 import { tagMap } from './map-tags.js';
 import { setVehicleLights } from './vehicles.js';
+import { createPineFast, createDeciduousTreeFast, createShrubFast } from './props.js';
+import { registerDestructible, markLastPlanted } from './demolition.js';
+import { getTerrainHeight } from './terrain.js';
 
 // =========================================================
 // POLITIEBUREAU + 4 ECHTE POLITIEAUTO'S
@@ -69,8 +72,8 @@ function buildStation() {
   // Plein met een stoeprand rondom; een oprit verbindt het met de weg (het plein raakt de weg niet)
   const slabH = 3.2;
   const padMinLZ = -10.5;
-  const padFrontLZ = 8.5;
-  const padW = 20;
+  const padFrontLZ = 9.5;
+  const padW = 24;
   const padDepth = padFrontLZ - padMinLZ;
   const pad = tagMap(new THREE.Mesh(new THREE.BoxGeometry(padW, slabH, padDepth), makeToonMat(0x4a474c)), 'paved');
   pad.position.set(0, -slabH * 0.5, padMinLZ + padDepth * 0.5);
@@ -81,8 +84,8 @@ function buildStation() {
     [-padW / 2 + 0.2, padMinLZ + padDepth / 2, 0.4, padDepth],
     [padW / 2 - 0.2, padMinLZ + padDepth / 2, 0.4, padDepth],
     [0, padMinLZ + 0.2, padW, 0.4],
-    [-padW / 4 - 1.5, padFrontLZ - 0.2, padW / 2 - 3, 0.4],
-    [padW / 4 + 1.5, padFrontLZ - 0.2, padW / 2 - 3, 0.4]
+    [-(padW / 2 + 3.8) / 2, padFrontLZ - 0.2, padW / 2 - 3.8, 0.4],
+    [(padW / 2 + 3.8) / 2, padFrontLZ - 0.2, padW / 2 - 3.8, 0.4]
   ];
   kerbs.forEach(([kx, kz, kw, kd]) => {
     const kerb = createOutlinedMesh(new THREE.BoxGeometry(kw, 0.22, kd), kerbMat, 0.02, false, true);
@@ -141,15 +144,15 @@ function buildStation() {
   // Vlaggenmast naast de ingang
   {
     const pole = createOutlinedMesh(new THREE.CylinderGeometry(0.07, 0.1, 7, 6), makeToonMat(0xd8dadd), 0.02, false);
-    pole.position.set(-8.6, 3.5, -0.5);
+    pole.position.set(-9.8, 3.5, -6.5);
     g.add(pole);
     const flag = new THREE.Mesh(new THREE.BoxGeometry(0.04, 1.0, 1.6), blackMat);
-    flag.position.set(-8.6, 6.4, 0.35);
+    flag.position.set(-9.8, 6.4, -5.65);
     g.add(flag);
     const star = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.38, 0.38), makeToonMat(0xf4c430));
-    star.position.set(-8.6, 6.4, 0.0);
+    star.position.set(-9.8, 6.4, -6.0);
     g.add(star);
-    const p = rotLocal(-8.6, -0.5);
+    const p = rotLocal(-9.8, -6.5);
     hardColliders.push({ x: p.x, z: p.z, r: 0.3 });
   }
 
@@ -171,14 +174,39 @@ function buildStation() {
     const lp = rotLocal(bx, bayZ);
     garageSpots.push({ x: lp.x, z: lp.z, yaw: lot.yaw, taken: false });
   }
-  [8.6].forEach((x) => {
+  [-11.4, -8.7, 8.7, 11.4].forEach((x) => {
     const line = new THREE.Mesh(new THREE.PlaneGeometry(0.16, 4.6), lineMat);
     line.rotation.x = -Math.PI / 2;
     line.position.set(x, 0.02, bayZ);
     g.add(line);
   });
 
-  const sp = rotLocal(-6.5, lot.dist - 2.5);
+  // Bomen rondom: links, rechts en achter het bureau
+  [[-15, -11, 'p'], [-16.5, -6, 'd'], [-15.5, -1, 'p'], [-17, 4, 'p'], [-15.5, 9, 'd'], [-19, -9, 'p'], [-19.5, 1, 'd'],
+    [15, -11, 'p'], [16.5, -5, 'd'], [15.5, 1, 'p'], [17, 7, 'd'], [19.5, -8, 'p'],
+    [-9, -14.5, 'p'], [-3, -15, 'd'], [3, -14.5, 'p'], [9, -15, 'p'], [0, -18.5, 'p'], [-12.5, -17, 'd'], [12.5, -17.5, 'p'],
+    [-13.5, 6.5, 's'], [13.5, 4.5, 's'], [-13.5, -4, 's'], [13.5, -8.5, 's']].forEach(([lx, lz, kind]) => {
+    const p = rotLocal(lx, lz);
+    const y = getTerrainHeight(p.x, p.z);
+    let obj;
+    if (kind === 's') {
+      const sc = 0.7 + Math.random() * 0.5;
+      obj = createShrubFast(sc);
+      obj.position.set(p.x, y, p.z);
+      scene.add(obj);
+      registerDestructible(obj, p.x, y, p.z, Math.max(0.6, 0.85 * sc), 'shrub', 3, 'Struik');
+    } else {
+      const sc = 0.75 + Math.random() * 0.4;
+      obj = kind === 'p' ? createPineFast(sc) : createDeciduousTreeFast(sc);
+      obj.position.set(p.x, y, p.z);
+      obj.rotation.y = Math.random() * Math.PI * 2;
+      scene.add(obj);
+      registerDestructible(obj, p.x, y, p.z, 0.85 * sc, 'tree', 15, kind === 'p' ? 'Dennenboom' : 'Loofboom');
+    }
+    markLastPlanted();
+  });
+
+  const sp = rotLocal(-7.5, padFrontLZ + 2.0);
   createRoadSign(sp.x, sp.z, surfaceY, lot.yaw, ['SHERIFF', 'Politiebureau']);
 }
 buildStation();
