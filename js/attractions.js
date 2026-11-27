@@ -28,7 +28,6 @@ const bulbGeo = new THREE.SphereGeometry(0.11, 6, 5);
 
 const nightLights = [];
 const fairFlags = [];
-const swingRides = [];
 const redCanvasMat = makeToonMat(0xd62839);
 const fireFlames = [];
 let ferrisWheel = null;
@@ -496,40 +495,6 @@ function createBigTop() {
   return g;
 }
 
-// Zweefmolen: draaiende kroon met stoeltjes aan kettingen
-function createSwingRide() {
-  const g = new THREE.Group();
-  const base = createOutlinedMesh(new THREE.CylinderGeometry(1.4, 1.7, 0.6, 12), makeToonMat(0x3f78a8), 0.035);
-  base.position.y = 0.3;
-  g.add(base);
-  const mast = createOutlinedMesh(new THREE.CylinderGeometry(0.35, 0.45, 7.2, 10), makeToonMat(0xf3e3c3), 0.035);
-  mast.position.y = 4.0;
-  g.add(mast);
-  const top = new THREE.Group();
-  top.position.y = 7.4;
-  const crown = createOutlinedMesh(new THREE.ConeGeometry(3.4, 1.4, 12), makeToonMat(0x3f78a8), 0.04);
-  crown.position.y = 0.5;
-  top.add(crown);
-  const chairs = [];
-  for (let k = 0; k < 10; k++) {
-    const a = (k / 10) * Math.PI * 2;
-    const hanger = new THREE.Group();
-    hanger.position.set(Math.cos(a) * 3.0, 0, Math.sin(a) * 3.0);
-    hanger.rotation.y = -a;
-    const chain = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 3.4, 4), steelMat);
-    chain.position.y = -1.7;
-    hanger.add(chain);
-    const chair = createOutlinedMesh(new THREE.BoxGeometry(0.55, 0.12, 0.5), makeToonMat([0xffd23f, 0xd94e3a, 0x6cc04a, 0xc94a8a][k % 4]), 0.02, false);
-    chair.position.y = -3.4;
-    hanger.add(chair);
-    top.add(hanger);
-    chairs.push(hanger);
-  }
-  g.add(top);
-  swingRides.push({ top, chairs });
-  return g;
-}
-
 // Botsautohal met dak en een paar gekleurde botsautootjes
 function createBumperCars() {
   const g = new THREE.Group();
@@ -571,13 +536,13 @@ function createBumperCars() {
 }
 
 // Eetkraam met een groot "product" op het dak
-function createFoodStand(kind) {
+function createFoodStand(kind, colorOverride = null) {
   const cfg = {
     popcorn: { col: 0xd94e3a, label: 'POPCORN' },
     candy: { col: 0xe07ab8, label: 'COTTON CANDY' },
     hotdog: { col: 0xe0a030, label: 'HOT DOGS' }
   }[kind];
-  const g = createFairBooth(cfg.col);
+  const g = createFairBooth(colorOverride ?? cfg.col);
   const sign = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 0.8), new THREE.MeshBasicMaterial({ map: makeStandSignTexture(cfg.label, '#fffaf0', '#b8243a') }));
   sign.position.set(0, 3.35, 1.26);
   g.add(sign);
@@ -737,67 +702,89 @@ function createFairBooth(stripeHex) {
 
 function buildFair(lot) {
   const { g, collide, toWorld } = lotFrame(lot);
-  const fb = lot.flatBox;
+  const groundY = lot.roadY - 0.16 + 0.15;
+
+  // Losse, omrijdbare objecten staan direct in de wereld (niet in de gedraaide groep)
+  const placeLoose = (obj, lx, lz, rotOff, r, pts, label, yOff = 0) => {
+    const w = toWorld(lx, lz);
+    const y = groundY + yOff;
+    obj.position.set(w.x, y, w.z);
+    obj.rotation.y = lot.yaw + rotOff;
+    scene.add(obj);
+    registerDestructible(obj, w.x, y, w.z, r, 'small', pts, label);
+  };
 
   const ground = createOutlinedMesh(new THREE.BoxGeometry(48, 0.3, 46), gravelMat, 0.03, false, true);
   ground.position.set(0, 0.05, 0);
   g.add(ground);
 
+  // ---- Achterin: circustent in het midden, reuzenrad links, draaimolen rechts ----
+  const bigTop = createBigTop();
+  bigTop.position.set(0, 0.15, -15.5);
+  g.add(bigTop);
+  collide(0, -15.5, 5.8);
+
   const wheel = createFerrisWheel();
-  wheel.position.set(-12, 0.15, -12);
+  wheel.position.set(-15, 0.15, -12);
   wheel.rotation.y = 0.35;
   g.add(wheel);
-  collide(-12, -12, 3.4);
+  collide(-15, -12, 3.4);
 
   const car = createCarousel();
-  car.position.set(12, 0.15, -10);
+  car.position.set(15, 0.15, -11);
   g.add(car);
-  collide(12, -10, 5.6);
+  collide(15, -11, 5.6);
 
-  // Eetkramen en spelletjeskramen langs het middenpad
-  [[-9, 5, 'popcorn', Math.PI * 0.5], [-9, 12, 'candy', Math.PI * 0.5], [9, 5, 'hotdog', -Math.PI * 0.5]].forEach(([lx, lz, kind, rot]) => {
+  // ---- Langs het middenpad: eten links, spelletjes + popcorn rechts ----
+  [[-9, 3, 'hotdog'], [-9, 11, 'candy']].forEach(([lx, lz, kind]) => {
     const stand = createFoodStand(kind);
     stand.position.set(lx, 0.15, lz);
-    stand.rotation.y = rot;
+    stand.rotation.y = Math.PI * 0.5;
     g.add(stand);
     collide(lx, lz, 2.0);
   });
-  [[9, 12, 0x3f78a8, -Math.PI * 0.5]].forEach(([lx, lz, col, rot]) => {
-    const booth = createFairBooth(col);
-    booth.position.set(lx, 0.15, lz);
-    booth.rotation.y = rot;
-    g.add(booth);
-    collide(lx, lz, 2.0);
-  });
+  // De blauwe kraam is nu de popcornkraam
+  const popcorn = createFoodStand('popcorn', 0x3f78a8);
+  popcorn.position.set(9, 0.15, 11);
+  popcorn.rotation.y = -Math.PI * 0.5;
+  g.add(popcorn);
+  collide(9, 11, 2.0);
+  const ringToss = createGameStand();
+  ringToss.position.set(9, 0.15, 3);
+  ringToss.rotation.y = -Math.PI * 0.5;
+  g.add(ringToss);
+  collide(9, 3, 2.0);
 
-  // Grote circustent achterin, zweefmolen en botsautohal aan de zijkanten
-  const bigTop = createBigTop();
-  bigTop.position.set(0, 0.15, -16.5);
-  g.add(bigTop);
-  collide(0, -16.5, 5.8);
-  const swing = createSwingRide();
-  swing.position.set(-19, 0.15, 9);
-  g.add(swing);
-  collide(-19, 9, 1.8);
+  // ---- Rechts: botsautohal ----
   const bumper = createBumperCars();
-  bumper.position.set(19, 0.15, 9);
+  bumper.position.set(19, 0.15, 8);
   bumper.rotation.y = -Math.PI * 0.5;
   g.add(bumper);
-  collide(19, 6, 3.2);
-  collide(19, 12, 3.2);
+  collide(19, 5, 3.2);
+  collide(19, 11, 3.2);
 
-  // Toegangspoort: dikke gestreepte palen, groot bord en lampjes
+  // ---- Links: picknickhoek met tafels en hooibalen (alles omrijdbaar) ----
+  [[-19, 5, 0.2], [-18.5, 12, -0.15]].forEach(([lx, lz, rot]) => {
+    placeLoose(picnicTable(makeToonMat(0xd94e3a)), lx, lz, rot, 1.1, 10, 'Picknicktafel', -0.03);
+  });
+  const hayMat = makeToonMat(0xd9ac4e);
+  [[-21.5, 0], [-20, -1.2], [-16, 17], [16, 17.5], [21, 1.5]].forEach(([lx, lz]) => {
+    const bale = createOutlinedMesh(new THREE.BoxGeometry(1.6, 0.9, 1.0), hayMat, 0.03);
+    placeLoose(bale, lx, lz, Math.random() * 0.6, 0.8, 8, 'Hooibaal', 0.45);
+  });
+
+  // ---- Toegangspoort: palen ruim naast het bord zodat de naam vrij leesbaar is ----
   const archZ = 22;
-  [-6.2, 6.2].forEach((px) => {
+  [-7.7, 7.7].forEach((px) => {
     for (let k = 0; k < 4; k++) {
-      const band = createOutlinedMesh(new THREE.BoxGeometry(0.9, 1.9, 0.9), k % 2 ? whiteMat : redCanvasMat, 0.035, false);
+      const band = createOutlinedMesh(new THREE.BoxGeometry(0.8, 1.9, 0.8), k % 2 ? whiteMat : redCanvasMat, 0.035, false);
       band.position.set(px, 0.95 + k * 1.9, archZ);
       g.add(band);
     }
     const ball = createOutlinedMesh(new THREE.SphereGeometry(0.55, 10, 8), makeToonMat(0xffd23f), 0.03, false);
     ball.position.set(px, 8.2, archZ);
     g.add(ball);
-    collide(px, archZ, 0.8);
+    collide(px, archZ, 0.75);
   });
   const signMat = new THREE.MeshBasicMaterial({ map: makeFairSignTexture() });
   const board = createOutlinedMesh(new THREE.BoxGeometry(13.4, 3.4, 0.4), makeToonMat(0xb8243a), 0.05, false);
@@ -805,105 +792,131 @@ function buildFair(lot) {
   g.add(board);
   [1, -1].forEach((side) => {
     const face = new THREE.Mesh(new THREE.PlaneGeometry(13.0, 3.25), signMat);
-    face.position.set(0, 7.0, archZ + side * 0.26);
+    face.position.set(0, 7.0, archZ + side * 0.27);
     if (side < 0) face.rotation.y = Math.PI;
     g.add(face);
   });
+  // Ophangbalk tussen de palen, boven het bord
+  const beam = createOutlinedMesh(new THREE.BoxGeometry(15.4, 0.35, 0.35), whiteMat, 0.025, false);
+  beam.position.set(0, 9.0, archZ);
+  g.add(beam);
   for (let k = 0; k <= 28; k++) {
     const bulb = new THREE.Mesh(bulbGeo, bulbMats[k % bulbMats.length]);
-    bulb.position.set(-6.6 + (k / 28) * 13.2, 8.85, archZ);
+    bulb.position.set(-6.6 + (k / 28) * 13.2, 8.85, archZ + 0.3);
     g.add(bulb);
   }
 
-  // Kassahokje naast de poort
-  const ticket = createFoodStand('popcorn');
-  ticket.scale.setScalar(0.7);
-  ticket.position.set(-10, 0.15, archZ - 1);
-  g.add(ticket);
-  collide(-10, archZ - 1, 1.6);
-
-  // Laag wit hekje rondom het terrein met vlaggetjes
-  const fenceMat = whiteMat;
+  // ---- Omrijdbaar hekje met vlaggetjes rondom (per stuk van ~2.4m) ----
   const bunting = [0xd94e3a, 0xffd23f, 0x3f78a8, 0x6cc04a, 0xe07ab8].map((c) => new THREE.MeshBasicMaterial({ color: c, side: THREE.DoubleSide }));
   const flagGeo = new THREE.BufferGeometry();
-  flagGeo.setAttribute('position', new THREE.Float32BufferAttribute([-0.3, 0, 0, 0.3, 0, 0, 0, -0.55, 0], 3));
+  flagGeo.setAttribute('position', new THREE.Float32BufferAttribute([-0.3, 0, 0, 0.3, 0, 0, 0, -0.5, 0], 3));
   flagGeo.computeVertexNormals();
-  const edges = [[[-24, -23], [24, -23]], [[24, -23], [24, 23]], [[-24, -23], [-24, 23]], [[-24, 23], [-7.5, 23]], [[7.5, 23], [24, 23]]];
+  const railGeo = new THREE.BoxGeometry(2.4, 0.1, 0.08);
+  const postGeo = new THREE.BoxGeometry(0.12, 1.1, 0.12);
+  let flagIdx = 0;
+  const edges = [[[-24, -23], [24, -23]], [[24, -23], [24, 23]], [[-24, -23], [-24, 23]], [[-24, 23], [-9.2, 23]], [[9.2, 23], [24, 23]]];
   edges.forEach(([[x0, z0], [x1, z1]]) => {
     const len = Math.hypot(x1 - x0, z1 - z0);
-    const rail = createOutlinedMesh(new THREE.BoxGeometry(len, 0.12, 0.1), fenceMat, 0.015, false);
-    rail.position.set((x0 + x1) * 0.5, 0.75, (z0 + z1) * 0.5);
-    rail.rotation.y = -Math.atan2(z1 - z0, x1 - x0);
-    g.add(rail);
-    const n = Math.round(len / 2.4);
-    for (let k = 0; k <= n; k++) {
-      const t = k / n;
-      const post = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.9, 0.12), fenceMat);
-      post.position.set(x0 + (x1 - x0) * t, 0.6, z0 + (z1 - z0) * t);
-      g.add(post);
-      if (k < n) {
-        const flag = new THREE.Mesh(flagGeo, bunting[k % bunting.length]);
-        flag.position.set(x0 + (x1 - x0) * (t + 0.5 / n), 1.65, z0 + (z1 - z0) * (t + 0.5 / n));
-        flag.rotation.y = -Math.atan2(z1 - z0, x1 - x0);
-        g.add(flag);
-      }
+    const n = Math.max(1, Math.round(len / 2.4));
+    const segLen = len / n;
+    for (let k = 0; k < n; k++) {
+      const t = (k + 0.5) / n;
+      const section = new THREE.Group();
+      [0.45, 0.85].forEach((ry) => {
+        const rail = createOutlinedMesh(railGeo, whiteMat, 0.015, false);
+        rail.position.y = ry;
+        rail.scale.x = segLen / 2.4;
+        section.add(rail);
+      });
+      const post = createOutlinedMesh(postGeo, whiteMat, 0.015, false);
+      post.position.set(-segLen * 0.5, 0.55, 0);
+      section.add(post);
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.8, 4), darkWoodMat);
+      pole.position.set(-segLen * 0.5, 1.4, 0);
+      section.add(pole);
+      const flag = new THREE.Mesh(flagGeo, bunting[flagIdx++ % bunting.length]);
+      flag.position.set(0, 1.75, 0);
+      section.add(flag);
+      const line = new THREE.Mesh(new THREE.BoxGeometry(segLen, 0.02, 0.02), darkWoodMat);
+      line.position.y = 1.78;
+      section.add(line);
+      placeLoose(section, x0 + (x1 - x0) * t, z0 + (z1 - z0) * t, -Math.atan2(z1 - z0, x1 - x0), 1.1, 5, 'Kermishek');
     }
-    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.8, 5), darkWoodMat);
-    pole.position.set(x0, 0.9, z0);
-    g.add(pole);
   });
 
-  // Tros ballonnen bij de ingang
-  [0xd94e3a, 0xffd23f, 0x3f9fb8, 0xe07ab8, 0x6cc04a, 0xffffff].forEach((c, k) => {
-    const a = (k / 6) * Math.PI * 2;
-    const balloon = createOutlinedMesh(new THREE.SphereGeometry(0.42, 10, 8), makeToonMat(c), 0.025, false);
-    balloon.scale.set(1, 1.2, 1);
-    balloon.position.set(8.8 + Math.cos(a) * 0.55, 3.4 + (k % 3) * 0.35, archZ - 1.5 + Math.sin(a) * 0.55);
-    g.add(balloon);
-    const string = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 3.0, 3), whiteMat);
-    string.position.set(8.8, 1.7, archZ - 1.5);
-    g.add(string);
+  // ---- Ballonnen, prullenbakken en lantaarnpaaltjes (omrijdbaar) ----
+  [[-11.5, archZ - 2], [11.5, archZ - 2.5], [4, -4]].forEach(([lx, lz], i) => {
+    const bunch = new THREE.Group();
+    [0xd94e3a, 0xffd23f, 0x3f9fb8, 0xe07ab8, 0x6cc04a].forEach((c, k) => {
+      const a = (k / 5) * Math.PI * 2 + i;
+      const balloon = createOutlinedMesh(new THREE.SphereGeometry(0.4, 10, 8), makeToonMat(c), 0.025, false);
+      balloon.scale.set(1, 1.2, 1);
+      balloon.position.set(Math.cos(a) * 0.5, 3.0 + (k % 3) * 0.35, Math.sin(a) * 0.5);
+      bunch.add(balloon);
+    });
+    const weight = createOutlinedMesh(new THREE.CylinderGeometry(0.2, 0.25, 0.3, 8), darkWoodMat, 0.02, false);
+    weight.position.y = 0.15;
+    bunch.add(weight);
+    const string = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 2.8, 3), whiteMat);
+    string.position.y = 1.55;
+    bunch.add(string);
+    placeLoose(bunch, lx, lz, 0, 0.6, 6, 'Ballonnen');
+  });
+  const binMat = makeToonMat(0x3f6b4a);
+  [[-4.2, 16], [4.2, 16], [-4.2, -2], [4.2, -6]].forEach(([lx, lz]) => {
+    const bin = new THREE.Group();
+    const body = createOutlinedMesh(new THREE.CylinderGeometry(0.35, 0.3, 0.9, 10), binMat, 0.025);
+    body.position.y = 0.45;
+    bin.add(body);
+    const lid = createOutlinedMesh(new THREE.CylinderGeometry(0.38, 0.38, 0.08, 10), whiteMat, 0.015, false);
+    lid.position.y = 0.93;
+    bin.add(lid);
+    placeLoose(bin, lx, lz, 0, 0.45, 6, 'Prullenbak');
   });
 
-  // Lichtslingers langs het middenpad
+  // Lichtslingers boven het middenpad (decor boven je hoofd)
   [-5.5, 5.5].forEach((px) => {
-    for (let lz = -16; lz <= 18; lz += 0.9) {
+    for (let lz = -8; lz <= 19; lz += 0.9) {
       const bulb = new THREE.Mesh(bulbGeo, bulbMats[Math.abs(Math.round(lz * 3)) % bulbMats.length]);
-      bulb.position.set(px, 3.2 - Math.abs(Math.sin(lz * 0.35)) * 0.6, lz);
+      bulb.position.set(px, 3.8 - Math.abs(Math.sin(lz * 0.35)) * 0.5, lz);
       g.add(bulb);
     }
-    [-16, -4, 8, 18].forEach((lz) => {
-      const post = createOutlinedMesh(new THREE.CylinderGeometry(0.08, 0.1, 3.4, 6), darkWoodMat, 0.02, false);
-      post.position.set(px, 1.7, lz);
+    [-8, 4, 19].forEach((lz) => {
+      const post = createOutlinedMesh(new THREE.CylinderGeometry(0.08, 0.1, 4.0, 6), darkWoodMat, 0.02, false);
+      post.position.set(px, 2.0, lz);
       g.add(post);
+      collide(px, lz, 0.3);
     });
   });
-
-  // Extra lichtslingers kriskras over het middenpad
-  for (let k = 0; k < 4; k++) {
-    const z0 = -14 + k * 9;
+  for (let k = 0; k < 3; k++) {
+    const z0 = -6 + k * 9;
     for (let b = 0; b <= 14; b++) {
       const t = b / 14;
       const bulb = new THREE.Mesh(bulbGeo, bulbMats[(b + k) % bulbMats.length]);
-      bulb.position.set(-5.5 + t * 11, 3.2 - Math.sin(t * Math.PI) * 0.7, z0 + t * 4.5);
+      bulb.position.set(-5.5 + t * 11, 3.8 - Math.sin(t * Math.PI) * 0.6, z0 + t * 4.5);
       g.add(bulb);
     }
   }
 
-  // Hooibalen als decor
-  const hayMat = makeToonMat(0xd9ac4e);
-  [[-20, 14], [-19, 16], [20, 14], [21, 12]].forEach(([lx, lz]) => {
-    const bale = createOutlinedMesh(new THREE.BoxGeometry(1.6, 0.9, 1.0), hayMat, 0.03);
-    const w = toWorld(lx, lz);
-    const y = lot.roadY - 0.16 + 0.6;
-    bale.position.set(w.x, y, w.z);
-    bale.rotation.y = lot.yaw;
-    scene.add(bale);
-    registerDestructible(bale, w.x, y, w.z, 0.8, 'small', 8, 'Hooibaal');
-  });
-
   entranceSign(lot, ['PINEWOOD FAIR', 'Kermis']);
-  void fb;
+}
+
+// Spelletjeskraam: ringwerpen met flessen op de toonbank
+function createGameStand() {
+  const g = createFairBooth(0xd94e3a);
+  const sign = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 0.8), new THREE.MeshBasicMaterial({ map: makeStandSignTexture('RING TOSS', '#fffaf0', '#b8243a') }));
+  sign.position.set(0, 3.35, 1.26);
+  g.add(sign);
+  const bottleMat = makeToonMat(0x3f9f6a);
+  for (let k = 0; k < 6; k++) {
+    const bottle = createOutlinedMesh(new THREE.CylinderGeometry(0.09, 0.12, 0.45, 8), bottleMat, 0.012, false);
+    bottle.position.set(-1.2 + k * 0.48, 1.33, 0.2);
+    g.add(bottle);
+  }
+  const prize = createOutlinedMesh(new THREE.SphereGeometry(0.35, 10, 8), makeToonMat(0xe07ab8), 0.02, false);
+  prize.position.set(1.2, 2.2, -0.7);
+  g.add(prize);
+  return g;
 }
 
 ruralLots.forEach((lot) => {
@@ -926,11 +939,6 @@ export function updateAttractions(elapsed, dt, isNight) {
     carouselHorses.forEach((h) => { h.horse.position.y = 1.8 + Math.sin(elapsed * 2.4 + h.phase) * 0.35; });
   }
   sawBlades.forEach((b) => { b.rotation.y = elapsed * 14; });
-  swingRides.forEach((sr) => {
-    sr.top.rotation.y = elapsed * 0.9;
-    // Stoeltjes zwaaien naar buiten door de draaiing
-    sr.chairs.forEach((c) => { c.rotation.z = 0.55 + Math.sin(elapsed * 1.3) * 0.05; });
-  });
   fairFlags.forEach((f, i) => { f.rotation.y = Math.sin(elapsed * 3 + i) * 0.35; });
   fireFlames.forEach((f, i) => {
     const flicker = 0.85 + Math.sin(elapsed * 11 + i * 2.1) * 0.12 + Math.sin(elapsed * 23 + i) * 0.05;
