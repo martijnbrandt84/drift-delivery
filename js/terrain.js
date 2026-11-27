@@ -191,15 +191,23 @@ function getRawTerrainHeight(x, z) {
 
   // Verdwaalde plassen opvullen: water dat niet bij een rivier, meer of de zee hoort (bijv. waar het
   // natuurlijke land laag lag en alleen de wegtaluds zijn opgehoogd) wordt een lage, natuurlijke oeverzone.
-  if (h < WATER_LEVEL + 0.7 && riverSignedDist > 0) {
+  // De oever loopt geleidelijk op vanaf het water (rivieren, meren): van net onder het waterpeil naar
+  // ~0,8 m erboven over ~9 m. Zo valt de waterlijn op een echte helling en loopt hij glad, in plaats van
+  // trapjes langs het terreinraster op een vrijwel vlakke rand.
+  if (h < 0.8) {
     const pol = getIslandPolar(x, z);
     const awayFromSea = pol.r < getCoastRadius(pol.theta) - 10;
-    const awayFromLakes = rLake > shoreR + 6
-      && Math.hypot(x - MOOSE_LAKE.x, z - MOOSE_LAKE.z) > MOOSE_LAKE.r + 6
-      && Math.hypot(x - FOX_LAKE.x, z - FOX_LAKE.z) > FOX_LAKE.r + 6;
-    if (awayFromSea && awayFromLakes) {
-      const floor = THREE.MathUtils.lerp(WATER_LEVEL + 0.05, 0.75, THREE.MathUtils.smoothstep(riverSignedDist, 0, 9));
-      h = Math.max(h, floor);
+    if (awayFromSea) {
+      const wetDist = Math.min(
+        riverSignedDist,
+        rLake - shoreR,
+        Math.hypot(x - MOOSE_LAKE.x, z - MOOSE_LAKE.z) - MOOSE_LAKE.r,
+        Math.hypot(x - FOX_LAKE.x, z - FOX_LAKE.z) - FOX_LAKE.r
+      );
+      if (wetDist > 0) {
+        const floor = THREE.MathUtils.lerp(WATER_LEVEL - 0.7, 0.8, THREE.MathUtils.smoothstep(wetDist, -1.0, 9.0));
+        h = Math.max(h, floor);
+      }
     }
   }
 
