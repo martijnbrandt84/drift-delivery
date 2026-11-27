@@ -19,16 +19,16 @@ const turkeyFeatherMat = makeToonMat(0x593724);
 const turkeyTailMat = makeToonMat(0x8c512d);
 const turkeyHeadBlueMat = makeToonMat(0x4c749c);
 const wattleRedMat = makeToonMat(0xe62e2e);
-const beakYellowMat = makeToonMat(0xf4a226);
+export const beakYellowMat = makeToonMat(0xf4a226);
 
 const deerFurMat = makeToonMat(0xb57242);
 const deerBellyMat = makeToonMat(0xf2e4cf);
 const antlerMat = makeToonMat(0xe8d4b4);
-const darkHoofMat = makeToonMat(0x2e2621);
+export const darkHoofMat = makeToonMat(0x2e2621);
 
 const foxMat = makeToonMat(0xe0632b);
 const foxWhite = makeToonMat(0xfff6eb);
-const foxDarkMat = makeToonMat(0x362a24);
+export const foxDarkMat = makeToonMat(0x362a24);
 
 const bearFurMat = makeToonMat(0x5c3a24);
 const bearSnoutMat = makeToonMat(0x8c6244);
@@ -103,13 +103,18 @@ function createWildTurkey() {
   rightWing.position.set(0.43, 0.6, 0);
   bodyGrp.add(rightWing);
 
-  [-0.14, 0.14].forEach((lx) => {
+  const legs = [];
+  [-0.14, 0.14].forEach((lx, k) => {
+    const pivot = new THREE.Group();
+    pivot.position.set(lx, 0.36, 0);
+    bodyGrp.add(pivot);
     const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.36, 5), beakYellowMat);
-    leg.position.set(lx, 0.18, 0);
-    bodyGrp.add(leg);
+    leg.position.y = -0.18;
+    pivot.add(leg);
+    legs.push({ pivot, sign: k === 0 ? 1 : -1 });
   });
 
-  return { root, bodyGrp, headPivot, fanTail, leftWing, rightWing };
+  return { root, bodyGrp, bodyGroup: bodyGrp, headPivot, fanTail, leftWing, rightWing, legs, species: 'turkey' };
 }
 
 function createCartoonDeer(hasAntlers) {
@@ -172,17 +177,22 @@ function createCartoonDeer(hasAntlers) {
     });
   }
 
-  [[-0.2, 0.45], [0.2, 0.45], [-0.2, -0.45], [0.2, -0.45]].forEach(([lx, lz]) => {
+  const legs = [];
+  [[-0.2, 0.45], [0.2, 0.45], [-0.2, -0.45], [0.2, -0.45]].forEach(([lx, lz], k) => {
+    const pivot = new THREE.Group();
+    pivot.position.set(lx, 0.76, lz);
+    bodyGroup.add(pivot);
     const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.065, 0.055, 0.74, 6), deerFurMat);
-    leg.position.set(lx, 0.39, lz);
-    bodyGroup.add(leg);
+    leg.position.y = -0.37;
+    pivot.add(leg);
 
     const hoof = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.065, 0.08, 6), darkHoofMat);
-    hoof.position.set(lx, 0.04, lz);
-    bodyGroup.add(hoof);
+    hoof.position.y = -0.72;
+    pivot.add(hoof);
+    legs.push({ pivot, sign: k === 0 || k === 3 ? 1 : -1 });
   });
 
-  return { root, bodyGroup, neckPivot };
+  return { root, bodyGroup, neckPivot, legs, species: 'deer' };
 }
 
 function createForestBear() {
@@ -227,18 +237,23 @@ function createForestBear() {
     neckPivot.add(ear);
   });
 
-  [[-0.36, 0.56], [0.36, 0.56], [-0.36, -0.56], [0.36, -0.56]].forEach(([lx, lz]) => {
+  const legs = [];
+  [[-0.36, 0.56], [0.36, 0.56], [-0.36, -0.56], [0.36, -0.56]].forEach(([lx, lz], k) => {
+    const pivot = new THREE.Group();
+    pivot.position.set(lx, 0.68, lz);
+    bodyGroup.add(pivot);
     const leg = createOutlinedMesh(new THREE.CylinderGeometry(0.14, 0.16, 0.68, 7), bearFurMat, 0.028, false, false);
-    leg.position.set(lx, 0.34, lz);
-    bodyGroup.add(leg);
+    leg.position.y = -0.34;
+    pivot.add(leg);
 
     const paw = new THREE.Mesh(new THREE.SphereGeometry(0.17, 7, 6), bearNoseMat);
     paw.scale.set(1.0, 0.45, 1.25);
-    paw.position.set(lx, 0.06, lz + 0.04);
-    bodyGroup.add(paw);
+    paw.position.set(0, -0.62, 0.04);
+    pivot.add(paw);
+    legs.push({ pivot, sign: k === 0 || k === 3 ? 1 : -1 });
   });
 
-  return { root, bodyGroup, neckPivot };
+  return { root, bodyGroup, neckPivot, legs, species: 'bear' };
 }
 
 function createCartoonFox() {
@@ -271,23 +286,32 @@ function createCartoonFox() {
     bodyGroup.add(ear);
   });
 
+  // Staart aan een scharnier, zodat hij kan kwispelen
+  const tail = new THREE.Group();
+  tail.position.set(0, 0.47, -0.36);
+  bodyGroup.add(tail);
   const tailBase = createOutlinedMesh(new THREE.ConeGeometry(0.14, 0.52, 6), foxMat, 0.024, false, false);
   tailBase.rotation.x = -Math.PI * 0.38;
-  tailBase.position.set(0, 0.5, -0.58);
-  bodyGroup.add(tailBase);
+  tailBase.position.set(0, 0.03, -0.22);
+  tail.add(tailBase);
 
   const tailTip = new THREE.Mesh(new THREE.ConeGeometry(0.11, 0.22, 6), foxWhite);
   tailTip.rotation.x = -Math.PI * 0.38;
-  tailTip.position.set(0, 0.58, -0.78);
-  bodyGroup.add(tailTip);
+  tailTip.position.set(0, 0.11, -0.42);
+  tail.add(tailTip);
 
-  [[-0.12, 0.26], [0.12, 0.26], [-0.12, -0.26], [0.12, -0.26]].forEach(([lx, lz]) => {
+  const legs = [];
+  [[-0.12, 0.26], [0.12, 0.26], [-0.12, -0.26], [0.12, -0.26]].forEach(([lx, lz], k) => {
+    const pivot = new THREE.Group();
+    pivot.position.set(lx, 0.34, lz);
+    bodyGroup.add(pivot);
     const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.038, 0.34, 5), foxDarkMat);
-    leg.position.set(lx, 0.17, lz);
-    bodyGroup.add(leg);
+    leg.position.y = -0.17;
+    pivot.add(leg);
+    legs.push({ pivot, sign: k === 0 || k === 3 ? 1 : -1 });
   });
 
-  return { root, bodyGroup };
+  return { root, bodyGroup, tail, legs, species: 'fox' };
 }
 
 function createRaccoon() {
@@ -328,13 +352,18 @@ function createRaccoon() {
     bodyGroup.add(ring);
   }
 
-  [[-0.11, 0.22], [0.11, 0.22], [-0.11, -0.22], [0.11, -0.22]].forEach(([lx, lz]) => {
+  const legs = [];
+  [[-0.11, 0.22], [0.11, 0.22], [-0.11, -0.22], [0.11, -0.22]].forEach(([lx, lz], k) => {
+    const pivot = new THREE.Group();
+    pivot.position.set(lx, 0.22, lz);
+    bodyGroup.add(pivot);
     const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.035, 0.22, 5), raccoonMaskMat);
-    leg.position.set(lx, 0.11, lz);
-    bodyGroup.add(leg);
+    leg.position.y = -0.11;
+    pivot.add(leg);
+    legs.push({ pivot, sign: k === 0 || k === 3 ? 1 : -1 });
   });
 
-  return { root, bodyGroup };
+  return { root, bodyGroup, legs, species: 'raccoon' };
 }
 
 function createBeaver() {
@@ -369,13 +398,18 @@ function createBeaver() {
   flatTail.rotation.x = -0.14;
   bodyGroup.add(flatTail);
 
-  [[-0.14, 0.26], [0.14, 0.26], [-0.14, -0.26], [0.14, -0.26]].forEach(([lx, lz]) => {
+  const legs = [];
+  [[-0.14, 0.26], [0.14, 0.26], [-0.14, -0.26], [0.14, -0.26]].forEach(([lx, lz], k) => {
+    const pivot = new THREE.Group();
+    pivot.position.set(lx, 0.2, lz);
+    bodyGroup.add(pivot);
     const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.05, 0.2, 6), beaverTailMat);
-    leg.position.set(lx, 0.1, lz);
-    bodyGroup.add(leg);
+    leg.position.y = -0.1;
+    pivot.add(leg);
+    legs.push({ pivot, sign: k === 0 || k === 3 ? 1 : -1 });
   });
 
-  return { root, bodyGroup };
+  return { root, bodyGroup, legs, species: 'beaver' };
 }
 
 function createDuck() {

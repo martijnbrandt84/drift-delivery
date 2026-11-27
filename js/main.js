@@ -16,7 +16,7 @@ import {
   beamConeGeo, trafficVehicles, parkedCars, policePool
 } from './vehicles.js';
 import { chimneySmokes, giantStarMesh, houseWindows, townClockHands } from './town.js';
-import { turkeys, deerList, foxes, ducks } from './wildlife.js';
+import { updateWildlife, notifyHorn } from './wildlife-ai.js';
 import { lighthouseBeamPivot, lighthouseBeamMat } from './scenery.js';
 import { updateMinimap, updateFullMap, toggleFullMap, isFullMapOpen } from './minimap.js';
 import {
@@ -265,6 +265,7 @@ function triggerHornOrSiren() {
   } else {
     sound.playHorn();
   }
+  notifyHorn(playerVeh.root.position.x, playerVeh.root.position.z);
   const ring = new THREE.Mesh(
     new THREE.RingGeometry(0.6, 0.95, 20),
     new THREE.MeshBasicMaterial({ color: 0xffd23f, side: THREE.DoubleSide, transparent: true, opacity: 0.95 })
@@ -714,117 +715,10 @@ function animate() {
     hijackPromptEl.classList.remove('visible');
   }
 
-  // --- 2. Dieren AI: Wilde Kalkoenen, Herten & Vossen ---
+  // --- 2. Dieren: lopen, schrikken, oversteken (zie wildlife-ai.js) ---
   const px = playerVeh.root.position.x;
   const pz = playerVeh.root.position.z;
-
-  for (let i = 0; i < turkeys.length; i++) {
-    const tk = turkeys[i];
-    const distSq = (tk.root.position.x - px) ** 2 + (tk.root.position.z - pz) ** 2;
-    if (distSq > 165 * 165) continue;
-
-    if (distSq < 15 * 15) {
-      if (tk.panicked <= 0) sound.playTurkeyGobble();
-      tk.panicked = 1.8;
-      tk.angle = Math.atan2(tk.root.position.x - px, tk.root.position.z - pz);
-    }
-
-    if (tk.panicked > 0) {
-      tk.panicked -= dt;
-      const runSpd = 6.2;
-      const nx = tk.root.position.x + Math.sin(tk.angle) * runSpd * dt;
-      const nz = tk.root.position.z + Math.cos(tk.angle) * runSpd * dt;
-      const ny = getTerrainHeight(nx, nz);
-      if (ny > 0.5) tk.root.position.set(nx, ny, nz);
-      tk.root.rotation.y = tk.angle;
-
-      tk.bodyGrp.position.y = Math.abs(Math.sin(elapsed * 18 + tk.phase)) * 0.35;
-      const flap = Math.sin(elapsed * 28 + tk.phase) * 0.7;
-      tk.leftWing.rotation.z = flap;
-      tk.rightWing.rotation.z = -flap;
-    } else {
-      tk.timer -= dt;
-      if (tk.timer <= 0) {
-        tk.timer = 1.5 + Math.random() * 2.5;
-        const dHome = Math.hypot(tk.homeX - tk.root.position.x, tk.homeZ - tk.root.position.z);
-        tk.angle = dHome > 11 ? Math.atan2(tk.homeX - tk.root.position.x, tk.homeZ - tk.root.position.z) : tk.angle + (Math.random() - 0.5) * 2.4;
-      }
-      const nx = tk.root.position.x + Math.sin(tk.angle) * 1.15 * dt;
-      const nz = tk.root.position.z + Math.cos(tk.angle) * 1.15 * dt;
-      const ny = getTerrainHeight(nx, nz);
-      if (ny > 0.5) tk.root.position.set(nx, ny, nz);
-      tk.root.rotation.y = tk.angle;
-
-      tk.bodyGrp.position.y = Math.abs(Math.sin(elapsed * 8 + tk.phase)) * 0.06;
-      tk.headPivot.rotation.x = Math.max(0, Math.sin(elapsed * 5 + tk.phase)) * 0.55;
-      tk.leftWing.rotation.z = 0;
-      tk.rightWing.rotation.z = 0;
-    }
-  }
-
-  for (let i = 0; i < deerList.length; i++) {
-    const d = deerList[i];
-    const distSq = (d.root.position.x - px) ** 2 + (d.root.position.z - pz) ** 2;
-    if (distSq > 170 * 170) continue;
-
-    d.timer -= dt;
-    if (distSq < 13 * 13) {
-      d.walking = true;
-      d.angle = Math.atan2(d.root.position.x - px, d.root.position.z - pz);
-      d.timer = 2.2;
-    } else if (d.timer <= 0) {
-      d.walking = !d.walking;
-      d.timer = 2.5 + Math.random() * 3.0;
-      const dHome = Math.hypot(d.homeX - d.root.position.x, d.homeZ - d.root.position.z);
-      if (d.walking) d.angle = dHome > 16 ? Math.atan2(d.homeX - d.root.position.x, d.homeZ - d.root.position.z) : d.angle + (Math.random() - 0.5) * 2.0;
-    }
-
-    if (d.walking) {
-      const spd = distSq < 13 * 13 ? 5.8 : 1.9;
-      const nx = d.root.position.x + Math.sin(d.angle) * spd * dt;
-      const nz = d.root.position.z + Math.cos(d.angle) * spd * dt;
-      const ny = getTerrainHeight(nx, nz);
-      if (ny > 0.6) d.root.position.set(nx, ny, nz);
-      d.root.rotation.y = d.angle;
-      d.bodyGroup.position.y = Math.abs(Math.sin(elapsed * 8 + d.phase)) * 0.18;
-      d.neckPivot.rotation.x = 0;
-    } else {
-      d.bodyGroup.position.y = 0;
-      d.neckPivot.rotation.x = 0.72;
-    }
-  }
-
-  for (let i = 0; i < foxes.length; i++) {
-    const f = foxes[i];
-    const distSq = (f.root.position.x - px) ** 2 + (f.root.position.z - pz) ** 2;
-    if (distSq > 160 * 160) continue;
-
-    f.timer -= dt;
-    if (f.timer <= 0) {
-      f.timer = 1.8 + Math.random() * 2.2;
-      const dHome = Math.hypot(f.homeX - f.root.position.x, f.homeZ - f.root.position.z);
-      f.angle = dHome > 14 ? Math.atan2(f.homeX - f.root.position.x, f.homeZ - f.root.position.z) : f.angle + (Math.random() - 0.5) * 2.4;
-    }
-    const nx = f.root.position.x + Math.sin(f.angle) * 2.8 * dt;
-    const nz = f.root.position.z + Math.cos(f.angle) * 2.8 * dt;
-    const ny = getTerrainHeight(nx, nz);
-    if (ny > 0.55) f.root.position.set(nx, ny, nz);
-    f.root.rotation.y = f.angle;
-    f.bodyGroup.position.y = Math.abs(Math.sin(elapsed * 12 + f.phase)) * 0.14;
-  }
-
-  for (let i = 0; i < ducks.length; i++) {
-    const dk = ducks[i];
-    const distSq = (dk.root.position.x - px) ** 2 + (dk.root.position.z - pz) ** 2;
-    if (distSq > 170 * 170) continue;
-
-    const ang = dk.phase + elapsed * dk.orbitSpeed;
-    const nx = dk.centerX + Math.cos(ang) * dk.orbitR;
-    const nz = dk.centerZ + Math.sin(ang) * dk.orbitR;
-    dk.root.position.set(nx, WATER_LEVEL + 0.06 + Math.sin(elapsed * 2.2 + dk.bobPhase) * 0.025, nz);
-    dk.root.rotation.y = -ang + Math.PI / 2;
-    dk.bodyGroup.position.y = Math.abs(Math.sin(elapsed * 6 + dk.bobPhase)) * 0.03;
-  }
+  updateWildlife(dt, elapsed, px, pz, flight.active ? 0 : totalSpeed);
 
   // --- 3. Burgerverkeer ---
   trafficVehicles.forEach((tv) => {

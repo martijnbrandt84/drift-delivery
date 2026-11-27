@@ -203,6 +203,33 @@ export class CozySoundEngine {
     osc.stop(now + 0.35); lfo.stop(now + 0.35);
   }
 
+  playGrowl() {
+    if (!this.initialized || this.muted) return;
+    const now = this.ctx.currentTime;
+    if (this.lastGrowl && now - this.lastGrowl < 2.5) return;
+    this.lastGrowl = now;
+    const osc = this.ctx.createOscillator();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(95, now);
+    osc.frequency.linearRampToValueAtTime(70, now + 0.8);
+    const lfo = this.ctx.createOscillator();
+    lfo.frequency.value = 13;
+    const lfoGain = this.ctx.createGain();
+    lfoGain.gain.value = 18;
+    lfo.connect(lfoGain);
+    lfoGain.connect(osc.frequency);
+    const flt = this.ctx.createBiquadFilter();
+    flt.type = 'lowpass';
+    flt.frequency.value = 420;
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(0.001, now);
+    g.gain.linearRampToValueAtTime(0.32, now + 0.12);
+    g.gain.exponentialRampToValueAtTime(0.001, now + 0.9);
+    osc.connect(flt); flt.connect(g); g.connect(this.master);
+    osc.start(now); lfo.start(now);
+    osc.stop(now + 0.95); lfo.stop(now + 0.95);
+  }
+
   playHorn() {
     if (!this.initialized || this.muted) return;
     const now = this.ctx.currentTime;
