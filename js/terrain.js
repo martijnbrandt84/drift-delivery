@@ -17,6 +17,18 @@ function getOrientedBoxDist(x, z, lot, minLX, maxLX, minLZ, maxLZ) {
   return Math.hypot(overX, overZ);
 }
 
+// Snelle afstandsfilters zodat het terrein (170k punten) niet elke kavel/oprit hoeft door te rekenen
+ruralLots.forEach((lot) => {
+  const fb = lot.flatBox;
+  lot.terrainReach = fb
+    ? Math.hypot(Math.max(-fb.minLX, fb.maxLX), Math.max(-fb.minLZ, fb.maxLZ)) + 26
+    : (lot.blendRadius ?? 18.0) + 1;
+});
+driveways.forEach((d) => {
+  const m = d.halfWidth + 8;
+  d.bbox = { minX: Math.min(d.x1, d.x2) - m, maxX: Math.max(d.x1, d.x2) + m, minZ: Math.min(d.z1, d.z2) - m, maxZ: Math.max(d.z1, d.z2) + m };
+});
+
 function getRawTerrainHeight(x, z) {
   let h = getNaturalGroundBase(x, z);
 
@@ -30,6 +42,7 @@ function getRawTerrainHeight(x, z) {
   let specialFlatBlend = 1.0;
 
   for (const lot of ruralLots) {
+    if (Math.abs(x - lot.x) > lot.terrainReach || Math.abs(z - lot.z) > lot.terrainReach) continue;
     if (lot.type === 'store') {
       const dBox = getOrientedBoxDist(x, z, lot, -20.5, 20.5, -15.0, 19.5);
       if (dBox < 18.0) {
@@ -38,8 +51,17 @@ function getRawTerrainHeight(x, z) {
         h = THREE.MathUtils.lerp(targetY, h, t);
         specialFlatBlend = Math.min(specialFlatBlend, t);
       }
+    } else if (lot.type === 'diner') {
+      const fb = lot.flatBox;
+      const dBox = getOrientedBoxDist(x, z, lot, fb.minLX - 1, fb.maxLX + 1, fb.minLZ - 1, fb.maxLZ + 1);
+      if (dBox < 16.0) {
+        const t = THREE.MathUtils.smoothstep(dBox, 0.0, 16.0);
+        h = THREE.MathUtils.lerp(lot.roadY - 0.16, h, t);
+        specialFlatBlend = Math.min(specialFlatBlend, t);
+      }
     } else if (lot.type === 'farm') {
-      const dBox = getOrientedBoxDist(x, z, lot, -31.5, 31.5, -32.0, 29.0);
+      const fb = lot.flatBox;
+      const dBox = getOrientedBoxDist(x, z, lot, fb.minLX - 1, fb.maxLX + 1, fb.minLZ - 2, fb.maxLZ + 1.5);
       if (dBox < 22.0) {
         const t = THREE.MathUtils.smoothstep(dBox, 0.0, 22.0);
         const targetY = Math.min(lot.y - 0.08, lot.roadY - 0.18);
@@ -57,6 +79,7 @@ function getRawTerrainHeight(x, z) {
   }
 
   for (const d of driveways) {
+    if (x < d.bbox.minX || x > d.bbox.maxX || z < d.bbox.minZ || z > d.bbox.maxZ) continue;
     const l2 = (d.x2 - d.x1) ** 2 + (d.z2 - d.z1) ** 2;
     if (l2 > 0) {
       const proj = THREE.MathUtils.clamp(((x - d.x1) * (d.x2 - d.x1) + (z - d.z1) * (d.z2 - d.z1)) / l2, 0, 1);
@@ -193,8 +216,8 @@ for (let i = 0; i < gPos.count; i++) {
   } else if (vy > snowLine) {
     colA.copy(slope > 1.25 ? cSnowRock : cSnowCap);
     colW.copy(slope > 1.25 ? cSnowRock : cSnowPure);
-  } else if (slope > 0.85 || (vy > 13.0 && slope > 0.55) || vy > snowLine - 7) {
-    colA.copy(vy > 18 ? cAlpineRock : cCliffRock);
+  } else if (slope > 0.85 || (vy > 13.0 && slope > 0.62)) {
+    colA.copy(cCliffRock);
     colW.copy(cSnowRock);
   } else if (inTownArea) {
     colA.copy(cTownLawn);

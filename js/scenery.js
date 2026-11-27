@@ -107,18 +107,13 @@ function buildRoadSigns() {
     ['VALLEY ROAD']
   );
 
-  const farmLot = ruralLots.find((l) => l.type === 'farm');
-  if (farmLot) {
-    const signX = farmLot.roadX + (farmLot.x - farmLot.roadX) * 0.22 - Math.cos(farmLot.yaw) * 4.2;
-    const signZ = farmLot.roadZ + (farmLot.z - farmLot.roadZ) * 0.22 + Math.sin(farmLot.yaw) * 4.2;
-    createRoadSign(
-      signX,
-      signZ,
-      getTerrainHeight(signX, signZ),
-      farmLot.yaw,
-      ['PINEWOOD FARM']
-    );
-  }
+  ruralLots.filter((l) => l.type === 'farm').forEach((farmLot) => {
+    // Bord naast de oprit, ~9m vanaf de weg
+    const t = Math.min(0.35, 9 / Math.hypot(farmLot.x - farmLot.roadX, farmLot.z - farmLot.roadZ));
+    const signX = farmLot.roadX + (farmLot.x - farmLot.roadX) * t - Math.cos(farmLot.yaw) * 4.2;
+    const signZ = farmLot.roadZ + (farmLot.z - farmLot.roadZ) * t + Math.sin(farmLot.yaw) * 4.2;
+    createRoadSign(signX, signZ, getTerrainHeight(signX, signZ), farmLot.yaw, [farmLot.name ?? 'FARM']);
+  });
 }
 buildRoadSigns();
 

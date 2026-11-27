@@ -9,7 +9,7 @@ import { WORLD_LIMIT, TOWN_ELEV, WATER_LEVEL, findNearestRoadAnywhere } from './
 import { getTerrainHeight, waterMesh, updateWaterWaves } from './terrain.js';
 import { getDriveHeightAndWaterState } from './drive-surface.js';
 import { ruralLots } from './water-lots.js';
-import { hardColliders, destructibles } from './demolition.js';
+import { hardColliders, destructibles, syncInstancedDestructible } from './demolition.js';
 import { dropTireMark, spawnParticle, particlePool, PARTICLE_POOL_SIZE, updateFireflies, updateFallingLeaves } from './effects.js';
 import {
   buildWoodyWagonMesh, buildYellowTaxiMesh, buildPickupTruckMesh, buildPoliceCruiserMesh,
@@ -33,80 +33,43 @@ import './island-scenery.js';
 // =========================================================
 // OPRUIMING VAN WILDE BOSBOMEN, STRUIKEN & ROTSEN OP BEBOUWDE ZONES
 // =========================================================
+// Alle grote kavels met een vlak plateau (mall, diner, boerderijen) worden vrijgehouden van wilde begroeiing
+const developedLots = ruralLots.filter((l) => l.flatBox);
+
+function isInsideLotBox(x, z, lot, margin = 1.0) {
+  const dx = x - lot.x;
+  const dz = z - lot.z;
+  const c = Math.cos(lot.yaw);
+  const s = Math.sin(lot.yaw);
+  const lx = dx * c - dz * s;
+  const lz = dx * s + dz * c;
+  const fb = lot.flatBox;
+  return lx >= fb.minLX - margin && lx <= fb.maxLX + margin && lz >= fb.minLZ - margin && lz <= fb.maxLZ + margin;
+}
+
 function isInClearedDevelopmentZone(x, z) {
   if (x >= -45.5 && x <= 45.5 && z >= 82.0 && z <= 137.5) return true;
-
-  const storeLot = ruralLots.find((l) => l.type === 'store');
-  if (storeLot) {
-    const dx = x - storeLot.x;
-    const dz = z - storeLot.z;
-    const c = Math.cos(storeLot.yaw);
-    const s = Math.sin(storeLot.yaw);
-    const lx = dx * c - dz * s;
-    const lz = dx * s + dz * c;
-    if (lx >= -21.0 && lx <= 21.0 && lz >= -15.0 && lz <= 20.0) return true;
-  }
-
-  const farmLot = ruralLots.find((l) => l.type === 'farm');
-  if (farmLot) {
-    const dx = x - farmLot.x;
-    const dz = z - farmLot.z;
-    const c = Math.cos(farmLot.yaw);
-    const s = Math.sin(farmLot.yaw);
-    const lx = dx * c - dz * s;
-    const lz = dx * s + dz * c;
-    if (lx >= -32.0 && lx <= 32.0 && lz >= -33.0 && lz <= 34.0) return true;
-  }
-
-  return false;
+  return developedLots.some((lot) => isInsideLotBox(x, z, lot, 1.5));
 }
 
 function purgeObstructingWildProps() {
   for (let i = destructibles.length - 1; i >= 0; i--) {
     const d = destructibles[i];
     if ((d.kind === 'tree' || d.kind === 'shrub') && isInClearedDevelopmentZone(d.x, d.z)) {
-      if (d.mesh && d.mesh.parent) d.mesh.parent.remove(d.mesh);
+      if (d.instRefs) {
+        d.mesh.scale.setScalar(0);
+        syncInstancedDestructible(d);
+      } else if (d.mesh && d.mesh.parent) {
+        d.mesh.parent.remove(d.mesh);
+      }
       destructibles.splice(i, 1);
     }
   }
 
-  const storeLot = ruralLots.find((l) => l.type === 'store');
-  const farmLot = ruralLots.find((l) => l.type === 'farm');
-
-  function isOnParkingOrCornField(x, z) {
-    if (storeLot) {
-      const dx = x - storeLot.x;
-      const dz = z - storeLot.z;
-      const c = Math.cos(storeLot.yaw);
-      const s = Math.sin(storeLot.yaw);
-      const lx = dx * c - dz * s;
-      const lz = dx * s + dz * c;
-      if (Math.abs(lx) < 18.0 && lz > 0.5 && lz < 18.0) return true;
-    }
-    if (farmLot) {
-      const dx = x - farmLot.x;
-      const dz = z - farmLot.z;
-      const c = Math.cos(farmLot.yaw);
-      const s = Math.sin(farmLot.yaw);
-      const lx = dx * c - dz * s;
-      const lz = dx * s + dz * c;
-      if ((lz > 2.5 && lz < 32.0 && Math.abs(lx) < 30.0) || (lz < -15.5 && lz > -31.5 && Math.abs(lx) < 25.0)) {
-        return true;
-      }
-    }
-    return false;
-  }
-
   for (let i = hardColliders.length - 1; i >= 0; i--) {
     const col = hardColliders[i];
-    if (col.r !== 0.95 && isOnParkingOrCornField(col.x, col.z)) {
-      for (let cIdx = scene.children.length - 1; cIdx >= 0; cIdx--) {
-        const obj = scene.children[cIdx];
-        if (Math.hypot(obj.position.x - col.x, obj.position.z - col.z) < 0.35) {
-          scene.remove(obj);
-          break;
-        }
-      }
+    if (col.r !== 0.95 && col.wild && developedLots.some((lot) => isInsideLotBox(col.x, col.z, lot, 0.5))) {
+      if (col.mesh && col.mesh.parent) col.mesh.parent.remove(col.mesh);
       hardColliders.splice(i, 1);
     }
   }
@@ -1048,6 +1011,7 @@ function animate() {
         }
       }
     }
+    if (d.instRefs) syncInstancedDestructible(d);
   }
 
   // --- 6. Weer, Vuurtorenstraal & Gepoolde Deeltjes ---

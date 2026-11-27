@@ -34,3 +34,26 @@ export function registerDestructible(mesh, x, y, z, r, kind, crimePts = 15, labe
     label
   });
 }
+
+// =========================================================
+// INSTANCED SLOOPBARE OBJECTEN (bossen buiten de kern):
+// een onzichtbare proxy wordt geanimeerd, de instance-matrices volgen hem.
+// =========================================================
+export function registerInstancedDestructible(instRefs, x, y, z, rotY, scale, r, kind, crimePts, label) {
+  const proxy = new THREE.Object3D();
+  proxy.position.set(x, y, z);
+  proxy.rotation.set(0, rotY, 0);
+  proxy.scale.setScalar(scale);
+  proxy.updateMatrix();
+  registerDestructible(proxy, x, y, z, r, kind, crimePts, label);
+  destructibles[destructibles.length - 1].instRefs = instRefs;
+}
+
+export function syncInstancedDestructible(d) {
+  d.mesh.updateMatrix();
+  for (let i = 0; i < d.instRefs.length; i++) {
+    const ref = d.instRefs[i];
+    ref.mesh.setMatrixAt(ref.index, d.mesh.matrix);
+    ref.mesh.instanceMatrix.needsUpdate = true;
+  }
+}

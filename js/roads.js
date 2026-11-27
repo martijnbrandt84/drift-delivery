@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import {
-  ISLAND_CENTER, getNaturalGroundBase, getRingRadius, getIslandPolar, getCoastRadius, EAGLE_PEAK
+  ISLAND_CENTER, getNaturalGroundBase, getIslandPolar, getCoastRadius
 } from './landscape.js';
 
 // =========================================================
@@ -378,7 +378,7 @@ function buildRoadProfile(curve, closed, opts = {}) {
   const wrap = (i) => (closed ? ((i % count) + count) % count : THREE.MathUtils.clamp(i, 0, count - 1));
 
   // 1. Zee/meer onder de weg: markeren en lineair overbruggen
-  const isWater = Array.from(raw, (h) => h < 0.9);
+  const isWater = Array.from(raw, (h) => h < 0.15);
   const waterRuns = [];
   {
     const startScan = closed ? Math.max(0, isWater.findIndex((w) => !w)) : 0;
@@ -516,33 +516,39 @@ function frameAt(curve, u) {
 }
 
 // =========================================================
-// KUSTWEG: grote ring rondom het eiland
+// KUSTWEG (COAST HWY): onregelmatige route rond het eiland —
+// strandboulevard in het zuiden, kliffen in het oosten, hangbrug over de fjord,
+// en een slingerend stuk langs de bosrijke noordwestkust.
 // =========================================================
-const ringWaypoints = [];
-const RING_WP = 56;
-for (let k = 0; k < RING_WP; k++) {
-  const theta = -Math.PI + (k / RING_WP) * Math.PI * 2;
-  const r = getRingRadius(theta);
-  ringWaypoints.push(new THREE.Vector3(ISLAND_CENTER.x + Math.cos(theta) * r, 0, ISLAND_CENTER.z + Math.sin(theta) * r));
-}
-export const ringCurve = new THREE.CatmullRomCurve3(ringWaypoints, true, 'centripetal', 0.5);
+const COAST_HWY_POINTS = [
+  [-284, 52], [-266, 8], [-255, -25], [-262, -85], [-250, -150], [-215, -200], [-162, -246], [-100, -270],
+  [-40, -276], [12, -268], [62, -252], [112, -222], [150, -178], [185, -137], [220, -98],
+  [258, -52], [296, 2], [304, 54], [278, 100], [254, 140], [250, 184], [222, 222], [176, 252], [128, 288],
+  [62, 318], [-15, 324], [-92, 315], [-160, 290], [-210, 252], [-248, 200], [-276, 150], [-296, 104]
+];
+export const ringCurve = new THREE.CatmullRomCurve3(
+  COAST_HWY_POINTS.map(([x, z]) => new THREE.Vector3(x, 0, z)),
+  true,
+  'centripetal',
+  0.5
+);
 
-function ringPointAtTheta(theta) {
-  const r = getRingRadius(theta);
-  return { x: ISLAND_CENTER.x + Math.cos(theta) * r, z: ISLAND_CENTER.z + Math.sin(theta) * r };
-}
-
-// Aansluitpunten op de kustweg
-const RING_JUNCTION_THETAS = { north: -1.06, south: 1.12, west: -3.02, eagle: -2.05 };
+// Aansluitpunten op de kustweg (wereldpunten; u wordt opgezocht)
+const RING_JUNCTION_POINTS = {
+  north: [112, -222],
+  south: [80, 315],
+  west: [-268, 14],
+  trailWest: [-257, -45],
+  trailNorth: [-64, -276]
+};
 export const RING_JUNCTIONS = {};
-Object.entries(RING_JUNCTION_THETAS).forEach(([key, theta]) => {
-  const p = ringPointAtTheta(theta);
-  RING_JUNCTIONS[key] = { u: closestUOnCurve(ringCurve, p.x, p.z, true) };
+Object.entries(RING_JUNCTION_POINTS).forEach(([key, [x, z]]) => {
+  RING_JUNCTIONS[key] = { u: closestUOnCurve(ringCurve, x, z, true) };
 });
 
 const ringProfile = buildRoadProfile(ringCurve, true, {
-  id: 'ring',
-  smoothM: 55,
+  id: 'coast_hwy',
+  smoothM: 38,
   minY: 2.0,
   flats: Object.values(RING_JUNCTIONS).map((j) => {
     const f = { u: j.u };
@@ -562,7 +568,7 @@ Object.values(RING_JUNCTIONS).forEach((j) => {
 });
 
 // =========================================================
-// VERBINDINGSWEGEN: binnenland -> kustweg, plus de spiraalweg naar Eagle Peak
+// VERBINDINGSWEGEN: binnenland -> kustweg
 // =========================================================
 function hostJunction(curve, u, elevFn) {
   const fr = frameAt(curve, u);
@@ -571,25 +577,32 @@ function hostJunction(curve, u, elevFn) {
   return { x: fr.pt.x, z: fr.pt.z, y: elevFn(u), outX, outZ };
 }
 
-function makeConnector(id, host, ringJ, midPoints) {
+function ringEndpoint(ringJ, fromInside = true) {
+  // Benadering vanaf de binnenkant van de kustweg (richting eilandcentrum)
+  const s = fromInside ? 1 : -1;
+  return { x: ringJ.x, z: ringJ.z, y: ringJ.y, outX: ringJ.inX * s, outZ: ringJ.inZ * s };
+}
+
+function makeLinkRoad(id, a, b, midPoints, smoothM = 40) {
+  // a en b: { x, z, y, outX, outZ } met out = richting waarin de nieuwe weg vertrekt
   const wps = [
-    new THREE.Vector3(host.x - host.outX * 1.2, 0, host.z - host.outZ * 1.2),
-    new THREE.Vector3(host.x + host.outX * 16, 0, host.z + host.outZ * 16),
+    new THREE.Vector3(a.x - a.outX * 1.2, 0, a.z - a.outZ * 1.2),
+    new THREE.Vector3(a.x + a.outX * 16, 0, a.z + a.outZ * 16),
     ...midPoints.map((p) => new THREE.Vector3(p[0], 0, p[1])),
-    new THREE.Vector3(ringJ.x + ringJ.inX * 16, 0, ringJ.z + ringJ.inZ * 16),
-    new THREE.Vector3(ringJ.x - ringJ.inX * 1.2, 0, ringJ.z - ringJ.inZ * 1.2)
+    new THREE.Vector3(b.x + b.outX * 16, 0, b.z + b.outZ * 16),
+    new THREE.Vector3(b.x - b.outX * 1.2, 0, b.z - b.outZ * 1.2)
   ];
   const curve = new THREE.CatmullRomCurve3(wps, false, 'centripetal', 0.5);
   const prof = buildRoadProfile(curve, false, {
     id,
-    smoothM: 40,
+    smoothM,
     minY: 1.8,
     flats: [
-      { u: 0, y: host.y, flatM: 6, blendM: 34 },
-      { u: 1, y: ringJ.y, flatM: 6, blendM: 34 }
+      { u: 0, y: a.y, flatM: 6, blendM: 34 },
+      { u: 1, y: b.y, flatM: 6, blendM: 34 }
     ]
   });
-  return { id, curve, elevFn: prof.elevFn, bridgeFn: prof.bridgeFn, bridges: prof.bridges, host, ringJ };
+  return { id, curve, elevFn: prof.elevFn, bridgeFn: prof.bridgeFn, bridges: prof.bridges, host: a, ringJ: b };
 }
 
 const hostNorth = hostJunction(lakeCurve, U_LAKE_NORTH_JUNCTION, getLakeLoopBaseElev);
@@ -597,51 +610,28 @@ const hostSouth = hostJunction(valleyCurve, U_VALLEY_SOUTH_JUNCTION, getValleyBa
 const hostWest = hostJunction(valleyCurve, U_VALLEY_WEST_JUNCTION, getValleyBaseElev);
 
 export const connectorRoads = [
-  makeConnector('north_link', hostNorth, RING_JUNCTIONS.north, [[96, -128]]),
-  makeConnector('south_link', hostSouth, RING_JUNCTIONS.south, [[84, 212]]),
-  makeConnector('west_link', hostWest, RING_JUNCTIONS.west, [[-176, 52]])
+  makeLinkRoad('north_link', hostNorth, ringEndpoint(RING_JUNCTIONS.north), [[92, -130], [112, -178]]),
+  makeLinkRoad('south_link', hostSouth, ringEndpoint(RING_JUNCTIONS.south), [[78, 215], [92, 262]]),
+  makeLinkRoad('west_link', hostWest, ringEndpoint(RING_JUNCTIONS.west), [[-176, 52], [-222, 30]])
 ];
 
-// Spiraalweg naar de top van Eagle Peak (doodlopend, met uitkijktoren bovenop)
-function makeEagleSpiral() {
-  const j = RING_JUNCTIONS.eagle;
-  const ex = EAGLE_PEAK.x;
-  const ez = EAGLE_PEAK.z;
-  const startAng = Math.atan2(j.z - ez, j.x - ex);
-  const turns = 1.45;
-  const r0 = 56;
-  const r1 = 11;
-  const wps = [
-    new THREE.Vector3(j.x + j.inX * 1.2, 0, j.z + j.inZ * 1.2),
-    new THREE.Vector3(j.x - j.inX * 14, 0, j.z - j.inZ * 14)
-  ];
-  const steps = 26;
-  for (let k = 1; k <= steps; k++) {
-    const t = k / steps;
-    const ang = startAng + 0.55 + t * turns * Math.PI * 2;
-    const rr = THREE.MathUtils.lerp(r0, r1, t);
-    wps.push(new THREE.Vector3(ex + Math.cos(ang) * rr, 0, ez + Math.sin(ang) * rr));
-  }
-  const curve = new THREE.CatmullRomCurve3(wps, false, 'centripetal', 0.5);
-  const prof = buildRoadProfile(curve, false, {
-    id: 'eagle_spiral',
-    smoothM: 22,
-    minY: 2.0,
-    linearRamp: true,
-    flats: [{ u: 0, y: j.y, flatM: 6, blendM: 30 }]
-  });
-  const endPt = curve.getPointAt(1);
-  return {
-    id: 'eagle_spiral', curve, elevFn: prof.elevFn, bridgeFn: prof.bridgeFn, bridges: prof.bridges,
-    summit: { x: endPt.x, z: endPt.z, y: prof.elevFn(1) }
-  };
-}
-export const eagleSpiralRoad = makeEagleSpiral();
+// Timber Trail: smal kronkelend bospad door de heuvels met een haarspeldbocht,
+// tussen de westkust en de noordkust (alternatieve route door het bos)
+export const timberTrail = makeLinkRoad(
+  'timber_trail',
+  ringEndpoint(RING_JUNCTIONS.trailWest),
+  ringEndpoint(RING_JUNCTIONS.trailNorth),
+  [
+    [-200, -52], [-178, -82], [-186, -112], [-212, -124], [-222, -146], [-196, -166],
+    [-160, -150], [-128, -132], [-104, -158], [-110, -192], [-82, -214], [-48, -222]
+  ],
+  22
+);
 
 export const outerRoadDefs = [
-  { id: 'ring_road', curve: ringCurve, elevFn: getRingBaseElev, bridgeFn: getRingBridgeAtU, bridges: RING_BRIDGES, isClosed: true },
+  { id: 'coast_hwy', curve: ringCurve, elevFn: getRingBaseElev, bridgeFn: getRingBridgeAtU, bridges: RING_BRIDGES, isClosed: true },
   ...connectorRoads.map((c) => ({ ...c, isClosed: false })),
-  { ...eagleSpiralRoad, isClosed: false }
+  { ...timberTrail, isClosed: false }
 ];
 outerRoadDefs.forEach((def) => {
   const count = Math.max(80, Math.round(def.curve.getLength() / 0.85));
@@ -659,6 +649,8 @@ export const allRoadNetworks = [
 // PERFORMANCE FIX: Spatial Hash Grid voor alle wegpunten zodat `getClosestNetworkRoad` 20x sneller is!
 const ROAD_HASH_CELL = 16;
 const roadSpatialMap = new Map();
+// Numerieke sleutel i.p.v. een string: geen garbage per opvraging (terrein-bake én elk frame)
+const roadHashKey = (cx, cz) => (cx + 2048) * 4096 + (cz + 2048);
 const allFlatRoadSamples = [];
 
 allRoadNetworks.forEach((net) => {
@@ -670,7 +662,7 @@ allRoadNetworks.forEach((net) => {
     // Registreer in 3x3 buurcellen zodat we altijd een 24m zoekradius hebben in O(1) tijd!
     for (let dx = -1; dx <= 1; dx++) {
       for (let dz = -1; dz <= 1; dz++) {
-        const key = `${cx + dx},${cz + dz}`;
+        const key = roadHashKey(cx + dx, cz + dz);
         let bucket = roadSpatialMap.get(key);
         if (!bucket) {
           bucket = [];
@@ -685,7 +677,7 @@ allRoadNetworks.forEach((net) => {
 export function getClosestNetworkRoad(x, z) {
   const cx = Math.floor(x / ROAD_HASH_CELL);
   const cz = Math.floor(z / ROAD_HASH_CELL);
-  const bucket = roadSpatialMap.get(`${cx},${cz}`);
+  const bucket = roadSpatialMap.get(roadHashKey(cx, cz));
 
   if (!bucket) {
     return { sample: null, dist: 999, marginDist: 999 };
@@ -739,7 +731,8 @@ export const INTERSECTIONS = [
     { x: c.host.x, z: c.host.z, y: c.host.y, r: 7.8 },
     { x: c.ringJ.x, z: c.ringJ.z, y: c.ringJ.y, r: 7.8 }
   ]),
-  { x: RING_JUNCTIONS.eagle.x, z: RING_JUNCTIONS.eagle.z, y: RING_JUNCTIONS.eagle.y, r: 7.8 }
+  { x: timberTrail.host.x, z: timberTrail.host.z, y: timberTrail.host.y, r: 7.8 },
+  { x: timberTrail.ringJ.x, z: timberTrail.ringJ.z, y: timberTrail.ringJ.y, r: 7.8 }
 ];
 
 export function isInsideIntersection(x, z, extraR = 0) {

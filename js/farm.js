@@ -1,6 +1,7 @@
 import * as THREE from 'three';
+import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
 import {
-  scene, createOutlinedMesh, makeToonMat, registerSeasonalMat, createMergedToonProp, instantiateBakedProp
+  scene, createOutlinedMesh, makeToonMat, registerSeasonalMat, createMergedToonProp, outlineMat
 } from './scene-setup.js';
 import { ruralLots } from './water-lots.js';
 import { hardColliders, registerDestructible } from './demolition.js';
@@ -30,6 +31,7 @@ const fenceWoodMat = makeToonMat(0x8c623d);
 const yardGravelMat = registerSeasonalMat(0xb8a386, 0xe8eff6);
 const dirtFieldMat = registerSeasonalMat(0x6e4f33, 0xe4ecf4);
 const furrowMat = registerSeasonalMat(0x593e26, 0xd8e3ee);
+const stubbleFieldMat = registerSeasonalMat(0x9c7a3e, 0xe4ecf4);
 const cornStalkMat = makeToonMat(0x5f8c42);
 const cornCobMat = makeToonMat(0xe8c23c);
 
@@ -299,7 +301,7 @@ function createHayBale() {
   return g;
 }
 
-// Gebakken maisplant-template voor razendsnelle 60FPS plaatsing van honderden maisstengels
+// Gebakken maisplant-template; de velden worden als InstancedMesh geplaatst (honderden planten = 3 draw calls)
 const cornStalkParts = [
   { geo: new THREE.CylinderGeometry(0.05, 0.075, 2.05, 5), matrix: new THREE.Matrix4().makeTranslation(0, 1.02, 0) }
 ];
@@ -312,18 +314,47 @@ const cornStalkParts = [
 });
 const bakedCornStalk = createMergedToonProp(cornStalkParts, cornStalkMat, 0.022, false);
 const cornCobGeo = new THREE.CylinderGeometry(0.095, 0.075, 0.36, 6);
+cornCobGeo.rotateZ(0.3);
+cornCobGeo.translate(0.14, 1.35, 0.05);
 
-function createCornPlant() {
-  const g = instantiateBakedProp(bakedCornStalk);
-  const cob = new THREE.Mesh(cornCobGeo, cornCobMat);
-  cob.position.set(0.14, 1.35, 0.05);
-  cob.rotation.z = 0.3;
-  g.add(cob);
-  return g;
+// Tarwe: bosje gouden halmen met aar
+const wheatMat = registerSeasonalMat(0xe3b94a, 0xeef2f6);
+const wheatHeadMat = makeToonMat(0xc98f2c);
+const wheatParts = [];
+for (let k = 0; k < 5; k++) {
+  const a = (k / 5) * Math.PI * 2;
+  const m = new THREE.Matrix4()
+    .makeTranslation(Math.cos(a) * 0.14, 0, Math.sin(a) * 0.14)
+    .multiply(new THREE.Matrix4().makeRotationZ(Math.cos(a) * 0.12))
+    .multiply(new THREE.Matrix4().makeTranslation(0, 0.5, 0));
+  wheatParts.push({ geo: new THREE.CylinderGeometry(0.025, 0.035, 1.0, 4), matrix: m });
+}
+const bakedWheatStalks = createMergedToonProp(wheatParts, wheatMat, 0.015, false);
+const wheatHeadParts = [];
+for (let k = 0; k < 5; k++) {
+  const a = (k / 5) * Math.PI * 2;
+  wheatHeadParts.push({
+    geo: new THREE.CylinderGeometry(0.06, 0.04, 0.3, 5),
+    matrix: new THREE.Matrix4().makeTranslation(Math.cos(a) * 0.2, 1.08, Math.sin(a) * 0.2)
+  });
+}
+const bakedWheatHeads = createMergedToonProp(wheatHeadParts, wheatHeadMat, 0.015, false);
+
+function addInstanced(geo, mat, matrices, castShadow = false) {
+  if (!matrices.length) return;
+  const inst = new THREE.InstancedMesh(geo, mat, matrices.length);
+  matrices.forEach((m, i) => inst.setMatrixAt(i, m));
+  inst.instanceMatrix.needsUpdate = true;
+  inst.castShadow = castShadow;
+  inst.computeBoundingSphere();
+  scene.add(inst);
 }
 
-// Plaatst een omploegd akkerveld dat automatisch de terreinhoogte volgt en ver buiten de oprit blijft
-function buildCornFieldPatch(baseX, baseY, baseZ, yaw, centerLX, centerLZ, cols, rows, spacing = 1.62) {
+// Plaatst een omgeploegd akkerveld (mais of tarwe) dat de terreinhoogte volgt en de oprit vrijlaat
+function buildCropField(baseX, baseY, baseZ, yaw, centerLX, centerLZ, width, depth, crop = 'corn') {
+  const spacing = crop === 'corn' ? 1.62 : 1.05;
+  const cols = Math.max(2, Math.floor(width / spacing));
+  const rows = Math.max(2, Math.floor(depth / spacing));
   const fieldWidth = cols * spacing;
   const fieldDepth = rows * spacing;
   const centerOff = localToWorld(centerLX, centerLZ, yaw);
@@ -331,10 +362,9 @@ function buildCornFieldPatch(baseX, baseY, baseZ, yaw, centerLX, centerLZ, cols,
   const patchCenterZ = baseZ + centerOff.z;
   const patchY = Math.max(baseY - 0.15, getTerrainHeight(patchCenterX, patchCenterZ));
 
-  // Donkere akkerplaat met lichte fundering zodat de akker nooit zweeft aan de randen
   const soilSlab = createOutlinedMesh(
     new THREE.BoxGeometry(fieldWidth + 2.6, 0.55, fieldDepth + 2.6),
-    dirtFieldMat,
+    crop === 'corn' ? dirtFieldMat : stubbleFieldMat,
     0.03,
     false,
     true
@@ -343,94 +373,88 @@ function buildCornFieldPatch(baseX, baseY, baseZ, yaw, centerLX, centerLZ, cols,
   soilSlab.rotation.y = yaw;
   scene.add(soilSlab);
 
-  // Ploegvoren voor een echte akker-uitstraling
-  const furrowGeo = new THREE.BoxGeometry(0.38, 0.06, fieldDepth + 1.4);
-  for (let c = 0; c < cols; c++) {
+  // Ploegvoren (samengevoegd tot 1 mesh)
+  const furrowGeos = [];
+  const furrowBase = new THREE.BoxGeometry(0.38, 0.06, fieldDepth + 1.4);
+  for (let c = 0; c < cols; c += crop === 'corn' ? 1 : 2) {
     const relX = (c - (cols - 1) * 0.5) * spacing;
     const fOff = localToWorld(centerLX + relX, centerLZ, yaw);
-    const furrow = new THREE.Mesh(furrowGeo, furrowMat);
-    furrow.position.set(baseX + fOff.x, patchY + 0.06, baseZ + fOff.z);
-    furrow.rotation.y = yaw;
-    scene.add(furrow);
+    const g = furrowBase.clone();
+    g.applyMatrix4(new THREE.Matrix4().makeRotationY(yaw).setPosition(baseX + fOff.x, patchY + 0.06, baseZ + fOff.z));
+    furrowGeos.push(g);
   }
+  if (furrowGeos.length) scene.add(new THREE.Mesh(BufferGeometryUtils.mergeGeometries(furrowGeos), furrowMat));
 
-  // Rijen maisplanten
+  const matrices = [];
+  const dummy = new THREE.Object3D();
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
       const lx = centerLX + (c - (cols - 1) * 0.5) * spacing + (Math.random() - 0.5) * 0.14;
       const lz = centerLZ + (r - (rows - 1) * 0.5) * spacing + (Math.random() - 0.5) * 0.14;
-
-      // Extra veiligheidsmarge: nooit binnen |lx| < 5.5m als lz > -2m (zodat de oprit 100% vrij blijft!)
-      if (lz > -2.0 && Math.abs(lx) < 5.5) continue;
-
+      // De oprit (lx = 0) altijd ruim vrijhouden
+      if (Math.abs(lx) < 5.5 && lz > -2.0) continue;
       const off = localToWorld(lx, lz, yaw);
       const wx = baseX + off.x;
       const wz = baseZ + off.z;
       const wy = Math.max(patchY + 0.04, getTerrainHeight(wx, wz));
-
-      const plant = createCornPlant();
-      plant.position.set(wx, wy, wz);
-      plant.rotation.y = yaw + (Math.random() - 0.5) * 0.65;
-      plant.scale.setScalar(0.88 + Math.random() * 0.34);
-      scene.add(plant);
+      dummy.position.set(wx, wy, wz);
+      dummy.rotation.set(0, yaw + (Math.random() - 0.5) * 0.65, 0);
+      dummy.scale.setScalar(0.88 + Math.random() * 0.34);
+      dummy.updateMatrix();
+      matrices.push(dummy.matrix.clone());
     }
+  }
+  if (crop === 'corn') {
+    addInstanced(bakedCornStalk.mergedMain, cornStalkMat, matrices);
+    addInstanced(bakedCornStalk.mergedOut, outlineMat, matrices);
+    addInstanced(cornCobGeo, cornCobMat, matrices);
+  } else {
+    addInstanced(bakedWheatStalks.mergedMain, wheatMat, matrices);
+    addInstanced(bakedWheatStalks.mergedOut, outlineMat, matrices);
+    addInstanced(bakedWheatHeads.mergedMain, wheatHeadMat, matrices);
   }
 }
 
-function buildFarm() {
-  const farmLot = ruralLots.find((l) => l.type === 'farm');
-  if (!farmLot) return;
-
+function buildFarm(farmLot) {
   const { x: baseX, y: baseY, z: baseZ, yaw } = farmLot;
+  const fb = farmLot.flatBox;
+  const frontCrop = farmLot.variant === 'wheat' ? 'wheat' : 'corn';
+  const backCrop = farmLot.variant === 'wheat' ? 'corn' : 'wheat';
+  const place = (obj, lx, lz, rotOff = 0) => {
+    const off = localToWorld(lx, lz, yaw);
+    obj.position.set(baseX + off.x, baseY, baseZ + off.z);
+    obj.rotation.y = yaw + rotOff;
+    scene.add(obj);
+    return { x: baseX + off.x, z: baseZ + off.z };
+  };
 
-  // 1. Verhard grinterf aan het eind van de oprit (oprit komt binnen langs lx = 0 vanaf lz = +34 tot lz = 0)
-  const yardOff = localToWorld(0, -2.5, yaw);
-  const yardPad = createOutlinedMesh(new THREE.BoxGeometry(24.0, 0.42, 13.0), yardGravelMat, 0.035, false, true);
-  yardPad.position.set(baseX + yardOff.x, baseY - 0.16, baseZ + yardOff.z);
-  yardPad.rotation.y = yaw;
-  scene.add(yardPad);
+  // 1. Grinterf aan het eind van de oprit
+  const yardPad = createOutlinedMesh(new THREE.BoxGeometry(30.0, 0.42, 17.0), yardGravelMat, 0.035, false, true);
+  place(yardPad, 0, -4.5).x;
+  yardPad.position.y = baseY - 0.16;
 
-  // 2. Grote Amerikaanse hoofdschuur linksachter aan het erf (kijkt schuin/recht op het erf uit)
-  const barnOff = localToWorld(-9.5, -8.8, yaw);
-  const barn = createGrandBarn();
-  barn.position.set(baseX + barnOff.x, baseY, baseZ + barnOff.z);
-  barn.rotation.y = yaw;
-  scene.add(barn);
-  hardColliders.push({ x: baseX + barnOff.x, z: baseZ + barnOff.z, r: 6.4 });
+  // 2. Hoofdschuur, silo's, boerenhuis en windmolen
+  let p = place(createGrandBarn(), -10.5, -10.0);
+  hardColliders.push({ x: p.x, z: p.z, r: 6.4 });
+  p = place(createGrainSilo(2.05, 9.2), -1.6, -12.0);
+  hardColliders.push({ x: p.x, z: p.z, r: 2.3 });
+  p = place(createGrainSilo(1.75, 7.8), 2.8, -12.6);
+  hardColliders.push({ x: p.x, z: p.z, r: 2.0 });
+  if (farmLot.variant === 'wheat') {
+    p = place(createGrainSilo(1.6, 6.8), 6.6, -13.0);
+    hardColliders.push({ x: p.x, z: p.z, r: 1.9 });
+  }
+  p = place(createFarmHouse(), 11.5, -4.5, -Math.PI * 0.5);
+  hardColliders.push({ x: p.x, z: p.z, r: 4.4 });
+  p = place(createWindmill(), farmLot.variant === 'wheat' ? 13.5 : 7.4, farmLot.variant === 'wheat' ? -14.5 : -13.6, 0.35);
+  hardColliders.push({ x: p.x, z: p.z, r: 1.5 });
+  // Extra werktuigenschuur achter het erf
+  p = place(createGrandBarn(), -24.5, -10.5, Math.PI * 0.5);
+  p && hardColliders.push({ x: p.x, z: p.z, r: 6.4 });
 
-  // 3. Twee gekoppelde hoge graansilo's naast de schuur
-  const silo1Off = localToWorld(-1.2, -10.2, yaw);
-  const silo1 = createGrainSilo(2.05, 9.2);
-  silo1.position.set(baseX + silo1Off.x, baseY, baseZ + silo1Off.z);
-  silo1.rotation.y = yaw;
-  scene.add(silo1);
-  hardColliders.push({ x: baseX + silo1Off.x, z: baseZ + silo1Off.z, r: 2.3 });
-
-  const silo2Off = localToWorld(3.1, -10.8, yaw);
-  const silo2 = createGrainSilo(1.75, 7.8);
-  silo2.position.set(baseX + silo2Off.x, baseY, baseZ + silo2Off.z);
-  silo2.rotation.y = yaw;
-  scene.add(silo2);
-  hardColliders.push({ x: baseX + silo2Off.x, z: baseZ + silo2Off.z, r: 2.0 });
-
-  // 4. Statig wit boerenwoonhuis aan de rechterkant van het erf (gericht naar de oprit/erf)
-  const houseOff = localToWorld(10.8, -4.2, yaw);
-  const farmHouse = createFarmHouse();
-  farmHouse.position.set(baseX + houseOff.x, baseY, baseZ + houseOff.z);
-  farmHouse.rotation.y = yaw - Math.PI * 0.5;
-  scene.add(farmHouse);
-  hardColliders.push({ x: baseX + houseOff.x, z: baseZ + houseOff.z, r: 4.4 });
-
-  // 5. Klassieke Amerikaanse windmolen bij het erf
-  const millOff = localToWorld(6.8, -12.4, yaw);
-  const windmill = createWindmill();
-  windmill.position.set(baseX + millOff.x, baseY, baseZ + millOff.z);
-  windmill.rotation.y = yaw + 0.35;
-  scene.add(windmill);
-  hardColliders.push({ x: baseX + millOff.x, z: baseZ + millOff.z, r: 1.5 });
-
-  // 6. Sloopbare houten hekken langs weerszijden van de oprit (op lx = -5.2 en +5.2, dus ruim naast de oprit!)
-  [8.5, 13.5, 18.5, 23.5].forEach((fz) => {
+  // 3. Sloopbare hekken langs de hele oprit
+  const drivewayLen = farmLot.dist - MAIN_ROAD_MARGIN;
+  for (let fz = 8.5; fz < drivewayLen - 2; fz += 5.0) {
     [-5.2, 5.2].forEach((fx) => {
       const fOff = localToWorld(fx, fz, yaw);
       const wx = baseX + fOff.x;
@@ -442,17 +466,13 @@ function buildFarm() {
       scene.add(fence);
       registerDestructible(fence, wx, wy + 0.5, wz, 1.4, 'small', 12, 'Boerderijhek');
     });
-  });
+  }
 
-  // 7. Sloopbare hooibalen (inclusief gestapelde hooibalen op het erf en bij de velden)
+  // 4. Sloopbare hooibalen op het erf en langs de velden
   const haySpots = [
-    [-14.5, -1.2, 0],
-    [-13.0, -0.4, 0],
-    [-13.8, -0.8, 1.18], // Bovenop gestapeld!
-    [-7.6, 2.2, 0],
-    [-6.1, 2.8, 0],
-    [7.4, 2.5, 0],
-    [8.9, 2.0, 0]
+    [-15.5, -1.2, 0], [-14.0, -0.4, 0], [-14.8, -0.8, 1.18],
+    [-7.6, 2.6, 0], [-6.1, 3.2, 0], [7.4, 2.9, 0], [8.9, 2.4, 0],
+    [fb.minLX + 4, -14.5, 0], [fb.minLX + 5.5, -14.0, 0], [fb.maxLX - 4, -14.5, 0]
   ];
   haySpots.forEach(([lx, lz, extraY]) => {
     const off = localToWorld(lx, lz, yaw);
@@ -466,14 +486,17 @@ function buildFarm() {
     registerDestructible(bale, wx, wy, wz, 0.8, 'small', 8, 'Hooibaal');
   });
 
-  // 8. DRIE GROTE MAISVELDEN ROND DE BOERDERIJ (nul overlap met de oprit op lx = 0!)
-  // - Linker maisveld naast de oprit en voor de schuur (lx: -26.5 .. -7.5, lz: +4 .. +25)
-  buildCornFieldPatch(baseX, baseY, baseZ, yaw, -17.0, 14.5, 12, 13, 1.62);
-
-  // - Rechter maisveld naast de oprit en voor het boerenhuis (lx: +7.5 .. +26.5, lz: +4 .. +25)
-  buildCornFieldPatch(baseX, baseY, baseZ, yaw, 17.0, 14.5, 12, 13, 1.62);
-
-  // - Groot achterste maisveld achter de schuur, silo's en windmolen (lx: -19 .. +19, lz: -28.5 .. -16.5)
-  buildCornFieldPatch(baseX, baseY, baseZ, yaw, 0.0, -22.5, 22, 8, 1.68);
+  // 5. Grote akkers: twee velden voor het erf (weerszijden van de oprit) en een breed veld erachter
+  const frontStart = 4.0;
+  const frontEnd = fb.maxLZ - 2.0;
+  const frontDepth = frontEnd - frontStart;
+  const sideW = fb.maxLX - 8.5;
+  buildCropField(baseX, baseY, baseZ, yaw, -(7.5 + sideW * 0.5), frontStart + frontDepth * 0.5, sideW, frontDepth, frontCrop);
+  buildCropField(baseX, baseY, baseZ, yaw, 7.5 + sideW * 0.5, frontStart + frontDepth * 0.5, sideW, frontDepth, frontCrop);
+  const backEnd = fb.minLZ + 2.5;
+  const backStart = -19.5;
+  buildCropField(baseX, baseY, baseZ, yaw, 0, (backStart + backEnd) * 0.5, (fb.maxLX - 3) * 2, backStart - backEnd, backCrop);
 }
-buildFarm();
+
+const MAIN_ROAD_MARGIN = 5.0;
+ruralLots.filter((l) => l.type === 'farm').forEach(buildFarm);

@@ -2,8 +2,9 @@ import * as THREE from 'three';
 import { scene, createOutlinedMesh, makeToonMat, pineSnowCapObjects } from './scene-setup.js';
 import {
   TOWN_ELEV, lakeCurve, getLakeLoopBaseElev, getLakeBridgeAtU, valleyCurve, getValleyBaseElev, getValleyBridgeAtU,
-  ringCurve, getRingBaseElev, getRingBridgeAtU
+  ringCurve, getRingBaseElev, getRingBridgeAtU, timberTrail
 } from './roads.js';
+import { ruralLots } from './water-lots.js';
 import { warmWindowMat } from './town.js';
 
 // =========================================================
@@ -538,6 +539,22 @@ spawnTrafficVehicle(buildYellowTaxiMesh(), ringCurve, getRingBaseElev, getRingBr
 spawnTrafficVehicle(buildPickupTruckMesh(0x8a5a3c, 'Kustwacht Pickup'), ringCurve, getRingBaseElev, getRingBridgeAtU, 0.52, 1, 18.5, 2.2, true);
 spawnTrafficVehicle(buildSchoolBusMesh(), ringCurve, getRingBaseElev, getRingBridgeAtU, 0.71, -1, 14.0, -2.2, true);
 spawnTrafficVehicle(buildPickupTruckMesh(0xd9b23a, 'Gele Strand Pickup'), ringCurve, getRingBaseElev, getRingBridgeAtU, 0.90, 1, 17.0, 2.2, true);
+
+spawnTrafficVehicle(buildPickupTruckMesh(0x5b7a3a, 'Houthakkers Pickup'), timberTrail.curve, timberTrail.elevFn, timberTrail.bridgeFn, 0.3, 1, 13.0, 2.15, false);
+
+// Geparkeerde auto's bij de diner
+const dinerLot = ruralLots.find((l) => l.type === 'diner');
+if (dinerLot) {
+  const c = Math.cos(dinerLot.yaw);
+  const s = Math.sin(dinerLot.yaw);
+  [[-7.25, buildYellowTaxiMesh()], [0.25, buildPickupTruckMesh(0xc94a38, 'Rode Diner Pickup')]].forEach(([lx, veh]) => {
+    const lz = 1.6;
+    veh.root.position.set(dinerLot.x + lx * c + lz * s, dinerLot.roadY + 0.08, dinerLot.z - lx * s + lz * c);
+    veh.root.rotation.y = dinerLot.yaw + Math.PI;
+    scene.add(veh.root);
+    parkedCars.push(veh);
+  });
+}
 
 const townParkedCop = buildPoliceCruiserMesh();
 townParkedCop.root.position.set(23.5, TOWN_ELEV + 0.10, 82.8);

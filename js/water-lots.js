@@ -1,11 +1,15 @@
 import * as THREE from 'three';
 import { lakeSamples, valleySamples, ringSamples, riverCurves, VALLEY_POND, getDistToRivers } from './roads.js';
 
+
+
 // =========================================================
 // WATERLOPEN & KAVELS (MET EXACTE RECHTHOEKIGE VLAKTE-ZONES)
 // =========================================================
 export function getLakeShoreRadius(theta) {
-  return 47 + Math.sin(theta * 2 - 0.4) * 6.0 + Math.cos(theta * 3 + 1.1) * 4.5 + Math.sin(theta * 5) * 1.8;
+  // Noordelijke helft flink groter (daar ligt de meerweg ver genoeg weg); zuidkant bij het dorp blijft gelijk
+  const northGrow = Math.pow(Math.max(0, -Math.sin(theta)), 0.8) * 14;
+  return 47 + Math.sin(theta * 2 - 0.4) * 6.0 + Math.cos(theta * 3 + 1.1) * 4.5 + Math.sin(theta * 5) * 1.8 + northGrow;
 }
 
 export const SANDBAR_ISLAND = { x: 24, z: 6, r: 8.5 };
@@ -38,16 +42,42 @@ export const ruralLots = [
     flatBox: { minLX: -19.5, maxLX: 19.5, minLZ: -14.0, maxLZ: 14.5, blend: 12.0 }
   },
 
-  // Huizen en hutten langs de nieuwe kustweg (u = positie op de ring, outward = zeezijde)
-  { netSamples: ringSamples, u: 0.035, outward: true, dist: 18.0, type: 'cabin', yawOff: 0.05 },
-  { netSamples: ringSamples, u: 0.205, outward: false, dist: 17.5, type: 'aframe', yawOff: -0.08 },
-  { netSamples: ringSamples, u: 0.338, outward: true, dist: 18.0, type: 'house_blue', yawOff: 0.06 },
-  { netSamples: ringSamples, u: 0.455, outward: false, dist: 17.5, type: 'house_yellow', yawOff: -0.05 },
-  { netSamples: ringSamples, u: 0.56, outward: true, dist: 18.0, type: 'aframe', yawOff: 0.1 },
-  { netSamples: ringSamples, u: 0.594, outward: false, dist: 14.0, type: 'cabin', yawOff: 0.0, tag: 'moose_lodge' },
-  { netSamples: ringSamples, u: 0.72, outward: true, dist: 18.0, type: 'cabin', yawOff: -0.04 },
-  { netSamples: ringSamples, u: 0.775, outward: true, dist: 17.5, type: 'house_red', yawOff: -0.06 },
-  { netSamples: ringSamples, u: 0.905, outward: false, dist: 18.0, type: 'cabin', yawOff: 0.08 },
+  // Huizen en hutten langs de kustweg en het bospad (near = wereldpunt, u wordt opgezocht)
+  { netSamples: ringSamples, near: [-257, -118], outward: true, dist: 18.0, type: 'cabin', yawOff: 0.05 },
+  { netSamples: ringSamples, near: [-190, -224], outward: false, dist: 18.0, type: 'aframe', yawOff: -0.08 },
+  { netSamples: ringSamples, near: [40, -262], outward: true, dist: 18.0, type: 'house_blue', yawOff: 0.06 },
+  { netSamples: ringSamples, near: [302, 95], outward: false, dist: 17.5, type: 'house_yellow', yawOff: -0.05 },
+  { netSamples: ringSamples, near: [262, 125], outward: true, dist: 17.0, type: 'cabin', yawOff: 0.0, tag: 'moose_lodge' },
+  { netSamples: ringSamples, near: [232, 236], outward: true, dist: 18.0, type: 'aframe', yawOff: 0.1 },
+  { netSamples: ringSamples, near: [-55, 320], outward: false, dist: 18.0, type: 'house_red', yawOff: -0.06 },
+  { netSamples: ringSamples, near: [-130, 303], outward: false, dist: 18.0, type: 'cabin', yawOff: 0.08 },
+
+  // Fastfood-diner langs de strandboulevard (parkeerplaats sluit direct aan op de weg)
+  {
+    netSamples: ringSamples,
+    near: [30, 321],
+    outward: false,
+    dist: 22.0,
+    type: 'diner',
+    yawOff: 0,
+    noDriveway: true,
+    flatElevOffset: -0.06,
+    flatBox: { minLX: -19, maxLX: 19, minLZ: -12, maxLZ: 18.5, blend: 12 }
+  },
+
+  // Tweede boerderij (Sunny Acres) op de oostelijke vlakte
+  {
+    netSamples: ringSamples,
+    near: [292, -14],
+    outward: false,
+    dist: 52.0,
+    type: 'farm',
+    name: 'SUNNY ACRES',
+    variant: 'wheat',
+    yawOff: 0,
+    flatElevOffset: -0.04,
+    flatBox: { minLX: -40, maxLX: 40, minLZ: -42, maxLZ: 40, blend: 16 }
+  },
 
   // Grote Amerikaanse Boerderij op het brede, vlakke zuidwestelijke vallei-plateau (u=0.70, ver afgelegen van het dorp!).
   // flatBox legt zowel de schuur, silo's, het boerenhuis als alle 3 de maisvelden 100% waterpas.
@@ -55,17 +85,28 @@ export const ruralLots = [
     netSamples: valleySamples,
     u: 0.70,
     outward: true,
-    dist: 36.0,
+    dist: 44.0,
     type: 'farm',
+    name: 'PINEWOOD FARM',
+    variant: 'corn',
     yawOff: 0,
     flatElevOffset: -0.04,
-    flatBox: { minLX: -30.5, maxLX: 30.5, minLZ: -30.0, maxLZ: 27.5, blend: 15.0 }
+    flatBox: { minLX: -40, maxLX: 40, minLZ: -40, maxLZ: 36, blend: 15.0 }
   }
 ];
 
 export const driveways = [];
 
 ruralLots.forEach((lot) => {
+  if (lot.near) {
+    let best = 0;
+    let bestD = Infinity;
+    lot.netSamples.forEach((smp, i) => {
+      const d = (smp.x - lot.near[0]) ** 2 + (smp.z - lot.near[1]) ** 2;
+      if (d < bestD) { bestD = d; best = i; }
+    });
+    lot.u = best / (lot.netSamples.length - 1);
+  }
   const idx = Math.min(lot.netSamples.length - 1, Math.round(lot.u * (lot.netSamples.length - 1)));
   const rs = lot.netSamples[idx];
   const dotOut = rs.x * rs.nx + rs.z * rs.nz;

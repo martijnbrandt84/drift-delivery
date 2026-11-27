@@ -31,25 +31,14 @@ export function getCoastRadius(theta) {
     Math.sin(theta * 3 + 0.7) * 18 +
     Math.cos(theta * 5 - 0.3) * 10 +
     Math.sin(theta * 11 + 1.3) * 5 +
-    bump(theta, -2.15, 0.5) * 85
+    bump(theta, -2.15, 0.5) * 35
   );
 }
 
 // 0 = zandstrand, 1 = steile rotskliffen
 export function getCliffiness(theta) {
-  const n = Math.sin(theta * 2 + 1.2) * 0.8 + Math.sin(theta * 5 - 0.4) * 0.4 + bump(theta, -2.15, 0.6) * 0.9;
+  const n = Math.sin(theta * 2 + 1.2) * 0.8 + Math.sin(theta * 5 - 0.4) * 0.4 + bump(theta, -2.15, 0.6) * 0.5;
   return THREE.MathUtils.smoothstep(n, -0.1, 0.45);
-}
-
-// Ringweg-straal (de kustweg) — iets naar binnen in het NW zodat het bergmassief erbuiten past
-export function getRingRadius(theta) {
-  return (
-    246 +
-    Math.sin(theta * 3 + 2.0) * 8 +
-    Math.sin(theta * 7) * 4 -
-    bump(theta, -2.15, 0.55) * 30 +
-    bump(theta, 2.45, 0.35) * 12
-  );
 }
 
 // Fjord in het noordoosten: een brede zee-inham die de kustweg met een hangbrug oversteekt
@@ -67,7 +56,17 @@ for (let k = 0; k <= 12; k++) {
 }
 export const FJORD = { theta: FJORD_THETA, points: fjordPts };
 
+const fjordBox = (() => {
+  let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+  fjordPts.forEach((p) => {
+    minX = Math.min(minX, p.x - p.hw); maxX = Math.max(maxX, p.x + p.hw);
+    minZ = Math.min(minZ, p.z - p.hw); maxZ = Math.max(maxZ, p.z + p.hw);
+  });
+  return { minX, maxX, minZ, maxZ };
+})();
+
 function getFjordSignedDist(x, z) {
+  if (x < fjordBox.minX - 12 || x > fjordBox.maxX + 12 || z < fjordBox.minZ - 12 || z > fjordBox.maxZ + 12) return 999;
   let best = Infinity;
   for (let i = 0; i < fjordPts.length - 1; i++) {
     const a = fjordPts[i];
@@ -81,25 +80,22 @@ function getFjordSignedDist(x, z) {
   return best;
 }
 
-// Bergen: Mount Frost (besneeuwd), Eagle Peak (spiraalweg naar de top) en North Crag
-function polarPoint(theta, r) {
-  return { x: ISLAND_CENTER.x + Math.cos(theta) * r, z: ISLAND_CENTER.z + Math.sin(theta) * r };
-}
-const frostPos = polarPoint(-2.48, 350);
-const eaglePos = polarPoint(-2.05, 312);
-const cragPos = polarPoint(-1.76, 318);
-
-export const MOUNTAINS = [
-  { id: 'frost', name: 'Mount Frost', x: frostPos.x, z: frostPos.z, h: 74, s: 52, sharp: true },
-  { id: 'eagle', name: 'Eagle Peak', x: eaglePos.x, z: eaglePos.z, h: 34, s: 40 },
-  { id: 'crag', name: 'North Crag', x: cragPos.x, z: cragPos.z, h: 32, s: 30, sharp: true },
-  { id: 'ridge', name: 'Frost Ridge', x: (frostPos.x + eaglePos.x) * 0.5 - 30, z: (frostPos.z + eaglePos.z) * 0.5 - 25, h: 30, s: 34, sharp: true }
+// Beboste heuvels (geen bergen meer): glooiend bos in het noordwesten en wat heuvels in het oosten
+export const FOREST_HILLS = [
+  { x: -195, z: -95, h: 8.5, s: 34 },
+  { x: -135, z: -160, h: 10.5, s: 40 },
+  { x: -230, z: -175, h: 9.0, s: 42 },
+  { x: -70, z: -228, h: 7.5, s: 34 },
+  { x: -170, z: -235, h: 8.0, s: 36 },
+  { x: 45, z: -205, h: 6.0, s: 30 },
+  { x: 255, z: -55, h: 6.5, s: 38 },
+  { x: -225, z: 15, h: 5.5, s: 30 }
 ];
-export const EAGLE_PEAK = MOUNTAINS[1];
+// Uitkijktoren op de hoogste bosheuvel
+export const LOOKOUT_HILL = FOREST_HILLS[1];
 
-// Tweede meer in het zuidoosten met een lodge
-const moosePos = polarPoint(0.62, 192);
-export const MOOSE_LAKE = { x: moosePos.x, z: moosePos.z, r: 20 };
+// Moose Lake: groter bosmeer in het zuidoosten met lodge
+export const MOOSE_LAKE = { x: 212, z: 172, r: 31 };
 
 export function getNaturalGroundBase(x, z) {
   const r = Math.hypot(x, z - 25);
@@ -118,20 +114,16 @@ export function getNaturalGroundBase(x, z) {
   const uplands = uplandBlend * (2.6 + Math.sin(theta * 5 + 0.4) * 1.8 + Math.cos(theta * 8 - 0.6) * 1.2);
 
   let h = 3.5 + broadHills + hillEast + hillWest + uplands;
+  h += uplandBlend * (Math.sin(x * 0.045 + 0.7) * Math.cos(z * 0.05 - 1.1) * 1.6);
 
   // Buitengebied nooit onder water laten zakken (geen toevallige plassen op het land)
   const minOuter = THREE.MathUtils.lerp(-99, 1.3, THREE.MathUtils.smoothstep(r, 92, 125));
   h = Math.max(h, minOuter);
 
-  for (const m of MOUNTAINS) {
-    const d2 = (x - m.x) ** 2 + (z - m.z) ** 2;
-    let g = Math.exp(-d2 / (m.s * m.s));
-    // Spitse toppen: mix van een brede voet (gauss) en een scherpe piek (exponentieel)
-    if (m.sharp) g = g * 0.45 + Math.exp(-Math.sqrt(d2) / (m.s * 0.5)) * 0.55;
-    if (g > 0.002) {
-      const crag = 1 + Math.sin(x * 0.17 + m.x) * Math.cos(z * 0.15 - m.z) * 0.12;
-      h += m.h * g * crag;
-    }
+  // Bosheuvels + fijne golving in het buitengebied (leuk op-en-neer rijden)
+  for (const m of FOREST_HILLS) {
+    const g = Math.exp(-((x - m.x) ** 2 + (z - m.z) ** 2) / (m.s * m.s));
+    if (g > 0.003) h += m.h * g;
   }
 
   // Moose Lake (komvormig)
@@ -150,6 +142,10 @@ export function getNaturalGroundBase(x, z) {
   const pol = getIslandPolar(x, z);
   const coastR = getCoastRadius(pol.theta);
   const inland = coastR - pol.r;
+
+  // Lage kustvlakte in het zuiden: de strandboulevard ligt hier vlak boven het strand
+  const southPlain = bump(pol.theta, 1.5, 0.62) * (1 - THREE.MathUtils.smoothstep(inland, 45, 120));
+  if (southPlain > 0.001) h = THREE.MathUtils.lerp(h, 2.0 + Math.sin(x * 0.03) * 0.4, southPlain * 0.9);
   if (inland < 45) {
     const cliff = getCliffiness(pol.theta);
     let beachH;

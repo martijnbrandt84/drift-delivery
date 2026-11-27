@@ -7,7 +7,7 @@ import {
 } from './scene-setup.js';
 import { waterMat, groundColorAttr, autumnVertexColors, winterVertexColors } from './terrain.js';
 import { skidMat } from './effects.js';
-import { nightLampHalos, houseWindows, warmWindowMat } from './town.js';
+import { nightLampHalos, houseWindows, warmWindowMat, dinerNightLights } from './town.js';
 import { allVehicleNightBeams } from './vehicles.js';
 import { lighthouseBeacon } from './scenery.js';
 
@@ -59,6 +59,7 @@ export function applyAtmosphereSettings() {
   townNightGlow.intensity = isNightMode ? 3.2 : 0;
   if (lighthouseBeacon) lighthouseBeacon.intensity = isNightMode ? 4.2 : 0;
   nightLampHalos.forEach((h) => { h.visible = isNightMode; });
+  dinerNightLights.forEach((l) => { l.intensity = isNightMode ? 3.2 : 0; });
   allVehicleNightBeams.forEach((b) => { b.visible = isNightMode; });
 
   if (isNightMode) {

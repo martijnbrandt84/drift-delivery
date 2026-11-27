@@ -1,6 +1,6 @@
 import { allRoadNetworks, TOWN_BOUNDS, WORLD_LIMIT, WATER_LEVEL } from './roads.js';
 import { SANDBAR_ISLAND, ruralLots } from './water-lots.js';
-import { EAGLE_PEAK } from './landscape.js';
+import { LOOKOUT_HILL } from './landscape.js';
 import { getTerrainHeight } from './terrain.js';
 import { minimapCanvas } from './dom.js';
 
@@ -81,12 +81,24 @@ function bakeStaticMap() {
   bctx.fillRect(tl.px, tl.py, br.px - tl.px, br.py - tl.py);
 
   // Boerderij
-  const farmLot = ruralLots.find((l) => l.type === 'farm');
-  if (farmLot) {
+  ruralLots.filter((l) => l.type === 'farm').forEach((farmLot) => {
     const { px, py } = worldToBake(farmLot.x, farmLot.z);
     bctx.fillStyle = '#a23327';
-    bctx.fillRect(px - 6, py - 6, 12, 12);
-  }
+    bctx.fillRect(px - 7, py - 7, 14, 14);
+  });
+
+  // Diner (rood-geel rondje)
+  ruralLots.filter((l) => l.type === 'diner').forEach((lot) => {
+    const { px, py } = worldToBake(lot.x, lot.z);
+    bctx.fillStyle = '#ffd23f';
+    bctx.beginPath();
+    bctx.arc(px, py, 8, 0, Math.PI * 2);
+    bctx.fill();
+    bctx.fillStyle = '#d62839';
+    bctx.beginPath();
+    bctx.arc(px, py, 5, 0, Math.PI * 2);
+    bctx.fill();
+  });
 
   // Vuurtoren op het zandeiland
   const lh = worldToBake(SANDBAR_ISLAND.x, SANDBAR_ISLAND.z);
@@ -95,8 +107,8 @@ function bakeStaticMap() {
   bctx.arc(lh.px, lh.py, 6, 0, Math.PI * 2);
   bctx.fill();
 
-  // Uitkijktoren op Eagle Peak
-  const ep = worldToBake(EAGLE_PEAK.x, EAGLE_PEAK.z);
+  // Uitkijktoren op de bosheuvel
+  const ep = worldToBake(LOOKOUT_HILL.x, LOOKOUT_HILL.z);
   bctx.fillStyle = '#8a4a22';
   bctx.beginPath();
   bctx.moveTo(ep.px, ep.py - 9);
@@ -108,7 +120,7 @@ function bakeStaticMap() {
   // Hutten en huizen
   bctx.fillStyle = '#7a4a2a';
   ruralLots.forEach((lot) => {
-    if (lot.type === 'farm' || lot.type === 'store') return;
+    if (lot.type === 'farm' || lot.type === 'store' || lot.type === 'diner') return;
     const { px, py } = worldToBake(lot.x, lot.z);
     bctx.fillRect(px - 3, py - 3, 6, 6);
   });

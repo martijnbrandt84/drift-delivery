@@ -4,13 +4,14 @@ import {
   pineSnowCapObjects, deciduousFoliageObjects
 } from './scene-setup.js';
 import {
-  WATER_LEVEL, getClosestNetworkRoad, getDistToRivers, ringCurve, connectorRoads, eagleSpiralRoad, RING_BRIDGES
+  WATER_LEVEL, getClosestNetworkRoad, getDistToRivers, ringCurve, connectorRoads, timberTrail, RING_BRIDGES
 } from './roads.js';
 import { ruralLots } from './water-lots.js';
 import {
-  ISLAND_CENTER, getIslandPolar, getCoastRadius, getCliffiness, MOOSE_LAKE, EAGLE_PEAK
+  ISLAND_CENTER, getIslandPolar, getCoastRadius, getCliffiness, MOOSE_LAKE, LOOKOUT_HILL
 } from './landscape.js';
-import { hardColliders } from './demolition.js';
+import { hardColliders, destructibles, registerInstancedDestructible } from './demolition.js';
+import { houseWindows, warmWindowMat } from './town.js';
 import { getTerrainHeight, getLocalSlope } from './terrain.js';
 import {
   bakedPineTrunk, pineNeedleParts, bakedPineSnow, bakedBirchSkeleton, bakedBirchSnow, crownParts, bakedRock,
@@ -35,7 +36,7 @@ const CROWN_COLORS = [0xe89f38, 0xdc6a35, 0xc94a38, 0x5d8f44, 0x889e42, 0xd9b83b
 
 function isInsideSpecialLot(x, z) {
   for (const lot of ruralLots) {
-    const pad = lot.type === 'farm' ? 50 : lot.type === 'store' ? 34 : 12;
+    const pad = lot.type === 'farm' ? 50 : lot.type === 'store' || lot.type === 'diner' ? 36 : 12;
     if (Math.hypot(x - lot.x, z - lot.z) < pad) return true;
   }
   return false;
@@ -49,7 +50,16 @@ function forestDensity(x, z) {
   );
 }
 
-const summitPos = { x: EAGLE_PEAK.x, z: EAGLE_PEAK.z };
+const summitPos = { x: LOOKOUT_HILL.x, z: LOOKOUT_HILL.z };
+
+// Bestaande (losse) bomen uit props.js, zodat het bos daar niet doorheen groeit
+const existingTreeGrid = new Map();
+destructibles.forEach((d) => {
+  if (d.kind !== 'tree') return;
+  const key = Math.floor(d.x / 6) + ',' + Math.floor(d.z / 6);
+  if (!existingTreeGrid.has(key)) existingTreeGrid.set(key, []);
+  existingTreeGrid.get(key).push(d);
+});
 
 function collectForestSpots() {
   const spots = [];
@@ -60,8 +70,9 @@ function collectForestSpots() {
     const cz = Math.floor(z / 6);
     for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) {
       const arr = placed.get(`${cx + dx},${cz + dz}`);
-      if (!arr) continue;
-      for (const p of arr) if (Math.hypot(x - p.x, z - p.z) < minD) return true;
+      if (arr) for (const p of arr) if (Math.hypot(x - p.x, z - p.z) < minD) return true;
+      const old = existingTreeGrid.get(`${cx + dx},${cz + dz}`);
+      if (old) for (const p of old) if (Math.hypot(x - p.x, z - p.z) < minD) return true;
     }
     return false;
   };
@@ -73,8 +84,8 @@ function collectForestSpots() {
     const z = ISLAND_CENTER.z + Math.sin(ang) * rr;
 
     const pol = getIslandPolar(x, z);
-    // Alleen buiten de oude kern (daar staan al de sloopbare bomen uit props.js)
-    if (pol.r < 165) continue;
+    // Alleen buiten de oude kern (daar staan al de losse bomen uit props.js)
+    if (pol.r < 150) continue;
     if (pol.r > getCoastRadius(pol.theta) - 10) continue;
 
     const dens = forestDensity(x, z);
@@ -82,8 +93,7 @@ function collectForestSpots() {
     if (dens < 0.15 && Math.random() < 0.6) continue;
 
     const y = getTerrainHeight(x, z);
-    if (y < 0.75 || y > 27) continue;
-    if (y > 20 && Math.random() < 0.6) continue; // boomgrens: dunner bovenaan
+    if (y < 0.75) continue;
     if (getLocalSlope(x, z) > 0.75) continue;
 
     const { marginDist } = getClosestNetworkRoad(x, z);
@@ -138,26 +148,39 @@ function buildOuterForest() {
     const key = `${Math.floor(s.x / CHUNK)},${Math.floor(s.z / CHUNK)}`;
     if (!chunks.has(key)) chunks.set(key, { pines: [], decid: [] });
     (s.isPine ? chunks.get(key).pines : chunks.get(key).decid).push(s);
-    hardColliders.push({ x: s.x, z: s.z, r: 0.55 * s.scale });
   });
+
+  // Elke boom wordt een sloopbaar object: bij een botsing valt hij om (net als de bomen in de kern)
+  const registerTrees = (list, sets, label) => {
+    list.forEach((t, i) => {
+      const refs = [];
+      sets.forEach((set) => {
+        refs.push({ mesh: set.main, index: i });
+        if (set.outline) refs.push({ mesh: set.outline, index: i });
+      });
+      registerInstancedDestructible(refs, t.x, t.y, t.z, t.rot, t.scale, 0.85 * t.scale, 'tree', 15, label);
+    });
+  };
 
   chunks.forEach(({ pines, decid }) => {
     if (pines.length) {
-      buildInstancedSet(bakedPineTrunk, pines, null, true);
-      buildInstancedSet(bakedPineTint, pines, pineTintMat, true, PINE_COLORS);
+      const trunk = buildInstancedSet(bakedPineTrunk, pines, null, true);
+      const needles = buildInstancedSet(bakedPineTint, pines, pineTintMat, true, PINE_COLORS);
       const snow = buildInstancedSet(bakedPineSnow, pines, null, false);
       snow.main.visible = false;
       pineSnowCapObjects.push(snow.main);
       if (snow.outline) { snow.outline.visible = false; pineSnowCapObjects.push(snow.outline); }
+      registerTrees(pines, [trunk, needles, snow], 'Dennenboom');
     }
     if (decid.length) {
-      buildInstancedSet(bakedBirchSkeleton, decid, null, true);
+      const skel = buildInstancedSet(bakedBirchSkeleton, decid, null, true);
       const crowns = buildInstancedSet(bakedCrownTint, decid, crownTintMat, true, CROWN_COLORS);
       deciduousFoliageObjects.push(crowns.main);
       if (crowns.outline) deciduousFoliageObjects.push(crowns.outline);
       const bSnow = buildInstancedSet(bakedBirchSnow, decid, null, false);
       bSnow.main.visible = false;
       pineSnowCapObjects.push(bSnow.main);
+      registerTrees(decid, [skel, crowns, bSnow], 'Loofboom');
     }
   });
   return spots.length;
@@ -165,7 +188,7 @@ function buildOuterForest() {
 
 function buildMountainBoulders() {
   const list = [];
-  for (let attempt = 0; attempt < 5000 && list.length < 170; attempt++) {
+  for (let attempt = 0; attempt < 5000 && list.length < 110; attempt++) {
     const ang = Math.random() * Math.PI * 2;
     const rr = 170 + Math.random() * 250;
     const x = ISLAND_CENTER.x + Math.cos(ang) * rr;
@@ -176,8 +199,8 @@ function buildMountainBoulders() {
     const y = getTerrainHeight(x, z);
     if (y < 0.6) continue;
     const slope = getLocalSlope(x, z);
-    // Vooral in de bergen en op de kliffen langs de kust
-    const rocky = y > 14 || (inland < 30 && getCliffiness(pol.theta) > 0.5) || slope > 0.6;
+    // Rotsblokken op de kliffen langs de kust en op steile bosheuvels
+    const rocky = (inland < 30 && getCliffiness(pol.theta) > 0.5) || slope > 0.45;
     if (!rocky) continue;
     const { marginDist } = getClosestNetworkRoad(x, z);
     if (marginDist < 5.5 || getDistToRivers(x, z) < 4) continue;
@@ -193,18 +216,17 @@ const forestCount = buildOuterForest();
 buildMountainBoulders();
 
 // =========================================================
-// UITKIJKTOREN OP EAGLE PEAK (einde van de spiraalweg)
+// UITKIJKTOREN OP DE HOOGSTE BOSHEUVEL (langs het Timber Trail)
 // =========================================================
 function buildFireLookout() {
-  const x = EAGLE_PEAK.x;
-  const z = EAGLE_PEAK.z;
+  const x = LOOKOUT_HILL.x;
+  const z = LOOKOUT_HILL.z;
   const baseY = getTerrainHeight(x, z);
   const g = new THREE.Group();
   const woodMat = registerSeasonalMat(0x7a4a2a, 0x8a6a55);
   const darkWoodMat = makeToonMat(0x5a3520);
   const cabinMat = registerSeasonalMat(0xc9a273, 0xd8c8b8);
   const roofMat = registerSeasonalMat(0x9c3b2e, 0xf2f6fb);
-  const glassMat = new THREE.MeshBasicMaterial({ color: 0x9fd4e6 });
 
   const legH = 9.0;
   const footHalf = 2.4;
@@ -238,11 +260,12 @@ function buildFireLookout() {
   cabin.position.y = legH + 1.3;
   g.add(cabin);
   [0, 1, 2, 3].forEach((k) => {
-    const win = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 0.9), glassMat);
+    const win = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 0.9), warmWindowMat);
     const a = (k * Math.PI) / 2;
     win.position.set(Math.sin(a) * 1.62, legH + 1.55, Math.cos(a) * 1.62);
     win.rotation.y = a;
     g.add(win);
+    houseWindows.push({ mesh: win, timer: Math.random() * 10 });
   });
   const roof = createOutlinedMesh(new THREE.ConeGeometry(3.0, 1.5, 4), roofMat, 0.045);
   roof.position.y = legH + 3.05;
@@ -400,10 +423,8 @@ connectorRoads.forEach((c) => {
   signAlong(c.curve, uEnd, 1, ['PINEWOOD', 'Centrum']);
 });
 
-{
-  const L = eagleSpiralRoad.curve.getLength();
-  signAlong(eagleSpiralRoad.curve, 26 / L, 1, ['EAGLE PEAK', 'Uitkijktoren'], true);
-}
+signAlong(timberTrail.curve, clearDistAlong(timberTrail, 24, 1), 1, ['TIMBER TRAIL', 'Uitkijktoren'], true);
+signAlong(timberTrail.curve, clearDistAlong(timberTrail, 24, -1), 1, ['TIMBER TRAIL', 'Uitkijktoren']);
 
 {
   const lodge = ruralLots.find((l) => l.tag === 'moose_lodge');

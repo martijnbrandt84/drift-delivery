@@ -266,7 +266,7 @@ function buildCompleteRoadSystem() {
 
   placeRoadBollards(lakeSamples, 18);
   placeRoadBollards(valleySamples, 18);
-  outerRoadDefs.forEach((def) => placeRoadBollards(def.samples, def.id === 'eagle_spiral' ? 9 : 22));
+  outerRoadDefs.forEach((def) => placeRoadBollards(def.samples, def.id === 'timber_trail' ? 12 : 22));
 }
 buildCompleteRoadSystem();
 

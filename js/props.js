@@ -313,5 +313,5 @@ for (let i = 0; i < 40; i++) {
   rock.position.set(rx, ry + 0.15, rz);
   rock.rotation.set(0.15, Math.random() * Math.PI, 0.12);
   scene.add(rock);
-  hardColliders.push({ x: rx, z: rz, r: rs * 0.85 });
+  hardColliders.push({ x: rx, z: rz, r: rs * 0.85, wild: true, mesh: rock });
 }
