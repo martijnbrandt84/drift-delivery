@@ -36,7 +36,7 @@ const CROWN_COLORS = [0xe89f38, 0xdc6a35, 0xc94a38, 0x5d8f44, 0x889e42, 0xd9b83b
 
 function isInsideSpecialLot(x, z) {
   for (const lot of ruralLots) {
-    const pad = lot.type === 'farm' ? 50 : lot.type === 'store' || lot.type === 'diner' ? 36 : 12;
+    const pad = lot.type === 'farm' ? 50 : lot.type === 'store' || lot.type === 'diner' ? 36 : lot.type === 'villa' ? 32 : 12;
     if (Math.hypot(x - lot.x, z - lot.z) < pad) return true;
   }
   return false;
@@ -442,3 +442,18 @@ RING_BRIDGES.filter((b) => b.type === 'suspension').forEach((b) => {
 });
 
 export const ISLAND_STATS = { forestCount };
+
+// Bord bij de inrit van de Pinewood Mall
+{
+  const mall = ruralLots.find((l) => l.type === 'store');
+  if (mall) {
+    const ax = Math.cos(mall.yaw);
+    const az = -Math.sin(mall.yaw);
+    const tx = mall.x - mall.roadX;
+    const tz = mall.z - mall.roadZ;
+    const tl = Math.hypot(tx, tz) || 1;
+    const sx = mall.roadX + ax * 7.5 + (tx / tl) * 3.0;
+    const sz = mall.roadZ + az * 7.5 + (tz / tl) * 3.0;
+    createRoadSign(sx, sz, getTerrainHeight(sx, sz), mall.yaw, ['PINEWOOD MALL', 'Ingang']);
+  }
+}

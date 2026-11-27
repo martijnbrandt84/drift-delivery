@@ -10,17 +10,8 @@ function computeExactDriveSurface(x, z, currentY = null) {
   const { sample: rs, marginDist } = getClosestNetworkRoad(x, z);
   const terrH = getTerrainHeight(x, z);
 
-  // Check of we ons op de Golden Gate-brug bij de boerderij (u = 0.89 op valley_road) bevinden
-  const isFarmBridge =
-    rs &&
-    rs.roadId === 'valley_road' &&
-    Math.abs(rs.u - 0.89) <= 0.042;
-
-  const farmBridgeArch = isFarmBridge
-    ? 0.5 * (1 + Math.cos(((rs.u - 0.89) / 0.042) * Math.PI)) * 3.4
-    : 0;
-  const effectiveRoadY = rs ? rs.y + farmBridgeArch : 0;
-  const onAnyBridge = Boolean(rs && (rs.onBridge || isFarmBridge));
+  const effectiveRoadY = rs ? rs.y : 0;
+  const onAnyBridge = Boolean(rs && rs.onBridge);
 
   if (rs && marginDist <= 0.45) {
     // Alleen op grond/water blijven als de auto al duidelijk onder de brug zit (bijv. in water of laag in de vallei)

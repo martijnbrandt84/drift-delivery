@@ -121,6 +121,12 @@ function bakeStaticMap() {
   bctx.fillStyle = '#7a4a2a';
   ruralLots.forEach((lot) => {
     if (lot.type === 'farm' || lot.type === 'store' || lot.type === 'diner') return;
+    if (lot.type === 'villa') {
+      const v = worldToBake(lot.x, lot.z);
+      bctx.fillStyle = '#f6f0e4';
+      bctx.fillRect(v.px - 6, v.py - 4, 12, 8);
+      return;
+    }
     const { px, py } = worldToBake(lot.x, lot.z);
     bctx.fillRect(px - 3, py - 3, 6, 6);
   });

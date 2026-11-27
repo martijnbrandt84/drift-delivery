@@ -293,6 +293,8 @@ buildWaterReeds();
 export let lighthouseBeacon = null;
 export let lighthouseBeamPivot = null;
 export let lighthouseBeamMat = null;
+// Lantaarnglas: overdag gewoon glas, 's nachts brandend (zie ui-controls.js)
+export const lighthouseLanternMat = new THREE.MeshBasicMaterial({ color: 0x9fc8d9 });
 
 function buildLighthouse() {
   const x = SANDBAR_ISLAND.x;
@@ -322,8 +324,7 @@ function buildLighthouse() {
   gallery.position.y = 6.7;
   g.add(gallery);
 
-  const lanternGlassMat = new THREE.MeshBasicMaterial({ color: 0xfff4c4 });
-  const lanternRoom = createOutlinedMesh(new THREE.CylinderGeometry(0.55, 0.6, 1.1, 10), lanternGlassMat, 0.035, false);
+  const lanternRoom = createOutlinedMesh(new THREE.CylinderGeometry(0.55, 0.6, 1.1, 10), lighthouseLanternMat, 0.035, false);
   lanternRoom.position.y = 7.35;
   g.add(lanternRoom);
 
@@ -358,6 +359,7 @@ function buildLighthouse() {
   const beamMesh = new THREE.Mesh(beamGeo, beamMat);
   beamPivot.add(beamMesh);
   g.add(beamPivot);
+  beamPivot.visible = false; // alleen 's nachts aan
   lighthouseBeamPivot = beamPivot;
   lighthouseBeamMat = beamMat;
 

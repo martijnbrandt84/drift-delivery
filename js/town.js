@@ -1417,8 +1417,172 @@ function createAFrameCabin() {
   return g;
 }
 
+// =========================================================
+// GROTE VILLA AAN MOOSE LAKE: herenhuis met vleugels, zuilenportiek,
+// zwembad met terras, heggen en een fontein op het voorplein
+// =========================================================
+const villaWallMat = makeToonMat(0xf6f0e4);
+const villaRoofMat = registerSeasonalMat(0x3e4a5c, 0xf2f6fb);
+const villaTrimMat = makeToonMat(0xd9cdb8);
+const villaShutterMat = makeToonMat(0x2f5d50);
+const villaDoorMat = makeToonMat(0x5a3324);
+const poolWaterMat = new THREE.MeshBasicMaterial({ color: 0x5fd0e6 });
+const poolDeckMat = registerSeasonalMat(0xe2d2b4, 0xf2f6fb);
+const hedgeMat = registerSeasonalMat(0x3f6e3c, 0xe8eff4);
+
+function hipRoof(w, d, h, mat) {
+  // Schilddak: piramide-vorm gestrekt over de lengte
+  const geo = new THREE.ConeGeometry(Math.SQRT1_2, 1, 4, 1);
+  geo.rotateY(Math.PI / 4);
+  geo.translate(0, 0.5, 0);
+  const mesh = createOutlinedMesh(geo, mat, 0.05);
+  mesh.scale.set(w + 0.9, h, d + 0.9);
+  return mesh;
+}
+
+function addVillaWindows(g, xs, ys, z, rotY = 0) {
+  xs.forEach((wx) => {
+    ys.forEach((wy) => {
+      const glass = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 1.45), warmWindowMat);
+      const frame = createOutlinedMesh(new THREE.BoxGeometry(1.35, 1.7, 0.08), villaTrimMat, 0.02, false);
+      const shutters = [-0.85, 0.85].map((sx) => {
+        const sh = new THREE.Mesh(new THREE.BoxGeometry(0.4, 1.55, 0.06), villaShutterMat);
+        sh.position.set(sx, 0, 0.02);
+        return sh;
+      });
+      const holder = new THREE.Group();
+      glass.position.z = 0.06;
+      holder.add(frame, glass, ...shutters);
+      if (rotY === 0) holder.position.set(wx, wy, z);
+      else holder.position.set(z * Math.sign(rotY), wy, wx);
+      holder.rotation.y = rotY;
+      g.add(holder);
+      houseWindows.push({ mesh: glass, timer: Math.random() * 10 });
+    });
+  });
+}
+
+function createVilla() {
+  const g = new THREE.Group();
+  const mainW = 13.0, mainD = 8.5, mainH = 7.0;
+
+  const plinth = createOutlinedMesh(new THREE.BoxGeometry(mainW + 13.4, 0.6, mainD + 1.2), stoneMat, 0.04, false, true);
+  plinth.position.y = 0.2;
+  g.add(plinth);
+
+  // Hoofdgebouw (2 verdiepingen)
+  const main = createOutlinedMesh(new THREE.BoxGeometry(mainW, mainH, mainD), villaWallMat, 0.06);
+  main.position.y = mainH * 0.5 + 0.45;
+  g.add(main);
+  const cornice = createOutlinedMesh(new THREE.BoxGeometry(mainW + 0.4, 0.35, mainD + 0.4), villaTrimMat, 0.035, false);
+  cornice.position.y = mainH + 0.45;
+  g.add(cornice);
+  const roof = hipRoof(mainW, mainD, 3.4, villaRoofMat);
+  roof.position.y = mainH + 0.6;
+  g.add(roof);
+  addVillaWindows(g, [-4.6, -2.3, 2.3, 4.6], [2.3, 5.5], mainD * 0.5 + 0.02);
+
+  // Twee lagere vleugels
+  [-1, 1].forEach((side) => {
+    const wingW = 6.2, wingD = 7.0, wingH = 4.2;
+    const wing = createOutlinedMesh(new THREE.BoxGeometry(wingW, wingH, wingD), villaWallMat, 0.055);
+    wing.position.set(side * (mainW * 0.5 + wingW * 0.5 - 0.1), wingH * 0.5 + 0.45, -0.4);
+    g.add(wing);
+    const wRoof = hipRoof(wingW, wingD, 2.2, villaRoofMat);
+    wRoof.position.set(side * (mainW * 0.5 + wingW * 0.5 - 0.1), wingH + 0.55, -0.4);
+    g.add(wRoof);
+    addVillaWindows(g, [side * (mainW * 0.5 + 1.7), side * (mainW * 0.5 + 4.3)], [2.3], wingD * 0.5 - 0.38);
+  });
+
+  // Zuilenportiek met balkon
+  const portico = createOutlinedMesh(new THREE.BoxGeometry(5.4, 0.35, 2.6), villaTrimMat, 0.04, false);
+  portico.position.set(0, 4.15, mainD * 0.5 + 1.3);
+  g.add(portico);
+  [-2.3, -0.8, 0.8, 2.3].forEach((cx) => {
+    const col = createOutlinedMesh(new THREE.CylinderGeometry(0.22, 0.26, 3.6, 10), villaTrimMat, 0.03, false);
+    col.position.set(cx, 2.3, mainD * 0.5 + 2.3);
+    g.add(col);
+  });
+  const steps = createOutlinedMesh(new THREE.BoxGeometry(4.6, 0.3, 1.6), stoneMat, 0.03, false, true);
+  steps.position.set(0, 0.35, mainD * 0.5 + 3.1);
+  g.add(steps);
+  const door = createOutlinedMesh(new THREE.BoxGeometry(1.6, 2.6, 0.14), villaDoorMat, 0.03, false);
+  door.position.set(0, 1.75, mainD * 0.5 + 0.06);
+  g.add(door);
+  const balconyRail = createOutlinedMesh(new THREE.BoxGeometry(5.4, 0.5, 0.12), villaTrimMat, 0.02, false);
+  balconyRail.position.set(0, 4.6, mainD * 0.5 + 2.55);
+  g.add(balconyRail);
+
+  // Schoorstenen
+  [-1, 1].forEach((side) => {
+    const chim = createOutlinedMesh(new THREE.BoxGeometry(0.9, 3.2, 0.9), stoneMat, 0.04, false);
+    chim.position.set(side * 4.2, mainH + 2.0, -1.4);
+    g.add(chim);
+  });
+
+  // Zwembad met terras aan de zijkant (richting het meer)
+  const deck = createOutlinedMesh(new THREE.BoxGeometry(11.0, 0.3, 7.5), poolDeckMat, 0.035, false, true);
+  deck.position.set(mainW * 0.5 + 6.2 + 7.0, 0.3, 3.4);
+  g.add(deck);
+  const pool = new THREE.Mesh(new THREE.BoxGeometry(7.6, 0.1, 4.0), poolWaterMat);
+  pool.position.set(mainW * 0.5 + 6.2 + 7.0, 0.47, 3.4);
+  g.add(pool);
+  [-2.2, 2.2].forEach((lx) => {
+    const lounger = createOutlinedMesh(new THREE.BoxGeometry(0.7, 0.25, 1.9), trimWhiteMat, 0.02, false);
+    lounger.position.set(mainW * 0.5 + 6.2 + 7.0 + lx, 0.6, 6.4);
+    g.add(lounger);
+  });
+
+  // Voorplein met fontein en heggen
+  const court = createOutlinedMesh(new THREE.BoxGeometry(14, 0.3, 7.5), poolDeckMat, 0.03, false, true);
+  court.position.set(0, 0.12, mainD * 0.5 + 7.6);
+  g.add(court);
+  const basin = createOutlinedMesh(new THREE.CylinderGeometry(1.9, 2.1, 0.55, 16), stoneMat, 0.035, false);
+  basin.position.set(0, 0.5, mainD * 0.5 + 8.0);
+  g.add(basin);
+  const fWater = new THREE.Mesh(new THREE.CylinderGeometry(1.65, 1.65, 0.08, 16), poolWaterMat);
+  fWater.position.set(0, 0.76, mainD * 0.5 + 8.0);
+  g.add(fWater);
+  const spout = createOutlinedMesh(new THREE.CylinderGeometry(0.2, 0.35, 1.3, 8), stoneMat, 0.025, false);
+  spout.position.set(0, 1.25, mainD * 0.5 + 8.0);
+  g.add(spout);
+  [-1, 1].forEach((side) => {
+    const hedge = createOutlinedMesh(new THREE.BoxGeometry(5.0, 1.0, 1.0), hedgeMat, 0.035, false);
+    hedge.position.set(side * 5.0, 0.75, mainD * 0.5 + 11.0);
+    g.add(hedge);
+  });
+
+  g.userData.lightSpecs = { width: mainW * 0.94, yPos: mainH + 0.7, zFront: mainD * 0.5 + 0.3 };
+  g.userData.chimneyTop = new THREE.Vector3(4.2, mainH + 3.7, -1.4);
+  return g;
+}
+
+function buildVilla(lot) {
+  const mesh = createVilla();
+  // Villa staat iets van de oprit af: het voorplein ligt aan het eind van de oprijlaan
+  const back = rotateLocal(0, -9.5, lot.yaw);
+  const vx = lot.x + back.x;
+  const vz = lot.z + back.z;
+  mesh.position.set(vx, getTerrainHeight(lot.x, lot.z), vz);
+  mesh.rotation.y = lot.yaw;
+  scene.add(mesh);
+  addRoofStringLights(mesh, mesh.userData.lightSpecs.width, mesh.userData.lightSpecs.yPos, mesh.userData.lightSpecs.zFront);
+  mesh.updateMatrixWorld(true);
+  chimneySmokes.push({ origin: mesh.userData.chimneyTop.clone().applyMatrix4(mesh.matrixWorld), timer: Math.random() * 1.8 });
+  [[-9.5, -0.4], [-3.5, 0], [3.5, 0], [9.5, -0.4], [19.7, 3.4]].forEach(([lx, lz]) => {
+    const p = rotateLocal(lx, lz, lot.yaw);
+    hardColliders.push({ x: vx + p.x, z: vz + p.z, r: lx === 19.7 ? 4.0 : 4.2 });
+  });
+  const f = rotateLocal(0, 12.25, lot.yaw);
+  hardColliders.push({ x: vx + f.x, z: vz + f.z, r: 2.2 });
+}
+
 ruralLots.forEach((lot) => {
   if (lot.type === 'farm' || lot.type === 'store' || lot.type === 'diner') return;
+  if (lot.type === 'villa') {
+    buildVilla(lot);
+    return;
+  }
 
   if (mallExclusionZone) {
     const dx = lot.x - mallExclusionZone.baseX;

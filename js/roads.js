@@ -74,7 +74,7 @@ function getRawLakeLoopElev(u) {
 }
 
 // Extra T-splitsing aan de noordoostkant van de meerweg: verbindingsweg naar de kustweg
-export const U_LAKE_NORTH_JUNCTION = 0.115;
+export const U_LAKE_NORTH_JUNCTION = 0.142;
 const lakeNorthJY = getRawLakeLoopElev(U_LAKE_NORTH_JUNCTION);
 
 export function getLakeLoopBaseElev(u) {
@@ -127,10 +127,13 @@ const valleyWaypoints = [
 
 export const valleyCurve = new THREE.CatmullRomCurve3(valleyWaypoints, false, 'centripetal', 0.5);
 export const VALLEY_BRIDGE = { name: 'Meadow Brook Bridge', uCenter: 0.60, uHalfSpan: 0.042, archHeight: 1.40 };
+// Houten brug over Bear Creek (vervangt de oude rode hangbrug bij de boerderij)
+export const VALLEY_CREEK_BRIDGE = { name: 'Bear Creek Bridge', uCenter: 0.89, uHalfSpan: 0.032, archHeight: 1.5, deckY: 3.4 };
+export const VALLEY_BRIDGES = [VALLEY_BRIDGE, VALLEY_CREEK_BRIDGE];
 
 function getRawValleyElev(u) {
   const seMountainPass = Math.exp(-(((u - 0.19) / 0.105) ** 2)) * 7.8;
-  const swPineSummit = Math.exp(-(((u - 0.81) / 0.10) ** 2)) * 7.2;
+  const swPineSummit = Math.exp(-(((u - 0.78) / 0.09) ** 2)) * 4.6;
   const waves = Math.sin(u * Math.PI * 5) * 0.95;
 
   let midWave = 2.2 + seMountainPass + swPineSummit + waves;
@@ -141,6 +144,12 @@ function getRawValleyElev(u) {
   const dBridge = Math.abs(u - VALLEY_BRIDGE.uCenter);
   if (dBridge < VALLEY_BRIDGE.uHalfSpan * 2.3) {
     midWave = THREE.MathUtils.lerp(1.35, midWave, THREE.MathUtils.smoothstep(dBridge, VALLEY_BRIDGE.uHalfSpan, VALLEY_BRIDGE.uHalfSpan * 2.3));
+  }
+
+  const dCreek = Math.abs(u - VALLEY_CREEK_BRIDGE.uCenter);
+  const creekBlend = VALLEY_CREEK_BRIDGE.uHalfSpan * 4.2;
+  if (dCreek < creekBlend) {
+    midWave = THREE.MathUtils.lerp(VALLEY_CREEK_BRIDGE.deckY, midWave, THREE.MathUtils.smoothstep(dCreek, VALLEY_CREEK_BRIDGE.uHalfSpan, creekBlend));
   }
 
   const startBlend = THREE.MathUtils.smoothstep(u, 0.0, 0.09);
@@ -165,11 +174,14 @@ export function getValleyBaseElev(u) {
 }
 
 export function getValleyBridgeAtU(u) {
-  const diff = u - VALLEY_BRIDGE.uCenter;
-  if (Math.abs(diff) <= VALLEY_BRIDGE.uHalfSpan) {
-    const norm = diff / VALLEY_BRIDGE.uHalfSpan;
-    const archY = 0.5 * (1 + Math.cos(norm * Math.PI)) * VALLEY_BRIDGE.archHeight;
-    return { onBridge: true, bridgeId: 'valley_0', norm, archY };
+  for (let i = 0; i < VALLEY_BRIDGES.length; i++) {
+    const b = VALLEY_BRIDGES[i];
+    const diff = u - b.uCenter;
+    if (Math.abs(diff) <= b.uHalfSpan) {
+      const norm = diff / b.uHalfSpan;
+      const archY = 0.5 * (1 + Math.cos(norm * Math.PI)) * b.archHeight;
+      return { onBridge: true, bridgeId: `valley_${i}`, norm, archY };
+    }
   }
   return { onBridge: false, bridgeId: null, norm: 0, archY: 0 };
 }

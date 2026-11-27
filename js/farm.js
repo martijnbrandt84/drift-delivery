@@ -43,7 +43,7 @@ function localToWorld(lx, lz, yaw) {
   return { x: lx * c + lz * s, z: -lx * s + lz * c };
 }
 
-function createGrandBarn() {
+function createGrandBarn(pal = PAL_CLASSIC) {
   const g = new THREE.Group();
   const w = 12.2;
   const h = 6.2;
@@ -53,18 +53,18 @@ function createGrandBarn() {
   plinth.position.y = 0.08;
   g.add(plinth);
 
-  const body = createOutlinedMesh(new THREE.BoxGeometry(w, h, d), barnRedMat, 0.065);
+  const body = createOutlinedMesh(new THREE.BoxGeometry(w, h, d), pal.wall, 0.065);
   body.position.y = h * 0.5 + 0.25;
   g.add(body);
 
   // Zij-aanbouw (werktuigenloods / lean-to) aan de linkerkant van de schuur
   const leanW = 3.6;
   const leanH = 3.5;
-  const leanBody = createOutlinedMesh(new THREE.BoxGeometry(leanW, leanH, d - 1.2), barnRedMat, 0.05);
+  const leanBody = createOutlinedMesh(new THREE.BoxGeometry(leanW, leanH, d - 1.2), pal.wall, 0.05);
   leanBody.position.set(-(w * 0.5 + leanW * 0.5 - 0.1), leanH * 0.5 + 0.25, 0);
   g.add(leanBody);
 
-  const leanRoof = createOutlinedMesh(new THREE.BoxGeometry(leanW + 0.6, 0.26, d - 0.6), barnRoofMat, 0.045, false);
+  const leanRoof = createOutlinedMesh(new THREE.BoxGeometry(leanW + 0.6, 0.26, d - 0.6), pal.roof, 0.045, false);
   leanRoof.position.set(-(w * 0.5 + leanW * 0.5), leanH + 0.55, 0);
   leanRoof.rotation.z = 0.26;
   g.add(leanRoof);
@@ -79,44 +79,44 @@ function createGrandBarn() {
   rShape.closePath();
   const rGeo = new THREE.ExtrudeGeometry(rShape, { depth: d + 0.9, bevelEnabled: false });
   rGeo.translate(0, 0, -(d + 0.9) * 0.5);
-  const roof = createOutlinedMesh(rGeo, barnRoofMat, 0.07);
+  const roof = createOutlinedMesh(rGeo, pal.roof, 0.07);
   roof.position.y = h + 0.25;
   g.add(roof);
 
   // Cupola op de nok van de schuur
-  const cupola = createOutlinedMesh(new THREE.BoxGeometry(1.9, 1.5, 1.9), barnRedMat, 0.04, false);
+  const cupola = createOutlinedMesh(new THREE.BoxGeometry(1.9, 1.5, 1.9), pal.wall, 0.04, false);
   cupola.position.set(0, h + 4.2, 0);
   g.add(cupola);
-  const cupolaCap = createOutlinedMesh(new THREE.ConeGeometry(1.55, 1.2, 4), barnRoofMat, 0.04, false);
+  const cupolaCap = createOutlinedMesh(new THREE.ConeGeometry(1.55, 1.2, 4), pal.roof, 0.04, false);
   cupolaCap.position.set(0, h + 5.5, 0);
   cupolaCap.rotation.y = Math.PI * 0.25;
   g.add(cupolaCap);
 
   // Hooizolder-luik met hijsbalk bovenin
-  const loftDoor = createOutlinedMesh(new THREE.BoxGeometry(1.7, 1.8, 0.16), barnDoorMat, 0.03, false);
+  const loftDoor = createOutlinedMesh(new THREE.BoxGeometry(1.7, 1.8, 0.16), pal.door, 0.03, false);
   loftDoor.position.set(0, h + 1.35, d * 0.5 + 0.08);
   g.add(loftDoor);
-  const loftTrim = createOutlinedMesh(new THREE.BoxGeometry(2.0, 2.05, 0.1), barnTrimMat, 0.02, false);
+  const loftTrim = createOutlinedMesh(new THREE.BoxGeometry(2.0, 2.05, 0.1), pal.trim, 0.02, false);
   loftTrim.position.set(0, h + 1.35, d * 0.5 + 0.03);
   g.add(loftTrim);
-  const hoistBeam = createOutlinedMesh(new THREE.BoxGeometry(0.22, 0.22, 1.3), barnTrimMat, 0.02, false);
+  const hoistBeam = createOutlinedMesh(new THREE.BoxGeometry(0.22, 0.22, 1.3), pal.trim, 0.02, false);
   hoistBeam.position.set(0, h + 2.6, d * 0.5 + 0.55);
   g.add(hoistBeam);
 
   // Grote dubbele schuurdeuren met witte kruisbalken (X-bracing)
   [-1.65, 1.65].forEach((dx) => {
-    const door = createOutlinedMesh(new THREE.BoxGeometry(3.0, 3.8, 0.16), barnDoorMat, 0.03, false);
+    const door = createOutlinedMesh(new THREE.BoxGeometry(3.0, 3.8, 0.16), pal.door, 0.03, false);
     door.position.set(dx, 2.15, d * 0.5 + 0.08);
     g.add(door);
 
     [0.52, -0.52].forEach((ang) => {
-      const brace = new THREE.Mesh(new THREE.BoxGeometry(4.1, 0.16, 0.06), barnTrimMat);
+      const brace = new THREE.Mesh(new THREE.BoxGeometry(4.1, 0.16, 0.06), pal.trim);
       brace.position.set(dx, 2.15, d * 0.5 + 0.18);
       brace.rotation.z = ang;
       g.add(brace);
     });
 
-    const frameTop = new THREE.Mesh(new THREE.BoxGeometry(3.1, 0.18, 0.18), barnTrimMat);
+    const frameTop = new THREE.Mesh(new THREE.BoxGeometry(3.1, 0.18, 0.18), pal.trim);
     frameTop.position.set(dx, 4.02, d * 0.5 + 0.12);
     g.add(frameTop);
   });
@@ -124,14 +124,14 @@ function createGrandBarn() {
   // Witte hoekpilasters en zijramen
   [-w * 0.5, w * 0.5].forEach((cx) => {
     [-d * 0.5, d * 0.5].forEach((cz) => {
-      const trim = createOutlinedMesh(new THREE.BoxGeometry(0.26, h, 0.26), barnTrimMat, 0.02, false);
+      const trim = createOutlinedMesh(new THREE.BoxGeometry(0.26, h, 0.26), pal.trim, 0.02, false);
       trim.position.set(cx, h * 0.5 + 0.25, cz);
       g.add(trim);
     });
   });
 
   [-2.8, 0, 2.8].forEach((wz) => {
-    const winFrame = createOutlinedMesh(new THREE.BoxGeometry(0.14, 1.2, 1.1), barnTrimMat, 0.02, false);
+    const winFrame = createOutlinedMesh(new THREE.BoxGeometry(0.14, 1.2, 1.1), pal.trim, 0.02, false);
     winFrame.position.set(w * 0.5 + 0.04, 3.4, wz);
     g.add(winFrame);
     const glass = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 1.0), farmWinMat);
@@ -143,7 +143,7 @@ function createGrandBarn() {
   return g;
 }
 
-function createFarmHouse() {
+function createFarmHouse(pal = PAL_CLASSIC) {
   const g = new THREE.Group();
   const w = 7.8, h = 4.6, d = 6.4;
 
@@ -151,7 +151,7 @@ function createFarmHouse() {
   plinth.position.y = 0.1;
   g.add(plinth);
 
-  const body = createOutlinedMesh(new THREE.BoxGeometry(w, h, d), farmHouseWallMat, 0.055);
+  const body = createOutlinedMesh(new THREE.BoxGeometry(w, h, d), pal.houseWall, 0.055);
   body.position.y = h * 0.5 + 0.24;
   g.add(body);
 
@@ -162,7 +162,7 @@ function createFarmHouse() {
   rShape.closePath();
   const rGeo = new THREE.ExtrudeGeometry(rShape, { depth: d + 0.7, bevelEnabled: false });
   rGeo.translate(0, 0, -(d + 0.7) * 0.5);
-  const roof = createOutlinedMesh(rGeo, farmHouseRoofMat, 0.058);
+  const roof = createOutlinedMesh(rGeo, pal.houseRoof, 0.058);
   roof.position.y = h + 0.2;
   g.add(roof);
 
@@ -171,18 +171,18 @@ function createFarmHouse() {
   porch.position.set(0, 0.14, d * 0.5 + 1.02);
   g.add(porch);
 
-  const pRoof = createOutlinedMesh(new THREE.BoxGeometry(w * 0.98, 0.22, 2.35), farmHouseRoofMat, 0.04, false);
+  const pRoof = createOutlinedMesh(new THREE.BoxGeometry(w * 0.98, 0.22, 2.35), pal.houseRoof, 0.04, false);
   pRoof.position.set(0, 2.75, d * 0.5 + 1.02);
   pRoof.rotation.x = 0.18;
   g.add(pRoof);
 
   [-w * 0.4, -w * 0.14, w * 0.14, w * 0.4].forEach((px) => {
-    const post = createOutlinedMesh(new THREE.BoxGeometry(0.2, 2.35, 0.2), barnTrimMat, 0.025, false);
+    const post = createOutlinedMesh(new THREE.BoxGeometry(0.2, 2.35, 0.2), pal.trim, 0.025, false);
     post.position.set(px, 1.48, d * 0.5 + 1.9);
     g.add(post);
   });
 
-  const door = createOutlinedMesh(new THREE.BoxGeometry(1.05, 2.1, 0.14), barnRedMat, 0.03, false);
+  const door = createOutlinedMesh(new THREE.BoxGeometry(1.05, 2.1, 0.14), pal.houseDoor, 0.03, false);
   door.position.set(0, 1.42, d * 0.5 + 0.06);
   g.add(door);
 
@@ -194,33 +194,33 @@ function createFarmHouse() {
     });
   });
 
-  const chim = createOutlinedMesh(new THREE.BoxGeometry(0.95, h + 1.9, 0.95), barnRedMat, 0.045, false);
+  const chim = createOutlinedMesh(new THREE.BoxGeometry(0.95, h + 1.9, 0.95), pal.houseDoor, 0.045, false);
   chim.position.set(w * 0.46, (h + 1.9) * 0.5 + 0.15, -0.6);
   g.add(chim);
 
   return g;
 }
 
-function createGrainSilo(radius = 2.0, height = 8.8) {
+function createGrainSilo(radius = 2.0, height = 8.8, pal = PAL_CLASSIC) {
   const g = new THREE.Group();
 
-  const body = createOutlinedMesh(new THREE.CylinderGeometry(radius, radius, height, 14), siloBodyMat, 0.045, true);
+  const body = createOutlinedMesh(new THREE.CylinderGeometry(radius, radius, height, 14), pal.siloBody, 0.045, true);
   body.position.y = height * 0.5 + 0.1;
   g.add(body);
 
-  const cap = createOutlinedMesh(new THREE.SphereGeometry(radius + 0.06, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.5), siloCapMat, 0.04, false);
+  const cap = createOutlinedMesh(new THREE.SphereGeometry(radius + 0.06, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.5), pal.siloCap, 0.04, false);
   cap.position.y = height + 0.1;
   g.add(cap);
 
   [0.25, 0.5, 0.75, 0.98].forEach((t) => {
-    const band = new THREE.Mesh(new THREE.TorusGeometry(radius + 0.04, 0.06, 6, 16), siloBandMat);
+    const band = new THREE.Mesh(new THREE.TorusGeometry(radius + 0.04, 0.06, 6, 16), pal.siloBand);
     band.rotation.x = Math.PI / 2;
     band.position.y = 0.1 + height * t;
     g.add(band);
   });
 
   // Buitenste inspectiekooi / stortkoker langs de silo
-  const chute = createOutlinedMesh(new THREE.BoxGeometry(0.55, height * 0.92, 0.55), siloCapMat, 0.025, false);
+  const chute = createOutlinedMesh(new THREE.BoxGeometry(0.55, height * 0.92, 0.55), pal.siloCap, 0.025, false);
   chute.position.set(0, height * 0.48, radius + 0.22);
   g.add(chute);
 
@@ -415,88 +415,261 @@ function buildCropField(baseX, baseY, baseZ, yaw, centerLX, centerLZ, width, dep
   }
 }
 
+// =========================================================
+// KLEURPALETTEN: elke boerderij krijgt een eigen uitstraling
+// =========================================================
+const PAL_CLASSIC = {
+  wall: barnRedMat, roof: barnRoofMat, trim: barnTrimMat, door: barnDoorMat,
+  houseWall: farmHouseWallMat, houseRoof: farmHouseRoofMat, houseDoor: barnRedMat,
+  siloBody: siloBodyMat, siloCap: siloCapMat, siloBand: siloBandMat
+};
+const PAL_DAIRY = {
+  wall: makeToonMat(0xeee7d6),
+  roof: registerSeasonalMat(0x3f6b4a, 0xeef4fa),
+  trim: makeToonMat(0x8b2f2a),
+  door: makeToonMat(0x3f6b4a),
+  houseWall: makeToonMat(0xf2d27a),
+  houseRoof: registerSeasonalMat(0x3d4b5c, 0xeef4fa),
+  houseDoor: makeToonMat(0x3f6b4a),
+  siloBody: makeToonMat(0x2c4a7a),
+  siloCap: makeToonMat(0xc9ced4),
+  siloBand: makeToonMat(0x1d2f4f)
+};
+
+// Open werktuigenloods / koeienstal: palen, achterwand en een schuin dak
+function createOpenShed(len, depth, pal) {
+  const g = new THREE.Group();
+  const h = 3.4;
+  const back = createOutlinedMesh(new THREE.BoxGeometry(len, h, 0.3), pal.wall, 0.04);
+  back.position.set(0, h * 0.5 + 0.1, -depth * 0.5);
+  g.add(back);
+  [-1, 1].forEach((side) => {
+    const sideWall = createOutlinedMesh(new THREE.BoxGeometry(0.3, h, depth), pal.wall, 0.035);
+    sideWall.position.set(side * len * 0.5, h * 0.5 + 0.1, 0);
+    g.add(sideWall);
+  });
+  for (let px = -len * 0.5 + 3; px < len * 0.5 - 1; px += 3.2) {
+    const post = createOutlinedMesh(new THREE.BoxGeometry(0.24, h + 0.5, 0.24), pal.trim, 0.025, false);
+    post.position.set(px, (h + 0.5) * 0.5, depth * 0.5);
+    g.add(post);
+  }
+  const roof = createOutlinedMesh(new THREE.BoxGeometry(len + 0.8, 0.24, depth + 1.4), pal.roof, 0.045);
+  roof.position.set(0, h + 0.55, 0.2);
+  roof.rotation.x = -0.14;
+  g.add(roof);
+  const floor = createOutlinedMesh(new THREE.BoxGeometry(len, 0.2, depth), yardGravelMat, 0.02, false, true);
+  floor.position.y = 0.05;
+  g.add(floor);
+  return g;
+}
+
+// Eenvoudige low-poly koe (zwart-wit) voor de wei van Sunny Acres
+const cowWhiteMat = makeToonMat(0xf4f1ea);
+const cowBlackMat = makeToonMat(0x2b2b2b);
+const cowPinkMat = makeToonMat(0xe8a0a0);
+const cowHornMat = makeToonMat(0xe8dcc0);
+function createCow() {
+  const g = new THREE.Group();
+  const body = createOutlinedMesh(new THREE.BoxGeometry(0.95, 0.85, 1.75), cowWhiteMat, 0.035);
+  body.position.y = 1.05;
+  g.add(body);
+  [[0.48, 1.15, 0.3, 0.5, 0.6], [-0.48, 0.95, -0.4, 0.55, 0.5], [0.2, 1.48, -0.2, 0.7, 0.5]].forEach(([px, py, pz, sw, sd]) => {
+    const spot = new THREE.Mesh(new THREE.BoxGeometry(px === 0.2 ? sw : 0.04, px === 0.2 ? 0.04 : 0.5, sd), cowBlackMat);
+    spot.position.set(px === 0.2 ? px : px + Math.sign(px) * 0.01, py, pz);
+    g.add(spot);
+  });
+  const head = createOutlinedMesh(new THREE.BoxGeometry(0.55, 0.55, 0.6), cowWhiteMat, 0.03);
+  head.position.set(0, 1.35, 1.1);
+  g.add(head);
+  const snout = createOutlinedMesh(new THREE.BoxGeometry(0.5, 0.28, 0.2), cowPinkMat, 0.02, false);
+  snout.position.set(0, 1.2, 1.45);
+  g.add(snout);
+  [-0.22, 0.22].forEach((hx) => {
+    const horn = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.25, 5), cowHornMat);
+    horn.position.set(hx, 1.7, 1.05);
+    g.add(horn);
+  });
+  [[-0.32, 0.6], [0.32, 0.6], [-0.32, -0.6], [0.32, -0.6]].forEach(([lx, lz]) => {
+    const leg = createOutlinedMesh(new THREE.BoxGeometry(0.2, 0.7, 0.2), cowWhiteMat, 0.02, false);
+    leg.position.set(lx, 0.35, lz);
+    g.add(leg);
+  });
+  return g;
+}
+
+function createWaterTrough() {
+  const g = new THREE.Group();
+  const tub = createOutlinedMesh(new THREE.BoxGeometry(2.4, 0.6, 0.9), steelMat, 0.03);
+  tub.position.y = 0.3;
+  g.add(tub);
+  const water = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.05, 0.7), new THREE.MeshBasicMaterial({ color: 0x5fb6cf }));
+  water.position.y = 0.55;
+  g.add(water);
+  return g;
+}
+
+// =========================================================
+// BOERDERIJ-INDELINGEN (lokaal: lx langs de weg, lz richting weg = +)
+// Gebouwen staan ruim uit elkaar; de windmolen staat los in de wei.
+// =========================================================
+const FARM_LAYOUTS = {
+  // Pinewood Farm: klassiek rood, mais voor het erf, tarwe + wei met windmolen achter
+  corn: {
+    pal: PAL_CLASSIC,
+    barn: [-15, -15, 0],
+    silos: [[-2.5, -23, 2.05, 9.2], [2.6, -23.6, 1.75, 7.8]],
+    house: [18, -8, -Math.PI * 0.5],
+    shed: [-32, -5, 0, 9, 6],
+    windmill: [27, -31],
+    front: 'corn',
+    backLeft: 'wheat',
+    pasture: 'right',
+    cows: 0
+  },
+  // Sunny Acres: wit-groene melkveehouderij, gespiegeld; tarwe voor, koeienwei + windmolen links achter, mais rechts achter
+  wheat: {
+    pal: PAL_DAIRY,
+    barn: [15, -15, 0],
+    silos: [[1.5, -24, 2.5, 11.0], [-4.2, -23.2, 1.5, 6.8]],
+    house: [-18, -8, Math.PI * 0.5],
+    shed: [30, -4, 0, 14, 6],
+    windmill: [-31, -34],
+    front: 'wheat',
+    backRight: 'corn',
+    pasture: 'left',
+    cows: 7
+  }
+};
+
 function buildFarm(farmLot) {
   const { x: baseX, y: baseY, z: baseZ, yaw } = farmLot;
   const fb = farmLot.flatBox;
-  const frontCrop = farmLot.variant === 'wheat' ? 'wheat' : 'corn';
-  const backCrop = farmLot.variant === 'wheat' ? 'corn' : 'wheat';
-  const place = (obj, lx, lz, rotOff = 0) => {
+  const L = FARM_LAYOUTS[farmLot.variant] ?? FARM_LAYOUTS.corn;
+  const pal = L.pal;
+  const toWorld = (lx, lz) => {
     const off = localToWorld(lx, lz, yaw);
-    obj.position.set(baseX + off.x, baseY, baseZ + off.z);
-    obj.rotation.y = yaw + rotOff;
-    scene.add(obj);
     return { x: baseX + off.x, z: baseZ + off.z };
   };
+  const place = (obj, lx, lz, rotOff = 0, y = baseY) => {
+    const p = toWorld(lx, lz);
+    obj.position.set(p.x, y, p.z);
+    obj.rotation.y = yaw + rotOff;
+    scene.add(obj);
+    return p;
+  };
 
-  // 1. Grinterf aan het eind van de oprit
-  const yardPad = createOutlinedMesh(new THREE.BoxGeometry(30.0, 0.42, 17.0), yardGravelMat, 0.035, false, true);
-  place(yardPad, 0, -4.5).x;
-  yardPad.position.y = baseY - 0.16;
+  // 1. Ruim grinterf aan het eind van de oprit
+  const yardPad = createOutlinedMesh(new THREE.BoxGeometry(36.0, 0.42, 20.0), yardGravelMat, 0.035, false, true);
+  place(yardPad, 0, -7.0, 0, baseY - 0.16);
 
-  // 2. Hoofdschuur, silo's, boerenhuis en windmolen
-  let p = place(createGrandBarn(), -10.5, -10.0);
-  hardColliders.push({ x: p.x, z: p.z, r: 6.4 });
-  p = place(createGrainSilo(2.05, 9.2), -1.6, -12.0);
-  hardColliders.push({ x: p.x, z: p.z, r: 2.3 });
-  p = place(createGrainSilo(1.75, 7.8), 2.8, -12.6);
-  hardColliders.push({ x: p.x, z: p.z, r: 2.0 });
-  if (farmLot.variant === 'wheat') {
-    p = place(createGrainSilo(1.6, 6.8), 6.6, -13.0);
-    hardColliders.push({ x: p.x, z: p.z, r: 1.9 });
-  }
-  p = place(createFarmHouse(), 11.5, -4.5, -Math.PI * 0.5);
+  // 2. Schuur, silo's, woonhuis, loods en losse windmolen
+  let p = place(createGrandBarn(pal), L.barn[0], L.barn[1], L.barn[2]);
+  hardColliders.push({ x: p.x, z: p.z, r: 6.6 });
+  L.silos.forEach(([lx, lz, r, h]) => {
+    p = place(createGrainSilo(r, h, pal), lx, lz);
+    hardColliders.push({ x: p.x, z: p.z, r: r + 0.3 });
+  });
+  p = place(createFarmHouse(pal), L.house[0], L.house[1], L.house[2]);
   hardColliders.push({ x: p.x, z: p.z, r: 4.4 });
-  p = place(createWindmill(), farmLot.variant === 'wheat' ? 13.5 : 7.4, farmLot.variant === 'wheat' ? -14.5 : -13.6, 0.35);
+  const [sx, sz, sRot, sLen, sDepth] = L.shed;
+  place(createOpenShed(sLen, sDepth, pal), sx, sz, sRot);
+  for (let k = -1; k <= 1; k++) {
+    const c = toWorld(sx + k * sLen * 0.33, sz);
+    hardColliders.push({ x: c.x, z: c.z, r: sDepth * 0.5 });
+  }
+  p = place(createWindmill(), L.windmill[0], L.windmill[1], 0.35, getTerrainHeight(toWorld(L.windmill[0], L.windmill[1]).x, toWorld(L.windmill[0], L.windmill[1]).z));
   hardColliders.push({ x: p.x, z: p.z, r: 1.5 });
-  // Extra werktuigenschuur achter het erf
-  p = place(createGrandBarn(), -24.5, -10.5, Math.PI * 0.5);
-  p && hardColliders.push({ x: p.x, z: p.z, r: 6.4 });
 
   // 3. Sloopbare hekken langs de hele oprit
-  const drivewayLen = farmLot.dist - MAIN_ROAD_MARGIN;
+  const drivewayLen = farmLot.dist - 5.0;
   for (let fz = 8.5; fz < drivewayLen - 2; fz += 5.0) {
     [-5.2, 5.2].forEach((fx) => {
-      const fOff = localToWorld(fx, fz, yaw);
-      const wx = baseX + fOff.x;
-      const wz = baseZ + fOff.z;
-      const wy = getTerrainHeight(wx, wz);
+      const w = toWorld(fx, fz);
+      const wy = getTerrainHeight(w.x, w.z);
       const fence = createWoodenFenceSection(4.4);
-      fence.position.set(wx, wy, wz);
+      fence.position.set(w.x, wy, w.z);
       fence.rotation.y = yaw + Math.PI * 0.5;
       scene.add(fence);
-      registerDestructible(fence, wx, wy + 0.5, wz, 1.4, 'small', 12, 'Boerderijhek');
+      registerDestructible(fence, w.x, wy + 0.5, w.z, 1.4, 'small', 12, 'Boerderijhek');
     });
   }
 
-  // 4. Sloopbare hooibalen op het erf en langs de velden
+  // 4. Sloopbare hooibalen (op het erf en bij de wei)
+  const mirror = L.pasture === 'left' ? -1 : 1;
   const haySpots = [
-    [-15.5, -1.2, 0], [-14.0, -0.4, 0], [-14.8, -0.8, 1.18],
-    [-7.6, 2.6, 0], [-6.1, 3.2, 0], [7.4, 2.9, 0], [8.9, 2.4, 0],
-    [fb.minLX + 4, -14.5, 0], [fb.minLX + 5.5, -14.0, 0], [fb.maxLX - 4, -14.5, 0]
+    [-7 * mirror, 1.2, 0], [-5.5 * mirror, 1.8, 0], [-6.2 * mirror, 1.5, 1.18],
+    [7.5 * mirror, -1.5, 0], [mirror * 22, -27, 0], [mirror * 23.5, -26.4, 0], [mirror * 22.8, -26.7, 1.18]
   ];
   haySpots.forEach(([lx, lz, extraY]) => {
-    const off = localToWorld(lx, lz, yaw);
+    const w = toWorld(lx, lz);
     const bale = createHayBale();
-    const wx = baseX + off.x;
-    const wz = baseZ + off.z;
-    const wy = getTerrainHeight(wx, wz) + 0.64 + extraY;
-    bale.position.set(wx, wy, wz);
+    const wy = getTerrainHeight(w.x, w.z) + 0.64 + extraY;
+    bale.position.set(w.x, wy, w.z);
     bale.rotation.y = yaw + Math.random() * Math.PI;
     scene.add(bale);
-    registerDestructible(bale, wx, wy, wz, 0.8, 'small', 8, 'Hooibaal');
+    registerDestructible(bale, w.x, wy, w.z, 0.8, 'small', 8, 'Hooibaal');
   });
 
-  // 5. Grote akkers: twee velden voor het erf (weerszijden van de oprit) en een breed veld erachter
+  // 5. Akkers: twee velden voor het erf (weerszijden van de oprit) en één veld achter, naast de wei
   const frontStart = 4.0;
   const frontEnd = fb.maxLZ - 2.0;
   const frontDepth = frontEnd - frontStart;
-  const sideW = fb.maxLX - 8.5;
-  buildCropField(baseX, baseY, baseZ, yaw, -(7.5 + sideW * 0.5), frontStart + frontDepth * 0.5, sideW, frontDepth, frontCrop);
-  buildCropField(baseX, baseY, baseZ, yaw, 7.5 + sideW * 0.5, frontStart + frontDepth * 0.5, sideW, frontDepth, frontCrop);
-  const backEnd = fb.minLZ + 2.5;
-  const backStart = -19.5;
-  buildCropField(baseX, baseY, baseZ, yaw, 0, (backStart + backEnd) * 0.5, (fb.maxLX - 3) * 2, backStart - backEnd, backCrop);
+  const sideW = fb.maxLX - 9.0;
+  buildCropField(baseX, baseY, baseZ, yaw, -(7.5 + sideW * 0.5), frontStart + frontDepth * 0.5, sideW, frontDepth, L.front);
+  buildCropField(baseX, baseY, baseZ, yaw, 7.5 + sideW * 0.5, frontStart + frontDepth * 0.5, sideW, frontDepth, L.front);
+
+  const backTop = -27.0;
+  const backBottom = fb.minLZ + 2.5;
+  const backDepth = backTop - backBottom;
+  const backW = fb.maxLX - 8.0;
+  const cropSide = -mirror; // akker aan de andere kant dan de wei
+  buildCropField(baseX, baseY, baseZ, yaw, cropSide * (6.0 + backW * 0.5), (backTop + backBottom) * 0.5, backW, backDepth, L.backLeft ?? L.backRight ?? 'wheat');
+
+  // 6. De wei (met windmolen) — omheind, met koeien en een drinkbak bij Sunny Acres
+  const pMinX = mirror > 0 ? 6.0 : -(fb.maxLX - 1.5);
+  const pMaxX = mirror > 0 ? fb.maxLX - 1.5 : -6.0;
+  const pMinZ = fb.minLZ + 1.5;
+  const pMaxZ = -24.0;
+  if (L.cows > 0) {
+    const fenceAlong = (x1, z1, x2, z2) => {
+      const len = Math.hypot(x2 - x1, z2 - z1);
+      const n = Math.max(1, Math.round(len / 4.4));
+      for (let k = 0; k < n; k++) {
+        const t = (k + 0.5) / n;
+        const lx = x1 + (x2 - x1) * t;
+        const lz = z1 + (z2 - z1) * t;
+        const w = toWorld(lx, lz);
+        const wy = getTerrainHeight(w.x, w.z);
+        const fence = createWoodenFenceSection(len / n);
+        fence.position.set(w.x, wy, w.z);
+        fence.rotation.y = yaw + Math.atan2(-(z2 - z1), x2 - x1);
+        scene.add(fence);
+        registerDestructible(fence, w.x, wy + 0.5, w.z, 1.4, 'small', 12, 'Weidehek');
+      }
+    };
+    fenceAlong(pMinX, pMaxZ, pMaxX, pMaxZ);
+    fenceAlong(pMinX, pMinZ, pMaxX, pMinZ);
+    fenceAlong(pMinX, pMinZ, pMinX, pMaxZ);
+    fenceAlong(pMaxX, pMinZ, pMaxX, pMaxZ);
+
+    for (let c = 0; c < L.cows; c++) {
+      const lx = THREE.MathUtils.lerp(pMinX + 3, pMaxX - 3, (c + 0.5) / L.cows) + (Math.random() - 0.5) * 2;
+      const lz = THREE.MathUtils.lerp(pMinZ + 3, pMaxZ - 3, Math.random());
+      const w = toWorld(lx, lz);
+      if (Math.hypot(lx - L.windmill[0], lz - L.windmill[1]) < 3.5) continue;
+      const cow = createCow();
+      cow.position.set(w.x, getTerrainHeight(w.x, w.z), w.z);
+      cow.rotation.y = Math.random() * Math.PI * 2;
+      scene.add(cow);
+      hardColliders.push({ x: w.x, z: w.z, r: 1.1 });
+    }
+    const tr = toWorld((pMinX + pMaxX) * 0.5, pMaxZ - 2.5);
+    const trough = createWaterTrough();
+    trough.position.set(tr.x, getTerrainHeight(tr.x, tr.z), tr.z);
+    trough.rotation.y = yaw;
+    scene.add(trough);
+    hardColliders.push({ x: tr.x, z: tr.z, r: 1.2 });
+  }
 }
 
-const MAIN_ROAD_MARGIN = 5.0;
 ruralLots.filter((l) => l.type === 'farm').forEach(buildFarm);

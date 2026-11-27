@@ -18,15 +18,12 @@ export const SANDBAR_ISLAND = { x: 24, z: 6, r: 8.5 };
 export { riverCurves, VALLEY_POND, getDistToRivers };
 
 export const ruralLots = [
-  { netSamples: lakeSamples, u: 0.145, outward: true, dist: 18.5, type: 'aframe', yawOff: -0.1 },
   { netSamples: lakeSamples, u: 0.255, outward: true, dist: 17.5, type: 'house_blue', yawOff: 0.05 },
   { netSamples: lakeSamples, u: 0.825, outward: true, dist: 17.5, type: 'cabin', yawOff: -0.1 },
-  { netSamples: lakeSamples, u: 0.895, outward: true, dist: 18.0, type: 'aframe', yawOff: 0.1 },
+  { netSamples: lakeSamples, u: 0.895, outward: true, dist: 18.0, type: 'house_red', yawOff: 0.1 },
   { netSamples: valleySamples, u: 0.16, outward: true, dist: 18.0, type: 'cabin', yawOff: 0.05 },
   { netSamples: valleySamples, u: 0.28, outward: false, dist: 17.5, type: 'house_red', yawOff: -0.08 },
-  { netSamples: valleySamples, u: 0.36, outward: true, dist: 17.5, type: 'aframe', yawOff: 0.1 },
-  { netSamples: valleySamples, u: 0.83, outward: false, dist: 17.5, type: 'cabin', yawOff: 0.12 },
-  { netSamples: valleySamples, u: 0.91, outward: true, dist: 17.5, type: 'house_yellow', yawOff: -0.06 },
+  { netSamples: valleySamples, u: 0.36, outward: true, dist: 17.5, type: 'house_yellow', yawOff: 0.1 },
 
   // Supermarkt & Pinewood Mall op het vlakke noordoostelijke stuk van de meerweg (u=0.055, vlakke weg!).
   // flatBox legt het hele winkelcentrum én de hele parkeerplaats tot aan de wegrand 100% waterpas.
@@ -34,21 +31,23 @@ export const ruralLots = [
     netSamples: lakeSamples,
     u: 0.055,
     outward: true,
-    dist: 20.5,
+    dist: 31.0,
     type: 'store',
     yawOff: 0,
-    noDriveway: true,
+    // Brede geasfalteerde inrit van de weg tot aan de rand van de parkeerplaats (lz = 19.6)
+    drivewayStopShort: 19.4,
     flatElevOffset: -0.06,
-    flatBox: { minLX: -19.5, maxLX: 19.5, minLZ: -14.0, maxLZ: 14.5, blend: 12.0 }
+    flatBox: { minLX: -19.5, maxLX: 19.5, minLZ: -14.0, maxLZ: 26.0, blend: 12.0 }
   },
 
   // Huizen en hutten langs de kustweg en het bospad (near = wereldpunt, u wordt opgezocht)
   { netSamples: ringSamples, near: [-257, -118], outward: true, dist: 18.0, type: 'cabin', yawOff: 0.05 },
-  { netSamples: ringSamples, near: [-190, -224], outward: false, dist: 18.0, type: 'aframe', yawOff: -0.08 },
+  { netSamples: ringSamples, near: [-190, -224], outward: false, dist: 18.0, type: 'cabin', yawOff: -0.08 },
   { netSamples: ringSamples, near: [40, -262], outward: true, dist: 18.0, type: 'house_blue', yawOff: 0.06 },
   { netSamples: ringSamples, near: [302, 95], outward: false, dist: 17.5, type: 'house_yellow', yawOff: -0.05 },
   { netSamples: ringSamples, near: [262, 125], outward: true, dist: 17.0, type: 'cabin', yawOff: 0.0, tag: 'moose_lodge' },
-  { netSamples: ringSamples, near: [232, 236], outward: true, dist: 18.0, type: 'aframe', yawOff: 0.1 },
+  // Grote villa aan Moose Lake (met zwembad en oprijlaan)
+  { netSamples: ringSamples, near: [200, 240], outward: false, dist: 22.0, type: 'villa', yawOff: 0.0, padRadius: 24, blendRadius: 36 },
   { netSamples: ringSamples, near: [-55, 320], outward: false, dist: 18.0, type: 'house_red', yawOff: -0.06 },
   { netSamples: ringSamples, near: [-130, 303], outward: false, dist: 18.0, type: 'cabin', yawOff: 0.08 },
 
@@ -126,10 +125,11 @@ ruralLots.forEach((lot) => {
       x1: lot.roadX,
       y1: lot.roadY,
       z1: lot.roadZ,
-      x2: lot.x,
+      x2: rs.x + rs.nx * side * (lot.dist - (lot.drivewayStopShort ?? 0)),
       y2: lot.y,
-      z2: lot.z,
-      halfWidth: lot.type === 'farm' ? 3.2 : 2.5
+      z2: rs.z + rs.nz * side * (lot.dist - (lot.drivewayStopShort ?? 0)),
+      halfWidth: lot.type === 'farm' ? 3.2 : lot.type === 'store' ? 4.4 : lot.type === 'villa' ? 2.8 : 2.5,
+      asphalt: lot.type === 'store'
     });
   }
 });

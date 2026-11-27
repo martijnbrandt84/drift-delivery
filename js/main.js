@@ -1018,7 +1018,7 @@ function animate() {
   if (lighthouseBeamPivot) {
     lighthouseBeamPivot.rotation.y = elapsed * 0.65;
     if (lighthouseBeamMat) {
-      lighthouseBeamMat.opacity = isNightMode ? 0.22 : 0.08;
+      lighthouseBeamMat.opacity = 0.22;
     }
   }
   if (giantStarMesh && isChristmasMode) giantStarMesh.rotation.y = elapsed * 1.4;

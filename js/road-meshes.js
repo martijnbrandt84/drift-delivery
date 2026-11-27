@@ -7,7 +7,7 @@ import {
 import {
   MAIN_HALF_WIDTH, lakeSamples, valleySamples, streetSampleSets, INTERSECTIONS,
   isInsideIntersection, LAKE_BRIDGES, lakeCurve, getLakeLoopBaseElev, getLakeBridgeAtU,
-  valleyCurve, VALLEY_BRIDGE, getValleyBaseElev, getValleyBridgeAtU, outerRoadDefs
+  valleyCurve, VALLEY_BRIDGES, getValleyBaseElev, getValleyBridgeAtU, outerRoadDefs
 } from './roads.js';
 import { driveways } from './water-lots.js';
 import { hardColliders, registerDestructible } from './demolition.js';
@@ -43,19 +43,6 @@ const yellowStripeMat = new THREE.MeshBasicMaterial({
   polygonOffsetFactor: -4,
   polygonOffsetUnits: -4
 });
-
-// Extra Golden Gate-brug bij de boerderij / zuidwestelijke rivierovergang op valleyCurve (u = 0.89)
-const FARM_RIVER_BRIDGE = { uCenter: 0.89, uHalfSpan: 0.042, archHeight: 3.4 };
-
-function getFarmRiverBridgeAtU(u) {
-  const diff = u - FARM_RIVER_BRIDGE.uCenter;
-  if (Math.abs(diff) <= FARM_RIVER_BRIDGE.uHalfSpan) {
-    const norm = diff / FARM_RIVER_BRIDGE.uHalfSpan;
-    const archY = 0.5 * (1 + Math.cos(norm * Math.PI)) * FARM_RIVER_BRIDGE.archHeight;
-    return { onBridge: true, norm, archY };
-  }
-  return { onBridge: false, norm: 0, archY: 0 };
-}
 
 function createUpwardStripGeometry(sampleArray, indices, halfW, yOffset, lateralCenter = 0) {
   const positions = [];
@@ -223,7 +210,7 @@ function buildCompleteRoadSystem() {
     const totalLen = Math.hypot(horizLen, d.y2 - d.y1);
     const drvHolder = new THREE.Group();
     setAlignedTransform(drvHolder, (d.x1 + d.x2) * 0.5, (d.y1 + d.y2) * 0.5 - 0.06, (d.z1 + d.z2) * 0.5, Math.atan2(dx, dz), -Math.atan2(d.y2 - d.y1, horizLen));
-    drvHolder.add(createOutlinedMesh(new THREE.BoxGeometry(d.halfWidth * 2, 0.34, totalLen + 0.4), drivewayMat, 0.05, false, true));
+    drvHolder.add(createOutlinedMesh(new THREE.BoxGeometry(d.halfWidth * 2, 0.34, totalLen + 0.4), d.asphalt ? asphaltMat : drivewayMat, 0.05, false, true));
     scene.add(drvHolder);
   });
 
@@ -388,11 +375,6 @@ function buildSingleBridgeFromCurve(curve, isClosed, uCenter, uHalfSpan, elevFn,
   });
 
   scene.add(bridgeGroup);
-}
-
-function buildFarmGoldenGateBridge() {
-  const { uCenter, uHalfSpan } = FARM_RIVER_BRIDGE;
-  buildSuspensionBridge(valleyCurve, false, uCenter, uHalfSpan, getValleyBaseElev, getFarmRiverBridgeAtU, { numSegs: 24, towerHeight: 9.0 });
 }
 
 function buildSuspensionBridge(curve, isClosed, uCenter, uHalfSpan, elevFn, bridgeInfoFn, opts = {}) {
@@ -561,8 +543,7 @@ function buildSuspensionBridge(curve, isClosed, uCenter, uHalfSpan, elevFn, brid
 }
 
 LAKE_BRIDGES.forEach((b) => buildSingleBridgeFromCurve(lakeCurve, true, b.uCenter, b.uHalfSpan, getLakeLoopBaseElev, getLakeBridgeAtU, MAIN_HALF_WIDTH));
-buildSingleBridgeFromCurve(valleyCurve, false, VALLEY_BRIDGE.uCenter, VALLEY_BRIDGE.uHalfSpan, getValleyBaseElev, getValleyBridgeAtU, MAIN_HALF_WIDTH);
-buildFarmGoldenGateBridge();
+VALLEY_BRIDGES.forEach((b) => buildSingleBridgeFromCurve(valleyCurve, false, b.uCenter, b.uHalfSpan, getValleyBaseElev, getValleyBridgeAtU, MAIN_HALF_WIDTH));
 
 // Bruggen op de nieuwe kustweg en verbindingswegen (automatisch gevonden boven rivieren en de fjord)
 outerRoadDefs.forEach((def) => {
