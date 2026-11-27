@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { scene, toonGradient } from './scene-setup.js';
 import { TOWN_ELEV, WATER_LEVEL, getClosestNetworkRoad } from './roads.js';
 import { getLakeShoreRadius, SANDBAR_ISLAND, getDistToRivers, ruralLots, driveways } from './water-lots.js';
-import { getNaturalGroundBase, OCEAN_FLOOR, ISLAND_CENTER } from './landscape.js';
+import { getNaturalGroundBase, OCEAN_FLOOR, ISLAND_CENTER, getIslandPolar, getCoastRadius, MOOSE_LAKE, FOX_LAKE } from './landscape.js';
 
 function getOrientedBoxDist(x, z, lot, minLX, maxLX, minLZ, maxLZ) {
   const dx = x - lot.x;
@@ -64,9 +64,11 @@ function getRawTerrainHeight(x, z) {
     } else if (lot.type === 'farm') {
       const fb = lot.flatBox;
       const dBox = getOrientedBoxDist(x, z, lot, fb.minLX - 1, fb.maxLX + 1, fb.minLZ - 2, fb.maxLZ + 1.5);
-      if (dBox < 22.0) {
-        const t = THREE.MathUtils.smoothstep(dBox, 0.0, 22.0);
-        const targetY = Math.min(lot.y - 0.08, lot.roadY - 0.18);
+      const outer = lot.blendOuter ?? 22.0;
+      if (dBox < outer) {
+        const t = THREE.MathUtils.smoothstep(dBox, 0.0, outer);
+        // Opgehoogd erf (raiseYard): ligt op lot.y in plaats van op weghoogte, minder diep in de heuvel
+        const targetY = lot.raiseYard ? lot.y - 0.08 : Math.min(lot.y - 0.08, lot.roadY - 0.18);
         h = THREE.MathUtils.lerp(targetY, h, t);
         specialFlatBlend = Math.min(specialFlatBlend, t);
       }
@@ -108,14 +110,21 @@ function getRawTerrainHeight(x, z) {
   if (rs && rs.onBridge && marginDist < 3.5) {
     // Houd het terrein onder een brug altijd ruim onder het brugdek zodat er geen groen vlak doorheen prikt
     h = Math.min(h, rs.y - 0.75);
-  } else if (rs && !rs.onBridge && marginDist < 16.5) {
-    const roadBlend = THREE.MathUtils.smoothstep(marginDist, 2.2, 16.5);
-    const roadAdjustedH = THREE.MathUtils.lerp(rs.y - 0.24, h, roadBlend);
-    const keepPlateau = marginDist <= 2.4 ? 1.0 : specialFlatBlend;
-    h = THREE.MathUtils.lerp(h, roadAdjustedH, keepPlateau);
-    if (marginDist <= 0.6) h = Math.min(h, rs.y - 0.26);
-  } else if (rs && rs.onBridge && Math.abs(rs.bridgeNorm) > 0.76 && marginDist < 8.0) {
-    h = Math.min(h, rs.baseElev - 0.45);
+  } else if (rs && !rs.onBridge && marginDist < 30.5) {
+    // Ligt de weg hoger dan het land (aanloop naar een brug), dan loopt het talud breder en flauwer uit:
+    // geen losse dijken in het landschap
+    const raise = rs.y - 0.24 - h;
+    const outer = raise > 0.5 ? 16.5 + Math.min(14.0, raise * 3.0) : 16.5;
+    if (marginDist < outer) {
+      const roadBlend = THREE.MathUtils.smoothstep(marginDist, 2.2, outer);
+      const roadAdjustedH = THREE.MathUtils.lerp(rs.y - 0.24, h, roadBlend);
+      const keepPlateau = marginDist <= 2.4 ? 1.0 : specialFlatBlend;
+      h = THREE.MathUtils.lerp(h, roadAdjustedH, keepPlateau);
+      if (marginDist <= 0.6) h = Math.min(h, rs.y - 0.26);
+    }
+  } else if (rs && rs.onBridge && marginDist < 12.0) {
+    // Naast een brug: alleen terrein dat door/tegen het brugdek zou steken gaat omlaag, verder blijft de natuur
+    h = Math.min(h, rs.y - 0.75 + Math.max(0, marginDist - 3.5) * 0.8);
   }
 
   const rLake = Math.hypot(x, z);
@@ -146,11 +155,36 @@ function getRawTerrainHeight(x, z) {
     h = Math.max(h, THREE.MathUtils.lerp(-0.56, -1.5, THREE.MathUtils.smoothstep(fordDist, 3.5, 7.5)));
   }
 
+  // Samenvloeiing Pond Creek / Bear River: laag zandig puntje tussen de twee monden
+  {
+    if (!CONFLUENCE_SPIT) CONFLUENCE_SPIT = { x: -106.5, z: 42.5 };
+    const dSpit = Math.hypot(x - CONFLUENCE_SPIT.x, z - CONFLUENCE_SPIT.z);
+    if (dSpit < 10) h = Math.min(h, THREE.MathUtils.lerp(0.15, h, THREE.MathUtils.smoothstep(dSpit, 3.5, 10)));
+  }
+
   if (riverSignedDist < 8.5) {
     const isSouthCreek = z > 115;
     const bedDepth = isSouthCreek ? -0.68 : -1.95;
     h = Math.min(h, THREE.MathUtils.lerp(bedDepth, h, THREE.MathUtils.smoothstep(riverSignedDist, -2.0, 8.5)));
   }
+
+  // Verdwaalde plassen opvullen: water dat niet bij een rivier, meer of de zee hoort (bijv. waar het
+  // natuurlijke land laag lag en alleen de wegtaluds zijn opgehoogd) wordt een lage, natuurlijke oeverzone.
+  if (h < WATER_LEVEL + 0.7 && riverSignedDist > 0) {
+    const pol = getIslandPolar(x, z);
+    const awayFromSea = pol.r < getCoastRadius(pol.theta) - 10;
+    const awayFromLakes = rLake > shoreR + 6
+      && Math.hypot(x - MOOSE_LAKE.x, z - MOOSE_LAKE.z) > MOOSE_LAKE.r + 6
+      && Math.hypot(x - FOX_LAKE.x, z - FOX_LAKE.z) > FOX_LAKE.r + 6;
+    if (awayFromSea && awayFromLakes) {
+      const floor = THREE.MathUtils.lerp(WATER_LEVEL + 0.05, 0.75, THREE.MathUtils.smoothstep(riverSignedDist, 0, 9));
+      h = Math.max(h, floor);
+    }
+  }
+
+  // Laatste stap: onder een weg en zijn berm komt het terrein nooit lager dan de weg
+  // (geen zwevende aanloop naar een brug, wat oevers, plassen of zandbanken eerder ook deden)
+  if (rs && !rs.onBridge && marginDist < 2.4) h = Math.max(h, rs.y - 0.3);
 
   return h;
 }
@@ -261,6 +295,7 @@ scene.add(terrainMesh);
 
 // Ondiepe doorwaadplaats: van het vuurtoreneiland recht naar de oostoever van het meer
 // (lui berekend: het terrein wordt al bij het laden van modules gebakken)
+var CONFLUENCE_SPIT;
 var fordCache;
 function getFord() {
   if (fordCache) return fordCache;

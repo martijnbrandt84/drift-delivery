@@ -270,14 +270,21 @@ function buildFireLookout() {
   const footHalf = 2.4;
   const topHalf = 1.5;
   const up = new THREE.Vector3(0, 1, 0);
+  const footStoneMat = makeToonMat(0x8d8379);
   [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sz]) => {
-    // Schuin aflopende poten: van de brede voet naar de smallere top
-    const dir = new THREE.Vector3((topHalf - footHalf) * sx, legH, (topHalf - footHalf) * sz);
+    // Schuin aflopende poten: van de voet (op de eigen grondhoogte, iets ingegraven) tot onder het plateau
+    const footY = getTerrainHeight(x + sx * footHalf, z + sz * footHalf) - baseY - 0.35;
+    const bottom = new THREE.Vector3(sx * footHalf, footY, sz * footHalf);
+    const top = new THREE.Vector3(sx * topHalf, legH + 0.05, sz * topHalf);
+    const dir = top.clone().sub(bottom);
     const len = dir.length();
     const leg = createOutlinedMesh(new THREE.BoxGeometry(0.32, len, 0.32), woodMat, 0.035);
-    leg.position.set(sx * (footHalf + topHalf) * 0.5, legH * 0.5 - 0.3, sz * (footHalf + topHalf) * 0.5);
+    leg.position.copy(bottom).add(top).multiplyScalar(0.5);
     leg.quaternion.setFromUnitVectors(up, dir.normalize());
     g.add(leg);
+    const stone = createOutlinedMesh(new THREE.BoxGeometry(0.75, 0.5, 0.75), footStoneMat, 0.03, false);
+    stone.position.set(sx * footHalf, footY + 0.45, sz * footHalf);
+    g.add(stone);
   });
   // Kruisverbanden
   [2.4, 5.0, 7.4].forEach((by) => {

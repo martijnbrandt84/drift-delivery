@@ -132,7 +132,8 @@ const valleyWaypoints = [
 export const valleyCurve = new THREE.CatmullRomCurve3(valleyWaypoints, false, 'centripetal', 0.5);
 export const VALLEY_BRIDGE = { name: 'Meadow Brook Bridge', uCenter: 0.60, uHalfSpan: 0.042, archHeight: 1.40 };
 // Houten brug over Bear Creek (vervangt de oude rode hangbrug bij de boerderij)
-export const VALLEY_CREEK_BRIDGE = { name: 'Bear Creek Bridge', uCenter: 0.89, uHalfSpan: 0.032, archHeight: 1.5, deckY: 3.4 };
+// (midden precies boven de rivier, die de weg bij u=0,868 kruist; overspant water plus de afgegraven oevers)
+export const VALLEY_CREEK_BRIDGE = { name: 'Bear Creek Bridge', uCenter: 0.868, uHalfSpan: 0.034, archHeight: 1.5, deckY: 3.4 };
 export const VALLEY_BRIDGES = [VALLEY_BRIDGE, VALLEY_CREEK_BRIDGE];
 
 function getRawValleyElev(u) {
@@ -384,15 +385,16 @@ export const riverCurves = [
 // tussen de meerweg en de valleiweg door, tot in de westelijke rivier
 {
   const pond = riverCurves[2].pondCenter;
-  const creekPts = [[pond.x, pond.z], [-77, 110], [-87, 94], [-95, 77], [-99, 60], [-101, 48], [-103, 39]];
+  const creekPts = [[pond.x, pond.z], [-77, 110], [-87, 94], [-95, 77], [-99, 60], [-102, 50], [-108, 43.5], [-115, 39]];
   const curve = new THREE.CatmullRomCurve3(creekPts.map(([x, z]) => new THREE.Vector3(x, 0, z)), false, 'centripetal', 0.5);
   const count = Math.round(curve.getLength() / 3.2);
   const sampled = [];
   for (let k = 0; k <= count; k++) {
     const p = curve.getPointAt(k / count);
-    sampled.push({ x: p.x, z: p.z, hw: 5.2 });
+    // Bredere monding waar de beek in de Bear River uitkomt
+    sampled.push({ x: p.x, z: p.z, hw: THREE.MathUtils.lerp(5.2, 7.4, THREE.MathUtils.smoothstep(k / count, 0.8, 1.0)) });
   }
-  riverCurves.push({ sampled, halfWidth: 5.2, maxHalfWidth: 5.2, pondCenter: null, name: 'Pond Creek' });
+  riverCurves.push({ sampled, halfWidth: 5.2, maxHalfWidth: 7.4, pondCenter: null, name: 'Pond Creek' });
 }
 
 // Vroegere vijver aan het begin van de zuidelijke beek (alleen nog als referentiepunt)
@@ -528,6 +530,13 @@ function buildRoadProfile(curve, closed, opts = {}) {
   // 3. Bruggen: zee-inhammen (hangbrug) en rivierkruisingen (houten brug)
   const bridges = [];
   waterRuns.forEach(({ a, len }) => {
+    let realWater = false;
+    for (let k = 0; k < len && !realWater; k++) {
+      const p = pts[wrap(a + k)];
+      const pol = getIslandPolar(p.x, p.z);
+      if (pol.r > getCoastRadius(pol.theta) - 30 || getDistToRivers(p.x, p.z) < 2) realWater = true;
+    }
+    if (!realWater) return; // landinwaartse laagte: wordt land, de weg loopt er gewoon overheen
     const uCenter = ((a + (len - 1) * 0.5) / N) % 1;
     const halfM = len * step * 0.5 + 9;
     const isLong = halfM > 26;
@@ -555,7 +564,7 @@ function buildRoadProfile(curve, closed, opts = {}) {
           applyFlat(uCenter, deckY, halfM, halfM * 2.2);
           bridges.push({ uCenter, uHalfSpan: halfM / L, archHeight: 2.6, type: 'suspension' });
         } else {
-          const halfM = hw + 7.5;
+          const halfM = hw + 10;
           // Dek iets boven de oever houden (max 4.2m) met een lange, rustige aanloop i.p.v. een steile duik
           const deckY = THREE.MathUtils.clamp(cur[wrap(Math.round(uCenter * N))], 1.45, 4.2);
           applyFlat(uCenter, deckY, halfM, halfM + 48);
@@ -808,9 +817,10 @@ allRoadNetworks.forEach((net) => {
     allFlatRoadSamples.push(s);
     const cx = Math.floor(s.x / ROAD_HASH_CELL);
     const cz = Math.floor(s.z / ROAD_HASH_CELL);
-    // Registreer in 3x3 buurcellen zodat we altijd een 24m zoekradius hebben in O(1) tijd!
-    for (let dx = -1; dx <= 1; dx++) {
-      for (let dz = -1; dz <= 1; dz++) {
+    // Registreer in 5x5 buurcellen: elke weg wordt tot minstens 32 m afstand gevonden
+    // (nodig voor de brede, flauwe taluds langs wegen; anders ontstaat een richel aan de rand van het zoekbereik)
+    for (let dx = -2; dx <= 2; dx++) {
+      for (let dz = -2; dz <= 2; dz++) {
         const key = roadHashKey(cx + dx, cz + dz);
         let bucket = roadSpatialMap.get(key);
         if (!bucket) {

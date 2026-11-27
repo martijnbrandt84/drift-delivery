@@ -213,7 +213,9 @@ export const ruralLots = [
     name: 'PINEWOOD FARM',
     variant: 'corn',
     yawOff: 0,
-    flatElevOffset: -0.04,
+    flatElevOffset: 1.2,
+    raiseYard: true,
+    blendOuter: 36,
     flatBox: { minLX: -40, maxLX: 40, minLZ: -40, maxLZ: 36, blend: 15.0 }
   }
 ];
