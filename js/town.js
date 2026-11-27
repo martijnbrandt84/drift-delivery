@@ -1404,6 +1404,244 @@ function buildRoadsideDiner() {
 export const dinerNightLights = [];
 buildRoadsideDiner();
 
+// =========================================================
+// PINEWOOD CINEMA: art-deco filmtheater met luifel vol lampjes,
+// verticaal CINEMA-bord, filmposters, kassahokje en parkeerplaats
+// =========================================================
+function makeMarqueeTexture() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 128;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#fff6dc';
+  ctx.fillRect(0, 0, 512, 128);
+  ctx.fillStyle = '#8c2335';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = 'bold 26px system-ui, sans-serif';
+  ctx.fillText('NOW SHOWING', 256, 24);
+  ctx.font = '900 44px system-ui, sans-serif';
+  ctx.fillText('DRIFT KINGS', 256, 66);
+  ctx.font = 'bold 24px system-ui, sans-serif';
+  ctx.fillText('& PINEWOOD NIGHTS', 256, 104);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.needsUpdate = true;
+  return tex;
+}
+
+function makeBladeTexture() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 96;
+  canvas.height = 512;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#f4b41a';
+  ctx.fillRect(0, 0, 96, 512);
+  ctx.fillStyle = '#8c2335';
+  ctx.fillRect(8, 8, 80, 496);
+  ctx.fillStyle = '#fff6dc';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = '900 62px system-ui, sans-serif';
+  'CINEMA'.split('').forEach((ch, i) => ctx.fillText(ch, 48, 52 + i * 82));
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.needsUpdate = true;
+  return tex;
+}
+
+function makePosterTexture(bg, fg, title) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 128;
+  canvas.height = 192;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, 128, 192);
+  ctx.fillStyle = fg;
+  ctx.beginPath();
+  ctx.arc(64, 78, 36, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#fff6dc';
+  ctx.textAlign = 'center';
+  ctx.font = '900 20px system-ui, sans-serif';
+  ctx.fillText(title, 64, 160);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.needsUpdate = true;
+  return tex;
+}
+
+const cinemaWallMat = makeToonMat(0x8c2335);
+const cinemaTrimMat = makeToonMat(0xf3e3c3);
+const cinemaGoldMat = makeToonMat(0xf4b41a);
+const cinemaRoofMat = registerSeasonalMat(0x4a3340, 0xf2f6fb);
+const marqueeBulbMat = new THREE.MeshBasicMaterial({ color: 0xffe9a8 });
+const marqueeBulbGeo = new THREE.SphereGeometry(0.09, 6, 5);
+
+function createCinemaBuilding() {
+  const g = new THREE.Group();
+  const w = 18.0, h = 8.5, d = 11.0;
+
+  const body = createOutlinedMesh(new THREE.BoxGeometry(w, h, d), cinemaWallMat, 0.06);
+  body.position.y = h * 0.5;
+  g.add(body);
+  // Getrapte art-deco bovenrand en verticale pilasters
+  [[w + 0.3, 0.5, h + 0.25], [w * 0.55, 0.9, h + 0.95], [w * 0.25, 0.9, h + 1.85]].forEach(([bw, bh, by]) => {
+    const step = createOutlinedMesh(new THREE.BoxGeometry(bw, bh, d * 0.6), cinemaTrimMat, 0.04, false);
+    step.position.set(0, by, d * 0.2);
+    g.add(step);
+  });
+  const roof = createOutlinedMesh(new THREE.BoxGeometry(w + 0.4, 0.3, d + 0.4), cinemaRoofMat, 0.04, false);
+  roof.position.y = h + 0.05;
+  g.add(roof);
+  [-8.2, -5.2, 5.2, 8.2].forEach((px) => {
+    const pil = createOutlinedMesh(new THREE.BoxGeometry(0.6, h, 0.3), cinemaTrimMat, 0.03, false);
+    pil.position.set(px, h * 0.5, d * 0.5 + 0.12);
+    g.add(pil);
+  });
+  const base = createOutlinedMesh(new THREE.BoxGeometry(w + 0.2, 0.9, d + 0.2), cinemaTrimMat, 0.035, false);
+  base.position.y = 0.45;
+  g.add(base);
+
+  // Glazen deuren onder de luifel
+  [-2.4, 0, 2.4].forEach((dx) => {
+    const door = new THREE.Mesh(new THREE.PlaneGeometry(1.9, 2.6), warmWindowMat);
+    door.position.set(dx, 1.45, d * 0.5 + 0.06);
+    g.add(door);
+    houseWindows.push({ mesh: door, timer: Math.random() * 10 });
+    const frame = createOutlinedMesh(new THREE.BoxGeometry(2.1, 2.85, 0.1), cinemaGoldMat, 0.02, false);
+    frame.position.set(dx, 1.45, d * 0.5 + 0.02);
+    g.add(frame);
+  });
+
+  // Luifel met lampjesrand en "NOW SHOWING"-bord
+  const marquee = createOutlinedMesh(new THREE.BoxGeometry(12.5, 1.9, 3.2), cinemaTrimMat, 0.045);
+  marquee.position.set(0, 3.9, d * 0.5 + 1.6);
+  g.add(marquee);
+  const mTex = makeMarqueeTexture();
+  const mFace = new THREE.Mesh(new THREE.PlaneGeometry(11.6, 1.5), new THREE.MeshBasicMaterial({ map: mTex }));
+  mFace.position.set(0, 3.9, d * 0.5 + 3.22);
+  g.add(mFace);
+  for (let k = 0; k <= 40; k++) {
+    const t = k / 40;
+    [4.92, 2.88].forEach((by) => {
+      const bulb = new THREE.Mesh(marqueeBulbGeo, marqueeBulbMat);
+      bulb.position.set(-6.1 + t * 12.2, by, d * 0.5 + 3.24);
+      g.add(bulb);
+    });
+  }
+
+  // Verticaal CINEMA-bord boven de luifel
+  const blade = createOutlinedMesh(new THREE.BoxGeometry(0.5, 6.0, 1.6), cinemaGoldMat, 0.04, false);
+  blade.position.set(0, 7.6, d * 0.5 + 1.0);
+  g.add(blade);
+  const bTex = makeBladeTexture();
+  [1, -1].forEach((side) => {
+    const face = new THREE.Mesh(new THREE.PlaneGeometry(1.35, 5.7), new THREE.MeshBasicMaterial({ map: bTex }));
+    face.position.set(side * 0.27, 7.6, d * 0.5 + 1.0);
+    face.rotation.y = side * Math.PI * 0.5;
+    g.add(face);
+  });
+
+  // Filmposters naast de deuren
+  [[-6.7, '#2d4a7a', '#f4b41a', 'DRIFT KINGS'], [6.7, '#3f6b4a', '#d95d30', 'MOOSE LAKE']].forEach(([px, bg, fg, title]) => {
+    const frame = createOutlinedMesh(new THREE.BoxGeometry(1.6, 2.3, 0.12), cinemaGoldMat, 0.025, false);
+    frame.position.set(px, 1.9, d * 0.5 + 0.08);
+    g.add(frame);
+    const poster = new THREE.Mesh(new THREE.PlaneGeometry(1.35, 2.05), new THREE.MeshBasicMaterial({ map: makePosterTexture(bg, fg, title) }));
+    poster.position.set(px, 1.9, d * 0.5 + 0.15);
+    g.add(poster);
+  });
+
+  g.userData.lightSpecs = { width: w * 0.94, yPos: h + 0.45, zFront: d * 0.5 + 0.3 };
+  return g;
+}
+
+function createTicketBooth() {
+  const g = new THREE.Group();
+  const body = createOutlinedMesh(new THREE.CylinderGeometry(0.9, 0.95, 2.3, 10), cinemaTrimMat, 0.035);
+  body.position.y = 1.15;
+  g.add(body);
+  const glass = new THREE.Mesh(new THREE.CylinderGeometry(0.92, 0.92, 0.9, 10, 1, true, -0.8, 1.6), warmWindowMat);
+  glass.position.y = 1.55;
+  g.add(glass);
+  const roof = createOutlinedMesh(new THREE.ConeGeometry(1.15, 0.8, 10), cinemaWallMat, 0.03, false);
+  roof.position.y = 2.7;
+  g.add(roof);
+  const ball = createOutlinedMesh(new THREE.SphereGeometry(0.18, 8, 6), cinemaGoldMat, 0.02, false);
+  ball.position.y = 3.2;
+  g.add(ball);
+  return g;
+}
+
+function buildCinema() {
+  const lot = ruralLots.find((l) => l.type === 'cinema');
+  if (!lot) return;
+  const { x: baseX, z: baseZ, yaw } = lot;
+  const surfaceY = lot.roadY - 0.02;
+  const g = new THREE.Group();
+  g.position.set(baseX, surfaceY, baseZ);
+  g.rotation.y = yaw;
+  scene.add(g);
+
+  // Parkeerplaats (lz -1 .. 15) en stoep voor het gebouw
+  const slabH = 3.2;
+  const pad = new THREE.Mesh(new THREE.BoxGeometry(29, slabH, 16.5), storeAsphaltMat);
+  pad.position.set(0, -slabH * 0.5, 6.75);
+  pad.receiveShadow = true;
+  g.add(pad);
+  const plinth = createOutlinedMesh(new THREE.BoxGeometry(24, slabH + 0.16, 14.5), sidewalkMat, 0.04, false, true);
+  plinth.position.set(0, -slabH * 0.5 + 0.08, -8.0);
+  g.add(plinth);
+
+  const building = createCinemaBuilding();
+  building.position.set(0, 0.16, -9.0);
+  g.add(building);
+
+  const booth = createTicketBooth();
+  booth.position.set(-9.5, 0.16, -1.2);
+  g.add(booth);
+
+  // Parkeervakken aan weerszijden van de inrit
+  const stripeGeo = new THREE.PlaneGeometry(0.16, 4.2);
+  const stopGeo = new THREE.BoxGeometry(1.55, 0.1, 0.22);
+  [[-13.5, -4.5], [4.5, 13.5]].forEach(([x0, x1]) => {
+    for (let lx = x0; lx <= x1 + 0.01; lx += 2.25) {
+      [4.0, 11.0].forEach((rowZ) => {
+        const stripe = new THREE.Mesh(stripeGeo, storeLineMat);
+        stripe.rotation.x = -Math.PI * 0.5;
+        stripe.position.set(lx, 0.02, rowZ);
+        g.add(stripe);
+        if (lx < x1 - 0.1) {
+          const stop = new THREE.Mesh(stopGeo, wheelStopMat);
+          stop.position.set(lx + 1.125, 0.05, rowZ - 1.75);
+          g.add(stop);
+        }
+      });
+    }
+  });
+
+  g.updateMatrixWorld(true);
+  addRoofStringLights(building, building.userData.lightSpecs.width, building.userData.lightSpecs.yPos, building.userData.lightSpecs.zFront);
+
+  const toWorld = (lx, lz) => {
+    const w = rotateLocal(lx, lz, yaw);
+    return { x: baseX + w.x, z: baseZ + w.z };
+  };
+  [-6, 0, 6].forEach((cx) => {
+    const p = toWorld(cx, -9.0);
+    hardColliders.push({ x: p.x, z: p.z, r: 5.4 });
+  });
+  const bp = toWorld(-9.5, -1.2);
+  hardColliders.push({ x: bp.x, z: bp.z, r: 1.0 });
+
+  // Warme gloed onder de luifel 's avonds
+  const glowPos = toWorld(0, -1.0);
+  const glow = new THREE.PointLight(0xffc870, 0, 28, 1.5);
+  glow.position.set(glowPos.x, surfaceY + 4.5, glowPos.z);
+  scene.add(glow);
+  dinerNightLights.push(glow);
+}
+buildCinema();
+
+
 
 // =========================================================
 // LANDELIJKE KAVELS BUITEN HET DORP
@@ -1652,7 +1890,7 @@ function buildVilla(lot) {
 }
 
 ruralLots.forEach((lot) => {
-  if (lot.type === 'farm' || lot.type === 'store' || lot.type === 'diner' || lot.type === 'camping' || lot.type === 'sawmill' || lot.type === 'fair') return;
+  if (lot.type === 'farm' || lot.type === 'store' || lot.type === 'diner' || lot.type === 'camping' || lot.type === 'sawmill' || lot.type === 'fair' || lot.type === 'cinema') return;
   if (lot.type === 'villa') {
     buildVilla(lot);
     return;

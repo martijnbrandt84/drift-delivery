@@ -60,6 +60,14 @@ ruralLots.forEach((lot) => {
     });
     return;
   }
+  if (lot.type === 'cinema') {
+    [[7.5, -1.6], [8.3, -2.1], [-12, -1.4]].forEach(([lx, lz]) => {
+      const w = lotLocalToWorld(lot, lx, lz);
+      addPumpkin(w.x, w.z, 1.0);
+    });
+    return;
+  }
+  if (lot.type === 'camping' || lot.type === 'sawmill' || lot.type === 'fair') return;
   if (lot.type === 'villa') {
     [[-2.8, 0.6], [2.8, 0.6], [-3.3, 1.2]].forEach(([lx, lz]) => {
       const w = lotLocalToWorld(lot, lx, lz);

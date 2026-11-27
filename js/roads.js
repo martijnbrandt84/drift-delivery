@@ -340,17 +340,19 @@ export const riverCurves = [
   createRiverFromBridgeSample(valleyBridgeSample, 6.2, false, 1)
 ];
 
-// Farm Creek: verbindt de zuidwestelijke beek met de westelijke rivier, tussen de boerderij en de kustweg
+// Pond Creek: vanaf het doodlopende eind van de zuidelijke beek (de vijver) naar het noorden,
+// tussen de meerweg en de valleiweg door, tot in de westelijke rivier
 {
-  const creekPts = [[-160, 247], [-184, 233], [-208, 210], [-224, 183], [-233, 155], [-238, 130], [-244, 110]];
+  const pond = riverCurves[2].pondCenter;
+  const creekPts = [[pond.x, pond.z], [-77, 110], [-87, 94], [-95, 77], [-99, 60], [-101, 48], [-103, 39]];
   const curve = new THREE.CatmullRomCurve3(creekPts.map(([x, z]) => new THREE.Vector3(x, 0, z)), false, 'centripetal', 0.5);
   const count = Math.round(curve.getLength() / 3.2);
   const sampled = [];
   for (let k = 0; k <= count; k++) {
     const p = curve.getPointAt(k / count);
-    sampled.push({ x: p.x, z: p.z, hw: 5.6 });
+    sampled.push({ x: p.x, z: p.z, hw: 5.2 });
   }
-  riverCurves.push({ sampled, halfWidth: 5.6, maxHalfWidth: 5.6, pondCenter: null, name: 'Farm Creek' });
+  riverCurves.push({ sampled, halfWidth: 5.2, maxHalfWidth: 5.2, pondCenter: null, name: 'Pond Creek' });
 }
 
 export const VALLEY_POND = { x: riverCurves[2].pondCenter.x, z: riverCurves[2].pondCenter.z, r: 14.5 };

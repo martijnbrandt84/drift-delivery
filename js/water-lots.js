@@ -70,6 +70,20 @@ export const ruralLots = [
     flatBox: { minLX: -19, maxLX: 19, minLZ: -12, maxLZ: 18.5, blend: 12 }
   },
 
+  // Bioscoop net ten oosten van het stadje, aan de meerweg
+  {
+    netSamples: lakeSamples,
+    u: 0.392,
+    outward: true,
+    dist: 31.0,
+    type: 'cinema',
+    name: 'PINEWOOD CINEMA',
+    yawOff: 0,
+    drivewayStopShort: 16.5,
+    flatElevOffset: -0.05,
+    flatBox: { minLX: -15, maxLX: 15, minLZ: -14, maxLZ: 16, blend: 12 }
+  },
+
   // Strandcamping aan de noordkust (tussen kustweg en strand)
   {
     netSamples: ringSamples,
@@ -173,8 +187,8 @@ ruralLots.forEach((lot) => {
       x2: rs.x + rs.nx * side * (lot.dist - (lot.drivewayStopShort ?? 0)),
       y2: lot.y,
       z2: rs.z + rs.nz * side * (lot.dist - (lot.drivewayStopShort ?? 0)),
-      halfWidth: lot.type === 'farm' ? 3.2 : lot.type === 'store' ? 4.4 : lot.type === 'villa' ? 2.8 : 2.5,
-      asphalt: lot.type === 'store'
+      halfWidth: lot.type === 'farm' ? 3.2 : lot.type === 'store' ? 4.4 : lot.type === 'cinema' ? 3.4 : lot.type === 'villa' ? 2.8 : 2.5,
+      asphalt: lot.type === 'store' || lot.type === 'cinema'
     });
   }
 });

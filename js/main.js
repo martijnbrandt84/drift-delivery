@@ -32,6 +32,7 @@ import './island-scenery.js';
 import './autumn.js';
 import './christmas.js';
 import { updateAttractions } from './attractions.js';
+import { updateOrcas } from './orcas.js';
 
 // =========================================================
 // OPRUIMING VAN WILDE BOSBOMEN, STRUIKEN & ROTSEN OP BEBOUWDE ZONES
@@ -1032,6 +1033,7 @@ function animate() {
   if (giantStarMesh && isChristmasMode) giantStarMesh.rotation.y = elapsed * 1.4;
   updateEnvironment(dt);
   updateAttractions(elapsed, dt, isNightMode);
+  updateOrcas(elapsed, dt, px, pz);
   nightSkyGroup.position.set(px, 0, pz);
   // Zichtbare zon: zakt bij zonsondergang echt achter de horizon
   const sunElev = Math.max(-0.12, sunDiscHeight);
