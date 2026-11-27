@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pinewood Creek — Smooth 60FPS, Night Mode &amp; Wildlife</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <div id="menu-card">
+    <div class="card-header">
+      <div class="brand-title">
+        <span class="brand-dot"></span>
+        <span>Pinewood Creek</span>
+      </div>
+      <button id="collapse-btn" class="icon-toggle">Inklappen</button>
+    </div>
+
+    <div id="card-body">
+      <div>
+        <div class="section-label">Tijd, Weer &amp; Seizoen</div>
+        <div class="control-grid">
+          <button id="night-btn" class="ctrl-btn">
+            <span>Tijd: Dag</span><span class="kbd-hint">N</span>
+          </button>
+          <button id="weather-btn" class="ctrl-btn">
+            <span>Zonnig</span><span class="kbd-hint">C</span>
+          </button>
+          <button id="xmas-btn" class="ctrl-btn">
+            <span>Winter: UIT</span><span class="kbd-hint">X</span>
+          </button>
+          <button id="sound-btn" class="ctrl-btn active-mode">
+            <span>Geluid: AAN</span><span class="kbd-hint">M</span>
+          </button>
+        </div>
+      </div>
+
+      <div>
+        <div class="section-label">Rijstijl &amp; Actie</div>
+        <div class="control-grid">
+          <button id="drift-btn" class="ctrl-btn active-mode">
+            <span>Drift: Sport</span><span class="kbd-hint">V</span>
+          </button>
+          <button id="police-btn" class="ctrl-btn danger">
+            <span>+ Sheriff</span><span class="kbd-hint">P</span>
+          </button>
+          <button id="reset-btn" class="ctrl-btn">
+            <span>Op de Weg</span><span class="kbd-hint">R</span>
+          </button>
+          <button id="clear-btn" class="ctrl-btn">
+            <span>Wis Sterren</span><span class="kbd-hint">O</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="keybind-list">
+        <div><span>Gas (bouwt op)</span><b>W / ↑</b></div>
+        <div><span>Handrem-drift</span><b>Spatie</b></div>
+        <div><span>Auto overnemen</span><b>F</b></div>
+        <div><span>Nacht / Licht</span><b>N</b></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="top-right-hud">
+    <div class="wanted-pill">
+      <div id="stars-row">
+        <span class="star-off">★</span><span class="star-off">★</span><span class="star-off">★</span><span class="star-off">★</span><span class="star-off">★</span>
+      </div>
+      <div id="chaos-score">0 PTS</div>
+    </div>
+    <div id="toast-pill">60FPS Geoptimaliseerd — Spot de wilde kalkoenen of druk op N voor Nachtmodus!</div>
+  </div>
+
+  <div id="speedo-card">
+    <div class="veh-header">
+      <span id="vehicle-badge">Woody Wagon</span>
+      <span id="gear-badge" class="gear-chip">N</span>
+    </div>
+    <div class="speed-main">
+      <span id="speed-val">0</span>
+      <span class="speed-unit">KM/U</span>
+    </div>
+    <div class="rpm-track">
+      <div id="rpm-bar"></div>
+    </div>
+  </div>
+
+  <div id="hijack-prompt">Druk op [F] om over te stappen</div>
+
+  <div id="minimap-card">
+    <canvas id="minimap" width="170" height="170"></canvas>
+    <span id="minimap-north">N</span>
+  </div>
+
+  <div id="busted-banner">
+    INGEREKEND!
+    <span>De Sheriff heeft je klemgezet. Je staat weer vrij in Pinewood Creek.</span>
+  </div>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
