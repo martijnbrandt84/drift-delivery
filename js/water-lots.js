@@ -63,7 +63,7 @@ export const ruralLots = [
     netSamples: lakeSamples,
     u: 0.055,
     outward: true,
-    dist: 31.0,
+    dist: 35.0, // 4 m verder van de weg: ruimte voor de reclamezuil voor de parkeerplaats
     type: 'store',
     yawOff: 0,
     // Brede geasfalteerde inrit van de weg tot aan de rand van de parkeerplaats (lz = 23.1)
@@ -91,7 +91,7 @@ export const ruralLots = [
   { netSamples: foxRoadSamples, near: [192, -45], outward: true, dist: 17.5, type: 'cabin', yawOff: -0.05 },
 
   // Grote villa aan Moose Lake (met zwembad en oprijlaan)
-  { netSamples: ringSamples, near: [200, 240], outward: false, dist: 22.0, type: 'villa', yawOff: 0.0, padRadius: 28, blendRadius: 40 },
+  { netSamples: ringSamples, near: [200, 240], outward: false, dist: 22.0, type: 'villa', yawOff: 0.0, padRadius: 28, blendRadius: 40, frontLine: 13.6 },
   { netSamples: ringSamples, near: [-55, 320], outward: false, dist: 18.0, type: 'house_red', yawOff: -0.06 },
   { netSamples: ringSamples, near: [-130, 303], outward: false, dist: 18.0, type: 'cabin', yawOff: 0.08 },
 

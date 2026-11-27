@@ -42,6 +42,7 @@ function getRawTerrainHeight(x, z) {
   }
 
   let specialFlatBlend = 1.0;
+  let frontBeyond = -1; // afstand voorbij de voorgrens van een perceel met een muur langs de weg (villa)
 
   for (const lot of ruralLots) {
     if (Math.abs(x - lot.x) > lot.terrainReach || Math.abs(z - lot.z) > lot.terrainReach) continue;
@@ -99,6 +100,10 @@ function getRawTerrainHeight(x, z) {
         h = THREE.MathUtils.lerp(lot.y, h, t);
         // Het huisperceel blijft vlak, ook vlak naast een (oplopende) weg
         specialFlatBlend = Math.min(specialFlatBlend, t);
+        if (lot.frontLine != null) {
+          const lzF = (x - lot.x) * Math.sin(lot.yaw) + (z - lot.z) * Math.cos(lot.yaw);
+          if (lzF > lot.frontLine) frontBeyond = lzF - lot.frontLine;
+        }
       }
     }
   }
@@ -139,7 +144,12 @@ function getRawTerrainHeight(x, z) {
       const roadBlend = THREE.MathUtils.smoothstep(marginDist, 2.2, outer);
       const roadAdjustedH = THREE.MathUtils.lerp(rs.y - 0.24, h, roadBlend);
       // Op een oprit bepaalt de oprit zelf de hoogte (behalve direct aan de wegrand)
-      const keepPlateau = marginDist <= 2.4 ? 1.0 : nearDriveway ? 0.0 : specialFlatBlend;
+      let keepPlateau = marginDist <= 2.4 ? 1.0 : nearDriveway ? 0.0 : specialFlatBlend;
+      // Berm tussen een voortuinmuur en de weg: één vloeiende helling van de muur naar de wegrand (geen trede)
+      if (frontBeyond >= 0 && marginDist > 2.4 && !nearDriveway) {
+        const f = frontBeyond / Math.max(0.3, frontBeyond + (marginDist - 2.4));
+        keepPlateau = Math.max(keepPlateau, THREE.MathUtils.smoothstep(f, 0, 1));
+      }
       h = THREE.MathUtils.lerp(h, roadAdjustedH, keepPlateau);
       if (marginDist <= 0.6) h = Math.min(h, rs.y - 0.26);
     }

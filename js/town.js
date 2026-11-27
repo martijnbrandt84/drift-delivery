@@ -1622,12 +1622,6 @@ function buildGeneralStore() {
   const PARK_Z1 = 23.1; // voorrand van de parkeerplaats (drie rijen)
   const pad = tagMap(new THREE.Mesh(new THREE.BoxGeometry(33.6, slabDepthH, PARK_Z1), storeAsphaltMat), 'paved');
   pad.position.set(0, -slabDepthH * 0.5, PARK_Z1 / 2);
-  // Stenen keermuurtje langs de linkervoorhoek: daar loopt de grond af naar de beek
-  [[-16.95, 20.0, 0.3, 6.5], [-12.0, 23.25, 10.2, 0.3]].forEach(([kx, kz, kw, kd]) => {
-    const kw2 = createOutlinedMesh(new THREE.BoxGeometry(kw, 1.9, kd), stoneMat, 0.03, false, true);
-    kw2.position.set(kx, -0.66, kz);
-    complexGroup.add(kw2);
-  });
   pad.receiveShadow = true;
   complexGroup.add(pad);
 
@@ -1706,10 +1700,10 @@ function buildGeneralStore() {
       pylon.add(t);
     });
   });
-  // De zuil staat buiten de geschaalde groep, net naast de inrit aan de rand van de parkeerplaats
+  // De zuil staat buiten de groep, op het gras voor de parkeerplaats naast de inrit
   {
-    const pp = rotateLocal(-19.0, 21.5, yaw);
-    pylon.position.set(baseX + pp.x, surfaceY, baseZ + pp.z);
+    const pp = rotateLocal(-9.5, 25.2, yaw);
+    pylon.position.set(baseX + pp.x, getTerrainHeight(baseX + pp.x, baseZ + pp.z), baseZ + pp.z);
     pylon.rotation.y = yaw;
     scene.add(pylon);
     hardColliders.push({ x: baseX + pp.x, z: baseZ + pp.z, r: 1.4 });
@@ -1865,27 +1859,20 @@ function buildGeneralStore() {
     complexGroup.add(bar);
   }
 
-  // Plantenstroken rondom de parkeerplaats (smal, met een lage haag die openvalt bij bomen en lantaarns)
+  // Plantenstroken rondom de parkeerplaats. De lange stroken stoppen precies waar de voorstroken beginnen,
+  // zodat de hoeken netjes als een L aansluiten. Opening voor de inrit (midden) en doorgangen naar de bouwmarkt
+  // (de middenstrook heeft openingen bij beide rijpaden).
   const FRONT_Z0 = 21.7; // voorstrook loopt van 21,7 tot 23,1
   const planterStrips = [
     // [x0, x1, z0, z1]
     [-16.7, -15.3, 0, FRONT_Z0],       // linkerrand
     [-16.7, -5.9, FRONT_Z0, PARK_Z1],  // voor links (tot de inrit)
     [5.9, 16.7, FRONT_Z0, PARK_Z1],    // voor rechts (vanaf de inrit)
-    [15.3, 16.7, 0, 3.9],              // middenstrook naast rij A
-    [15.3, 16.7, 9.1, 16.5],           // middenstrook naast rij B/C (de rijpaden lopen door naar de bouwmarkt)
+    [15.3, 16.7, 0, 5.2],              // middenstrook (deel 1)
+    [15.3, 16.7, 9.1, 16.5],           // middenstrook (deel 2) — openingen bij beide rijpaden
     [16.7, 36.4, FRONT_Z0, PARK_Z1],   // voor bouwmarkt-vak
     [35.0, 36.4, 0, FRONT_Z0]          // rechterrand
   ];
-  // Bomen en lantaarns op de stroken, op vaste plekken in de lengte
-  const treeSpots = [
-    [-16.0, 1.6], [-16.0, 11.0], [-16.0, 19.0],
-    [-13.0, 22.4], [-8.6, 22.4], [8.6, 22.4], [13.0, 22.4],
-    [16.0, 12.8],
-    [20.4, 22.4], [25.9, 22.4], [31.4, 22.4],
-    [35.7, 1.6], [35.7, 11.0], [35.7, 19.0]
-  ];
-  const lampSpots = [[-16.0, 6.5], [-16.0, 15.0], [16.0, 1.9], [16.0, 9.8], [35.7, 6.5], [35.7, 15.0]];
   const hedgeMat = registerSeasonalMat(0x3f6e3c, 0xe8eff4);
   planterStrips.forEach(([x0, x1, z0, z1]) => {
     const w = x1 - x0;
@@ -1898,27 +1885,23 @@ function buildGeneralStore() {
     const grass = new THREE.Mesh(new THREE.BoxGeometry(w - 0.24, 0.06, d - 0.24), blockLawnMat);
     grass.position.set(cx, 0.28, cz);
     complexGroup.add(grass);
-    // Lage haag over het midden van de strook, met een opening rond elke boom en lantaarn
+    // Lage haag in het midden van de strook (0,7 m breed), doorlopend tot de hoek
     const along = w > d;
-    const a0 = (along ? x0 : z0) + 0.3;
-    const a1 = (along ? x1 : z1) - 0.3;
-    const gaps = [...treeSpots, ...lampSpots]
-      .filter(([px, pz]) => px >= x0 && px <= x1 && pz >= z0 && pz <= z1)
-      .map(([px, pz]) => (along ? px : pz))
-      .sort((p, q) => p - q);
-    let from = a0;
-    [...gaps, null].forEach((gp) => {
-      const to = gp == null ? a1 : gp - 1.0;
-      if (to - from > 0.6) {
-        const len = to - from;
-        const mid = (from + to) / 2;
-        const hedge = createOutlinedMesh(new THREE.BoxGeometry(along ? len : 0.7, 0.5, along ? 0.7 : len), hedgeMat, 0.025, false);
-        hedge.position.set(along ? mid : cx, 0.55, along ? cz : mid);
-        complexGroup.add(hedge);
-      }
-      if (gp != null) from = gp + 1.0;
-    });
+    const hedge = createOutlinedMesh(new THREE.BoxGeometry(along ? w - 0.3 : 0.7, 0.5, along ? 0.7 : d - 0.3), hedgeMat, 0.025, false);
+    hedge.position.set(cx, 0.55, cz);
+    complexGroup.add(hedge);
   });
+  // Bomen: overal dezelfde regelmaat (~5,6 m), niet op de plek van een lantaarn
+  const treeSpots = [
+    [-16.0, 1.6], [-16.0, 7.2], [-16.0, 12.8], [-16.0, 18.4],
+    [-13.0, 22.4], [-8.6, 22.4],
+    [8.6, 22.4], [13.0, 22.4],
+    [16.0, 1.6], [16.0, 12.8],
+    [20.4, 22.4], [25.9, 22.4], [31.4, 22.4],
+    [35.7, 1.6], [35.7, 7.2], [35.7, 12.8], [35.7, 18.4]
+  ];
+  // Lantaarns: op alle drie de lange stroken op dezelfde hoogtes (z = 4,3 en 14,8)
+  const lampSpots = [[-16.0, 4.3], [-16.0, 14.8], [16.0, 4.3], [16.0, 14.8], [35.7, 4.3], [35.7, 14.8]];
   treeSpots.forEach(([tx, tz]) => {
     const wp = rl(tx, tz, yaw);
     const tree = createParkTree();
@@ -1929,7 +1912,6 @@ function buildGeneralStore() {
     registerDestructible(tree, baseX + wp.x, ty, baseZ + wp.z, 0.7, 'tree', 15, 'Parking lot tree');
     markLastPlanted();
   });
-  // Lantaarns op de lange stroken (in de openingen van de haag)
   lampSpots.forEach(([lx, lz]) => {
     const wp = rl(lx, lz, yaw);
     createSmashableStreetLampAt(baseX + wp.x, surfaceY + 0.3, baseZ + wp.z);
@@ -3014,11 +2996,6 @@ function createVilla__build() {
   const spout = createOutlinedMesh(new THREE.CylinderGeometry(0.2, 0.35, 1.3, 8), stoneMat, 0.025, false);
   spout.position.set(0, 1.25, mainD * 0.5 + 8.0);
   g.add(spout);
-  [-1, 1].forEach((side) => {
-    const hedge = createOutlinedMesh(new THREE.BoxGeometry(5.0, 1.0, 1.0), hedgeMat, 0.035, false);
-    hedge.position.set(side * 5.0, 0.75, mainD * 0.5 + 11.0);
-    g.add(hedge);
-  });
 
   g.userData.lightSpecs = { width: mainW * 0.94, yPos: mainH + 0.7, zFront: mainD * 0.5 + 0.3 };
   g.userData.chimneyTop = new THREE.Vector3(4.2, mainH + 3.7, -1.4);
@@ -3140,6 +3117,16 @@ function buildVilla(lot) {
         coping.position.set(0, 0.85, 0);
         coping.rotation.z = wall.rotation.z;
         wallGroup.add(coping);
+        // Geschoren haag aan de binnenkant van de muur (groene achtergrond voor de gazons)
+        {
+          const h0 = 5.2;
+          const h1 = endX - 0.6;
+          const hm = at(side * (h0 + h1) / 2, 22.0);
+          const hedgeIn = createOutlinedMesh(new THREE.BoxGeometry(h1 - h0, 1.4, 0.9), hedgeMat, 0.03, false);
+          hedgeIn.position.set(hm.x, gy + 0.2 + 0.4, hm.z);
+          hedgeIn.rotation.y = lot.yaw;
+          scene.add(hedgeIn);
+        }
         const ep = at(side * endX, 23.0);
         ep.y = s1.y + lift;
         const endPillar = createOutlinedMesh(new THREE.BoxGeometry(0.7, 1.3, 0.7), pillarMat, 0.025, false);
@@ -3150,17 +3137,37 @@ function buildVilla(lot) {
         scene.add(endCap);
       }
     });
-    // Lage buxushaagjes langs de oprijlaan tussen poort en voorplein
-    [-1, 1].forEach((side) => {
-      const h = createOutlinedMesh(new THREE.BoxGeometry(0.55, 0.55, 5.6), hedgeMat, 0.02, false);
-      const p = at(side * 3.7, 19.2);
-      h.position.set(p.x, p.y + 0.28, p.z);
-      h.rotation.y = lot.yaw;
-      scene.add(h);
+    // ---- Voortuin: rustig en ruim ----
+    // Strak gemaaide gazons met maaistroken aan weerszijden van de oprijlaan
+    const lawnA = registerSeasonalMat(0x6fae4f, 0xeef3f6);
+    const lawnB = registerSeasonalMat(0x5f9c43, 0xe4ebf0);
+    [[8.2, 23.4, 6.6, 21.4], [-24.0, -8.2, 14.0, 21.4]].forEach(([x0, x1, z0, z1]) => {
+      const n = Math.round((x1 - x0) / 1.7);
+      const sw = (x1 - x0) / n;
+      for (let k = 0; k < n; k++) {
+        const cxs = x0 + sw * (k + 0.5);
+        const czs = (z0 + z1) / 2;
+        const p = at(cxs, czs);
+        const stripe = new THREE.Mesh(new THREE.BoxGeometry(sw, 0.03, z1 - z0), k % 2 ? lawnA : lawnB);
+        stripe.position.set(p.x, gy + 0.22, p.z);
+        stripe.rotation.y = lot.yaw;
+        stripe.receiveShadow = true;
+        scene.add(stripe);
+      }
     });
-    // Klassieke lantaarnpalen bij het voorplein
-    [[-7.6, 17.4], [7.6, 17.4], [-5.2, 7.2], [5.2, 7.2]].forEach(([lx, lz]) => {
-      const p = at(lx, lz);
+    // Laan van bolbomen langs de oprijlaan, met twee lantaarnpalen ertussen
+    [-1, 1].forEach((side) => {
+      [17.0, 21.0].forEach((tz) => {
+        const p = at(side * 5.0, tz);
+        const tree = createGardenTree('round');
+        tree.scale.setScalar(0.85);
+        tree.position.set(p.x, p.y, p.z);
+        tree.rotation.y = Math.random() * Math.PI * 2;
+        scene.add(tree);
+        registerDestructible(tree, p.x, p.y, p.z, 0.6, 'tree', 15, 'Garden tree');
+        markLastPlanted();
+      });
+      const p = at(side * 5.0, 19.0);
       const lampPost = new THREE.Group();
       const pole = createOutlinedMesh(new THREE.CylinderGeometry(0.07, 0.1, 2.6, 8), ironMat, 0.015, false);
       pole.position.y = 1.3;
@@ -3176,10 +3183,20 @@ function buildVilla(lot) {
       scene.add(lampPost);
       registerDestructible(lampPost, p.x, p.y, p.z, 0.35, 'small', 4, 'Garden lantern');
     });
-    // Geschoren buxus in oranje terracotta potten rond het voorplein (bol en kegel om en om)
+    // Eén grote solitaire boom op elk gazon
+    [['blossom', 16.5, 14.0, 1.35], ['round', -15.5, 17.8, 1.25]].forEach(([kind, lx, lz, sc]) => {
+      const p = at(lx, lz);
+      const tree = createGardenTree(kind);
+      tree.scale.setScalar(sc);
+      tree.position.set(p.x, p.y, p.z);
+      scene.add(tree);
+      registerDestructible(tree, p.x, p.y, p.z, 0.8, 'tree', 15, 'Garden tree');
+      markLastPlanted();
+    });
+    // Geschoren buxus in oranje terracotta potten: bij de voordeur en bij de ingang van het voorplein
     const terracottaMat = makeToonMat(0xc8693c);
     const potRimMat = makeToonMat(0xa9532c);
-    [[-8.4, 8.6, 'cone'], [-8.4, 15.2, 'ball'], [8.4, 8.6, 'ball'], [8.4, 15.2, 'cone'], [8.4, 11.9, 'cone'], [-2.6, 17.0, 'ball'], [2.6, 17.0, 'ball']].forEach(([lx, lz, shape]) => {
+    [[-2.5, 5.4, 'cone'], [2.5, 5.4, 'cone'], [-6.4, 15.0, 'ball'], [6.4, 15.0, 'ball']].forEach(([lx, lz, shape]) => {
       const p = at(lx, lz);
       const planter = new THREE.Group();
       const pot = createOutlinedMesh(new THREE.CylinderGeometry(0.55, 0.4, 0.75, 12), terracottaMat, 0.025, false);
@@ -3193,10 +3210,11 @@ function buildVilla(lot) {
         : createOutlinedMesh(new THREE.ConeGeometry(0.52, 1.7, 10), hedgeMat, 0.025, false);
       bux.position.y = shape === 'ball' ? 1.35 : 1.62;
       planter.add(bux);
-      planter.position.set(p.x, p.y + 0.15, p.z);
+      const py = lz < 8 ? p.y : gy + 0.27; // op het gras bij de deur, of op het voorplein
+      planter.position.set(p.x, py, p.z);
       planter.rotation.y = lot.yaw;
       scene.add(planter);
-      registerDestructible(planter, p.x, p.y + 0.15, p.z, 0.65, 'small', 6, 'Box planter');
+      registerDestructible(planter, p.x, py, p.z, 0.65, 'small', 6, 'Box planter');
     });
   }
 
