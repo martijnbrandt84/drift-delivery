@@ -44,11 +44,12 @@ export function markLastPlanted() {
   destructibles[destructibles.length - 1].planted = true;
 }
 
-export function registerInstancedDestructible(instRefs, x, y, z, rotY, scale, r, kind, crimePts, label) {
+export function registerInstancedDestructible(instRefs, x, y, z, rotY, scale, r, kind, crimePts, label, shape = null) {
   const proxy = new THREE.Object3D();
   proxy.position.set(x, y, z);
-  proxy.rotation.set(0, rotY, 0);
-  proxy.scale.setScalar(scale);
+  // Optionele vorm: breedte/hoogte-factor en een lichte helling (moet gelijk zijn aan de instance-matrix)
+  proxy.rotation.set(shape?.leanX ?? 0, rotY, shape?.leanZ ?? 0);
+  proxy.scale.set(scale * (shape?.w ?? 1), scale * (shape?.h ?? 1), scale * (shape?.w ?? 1));
   proxy.updateMatrix();
   registerDestructible(proxy, x, y, z, r, kind, crimePts, label);
   destructibles[destructibles.length - 1].instRefs = instRefs;

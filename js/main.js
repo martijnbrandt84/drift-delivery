@@ -29,6 +29,7 @@ import './road-meshes.js';
 import './props.js';
 import { updateCrops, updateCows } from './farm.js';
 import './island-scenery.js';
+import './vegetation.js';
 import './autumn.js';
 import './village-extras.js';
 import './christmas.js';

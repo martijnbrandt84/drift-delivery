@@ -2081,21 +2081,6 @@ function buildCoffeeStop() {
   g.add(kiosk);
   collide(-2, -4, 3.4);
 
-  // Drive-thru baan langs het zijloket, met pijlen
-  const laneMat = makeToonMat(0x2f2d33, { polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
-  const lane = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.04, 15), laneMat);
-  lane.position.set(3.6, 0.02, -0.5);
-  g.add(lane);
-  const arrowGeo = new THREE.ConeGeometry(0.55, 1.2, 3);
-  arrowGeo.rotateX(-Math.PI / 2);
-  [[3.6, 4.5], [3.6, -5.5]].forEach(([ax, az]) => {
-    const arrow = new THREE.Mesh(arrowGeo, storeLineMat);
-    arrow.scale.y = 0.05;
-    arrow.position.set(ax, 0.06, az);
-    arrow.rotation.y = Math.PI;
-    g.add(arrow);
-  });
-
   // Groen-wit terrasje (omrijdbaar), met uitzicht richting het meer
   const placeTable = (lx, lz, hex) => {
     const t = new THREE.Group();

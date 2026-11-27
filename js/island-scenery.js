@@ -31,7 +31,7 @@ const crownTintMat = makeToonMat(0xffffff);
 const bakedPineTint = createMergedToonProp(pineNeedleParts, pineTintMat, 0.05, true);
 const bakedCrownTint = createMergedToonProp(crownParts, crownTintMat, 0.05, true);
 
-const PINE_COLORS = [0x2f5e41, 0x3d6e49, 0x4c7c46, 0x264d36].map((c) => new THREE.Color(c));
+const PINE_COLORS = [0x2f5e41, 0x3d6e49, 0x4c7c46, 0x264d36, 0x2c5a4c, 0x56804a, 0x35664a].map((c) => new THREE.Color(c));
 const CROWN_COLORS = [0xe89f38, 0xdc6a35, 0xc94a38, 0x5d8f44, 0x889e42, 0xd9b83b].map((c) => new THREE.Color(c));
 
 function isInsideSpecialLot(x, z) {
@@ -136,8 +136,8 @@ function buildInstancedSet(baked, list, material, castShadow, tintColors = null)
   const dummy = new THREE.Object3D();
   list.forEach((t, i) => {
     dummy.position.set(t.x, t.y, t.z);
-    dummy.rotation.set(0, t.rot, 0);
-    dummy.scale.setScalar(t.scale);
+    dummy.rotation.set(t.leanX ?? 0, t.rot, t.leanZ ?? 0);
+    dummy.scale.set(t.scale * (t.w ?? 1), t.scale * (t.h ?? 1), t.scale * (t.w ?? 1));
     dummy.updateMatrix();
     main.setMatrixAt(i, dummy.matrix);
     if (outline) outline.setMatrixAt(i, dummy.matrix);
@@ -157,6 +157,29 @@ function buildInstancedSet(baked, list, material, castShadow, tintColors = null)
 
 function buildOuterForest() {
   const spots = collectForestSpots();
+  // Variatie in vorm: slanke hoge dennen, brede lage dennen en hier en daar een boom die iets helt
+  spots.forEach((t) => {
+    const r = Math.random();
+    if (t.isPine) {
+      if (r < 0.3) { t.w = 0.8; t.h = 1.22; } else if (r < 0.5) { t.w = 1.15; t.h = 0.88; }
+    } else if (r < 0.35) { t.w = 1.12; t.h = 0.92; }
+    const pol = getIslandPolar(t.x, t.z);
+    const toCoast = getCoastRadius(pol.theta) - pol.r;
+    if (t.isPine && toCoast < 55) {
+      // Windscheve dennen aan de kust: hellen landinwaarts, iets breder en lager
+      const lean = THREE.MathUtils.lerp(0.2, 0.06, toCoast / 55);
+      const ix = -Math.cos(pol.theta);
+      const iz = -Math.sin(pol.theta);
+      t.leanX = iz * lean;
+      t.leanZ = -ix * lean;
+      t.w = 1.1;
+      t.h = 0.85;
+    } else if (Math.random() < 0.15) {
+      const la = Math.random() * Math.PI * 2;
+      t.leanX = Math.cos(la) * 0.06;
+      t.leanZ = Math.sin(la) * 0.06;
+    }
+  });
   const chunks = new Map();
   spots.forEach((s) => {
     const key = `${Math.floor(s.x / CHUNK)},${Math.floor(s.z / CHUNK)}`;
@@ -172,7 +195,7 @@ function buildOuterForest() {
         refs.push({ mesh: set.main, index: i });
         if (set.outline) refs.push({ mesh: set.outline, index: i });
       });
-      registerInstancedDestructible(refs, t.x, t.y, t.z, t.rot, t.scale, 0.85 * t.scale, 'tree', 15, label);
+      registerInstancedDestructible(refs, t.x, t.y, t.z, t.rot, t.scale, 0.85 * t.scale, 'tree', 15, label, t);
     });
   };
 
