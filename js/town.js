@@ -7,6 +7,8 @@ import { ruralLots } from './water-lots.js';
 import { hardColliders, registerDestructible, destructibles } from './demolition.js';
 import { getTerrainHeight } from './terrain.js';
 
+// Tekst op borden: altijd net vóór het bord tekenen (geen flikkeren/wegvallen op afstand)
+const SIGN_MAT_OPTS = { polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 };
 // =========================================================
 // STADJE PINEWOOD CREEK — VOLGEBOUWDE BLOKKEN, AANEENGESLOTEN
 // WINKELSTRATEN, RIJTJESHUIZEN & BREED STADSPLEIN ZONDER KIEREN
@@ -770,8 +772,8 @@ function addHangingSign(g, x, y, z, mesh) {
 function createNamedShop(type, width, height, depth) {
   const cfg = SHOP_TYPES[type];
   const g = createAttachedShop(width, height, depth, cfg.wall, cfg.awn, cfg.trim);
-  const sign = new THREE.Mesh(new THREE.PlaneGeometry(width * 0.72, 0.5), new THREE.MeshBasicMaterial({ map: getShopSignTexture(cfg) }));
-  sign.position.set(0, height - 0.55, depth * 0.5 + 0.185);
+  const sign = new THREE.Mesh(new THREE.PlaneGeometry(width * 0.72, 0.5), new THREE.MeshBasicMaterial({ map: getShopSignTexture(cfg), ...SIGN_MAT_OPTS }));
+  sign.position.set(0, height - 0.55, depth * 0.5 + 0.23);
   g.add(sign);
   const front = depth * 0.5;
   const sideX = width * 0.5 - 0.25;
@@ -1213,7 +1215,7 @@ function rotateLocal(lx, lz, yaw) {
 let mallExclusionZone = null;
 
 function mallTextPlane(label, bg, fg, w, h) {
-  return new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: getShopSignTexture({ label, bg, fg }) }));
+  return new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: getShopSignTexture({ label, bg, fg, ...SIGN_MAT_OPTS }) }));
 }
 
 // Winkelwagentje (los, omrijdbaar op de parkeerplaats; of in de karrenstalling)
@@ -1290,7 +1292,7 @@ function createSupermarketWing() {
   signBoard.position.set(0, h + 0.38, d * 0.5 - 0.15);
   g.add(signBoard);
   const superText = mallTextPlane('SUPERMARKET', '#2d8a4e', '#ffffff', 6.7, 0.82);
-  superText.position.set(0, h + 0.38, d * 0.5 - 0.01);
+  superText.position.set(0, h + 0.38, d * 0.5 + 0.03);
   g.add(superText);
 
   const canopy = createOutlinedMesh(new THREE.BoxGeometry(5.4, 0.26, 1.55), makeToonMat(0x236e3d), 0.038, false);
@@ -1345,7 +1347,7 @@ function createMallAtriumCenter() {
   mallSign.position.set(0, h - 0.85, d * 0.5 + 0.14);
   g.add(mallSign);
   const mallText = mallTextPlane('PINEWOOD MALL', '#c9643b', '#fff8ee', 7.3, 0.98);
-  mallText.position.set(0, h - 0.85, d * 0.5 + 0.29);
+  mallText.position.set(0, h - 0.85, d * 0.5 + 0.33);
   g.add(mallText);
   // Vlaggen op het dak
   [-3.6, 3.6].forEach((fx, i) => {
@@ -1404,7 +1406,7 @@ function createMallRetailWing() {
     shopBoard.position.set(bt.x, 3.55, d * 0.5 + 0.08);
     g.add(shopBoard);
     const shopText = bt.x < 0 ? mallTextPlane('SHOES', '#d95d30', '#ffffff', 3.8, 0.52) : mallTextPlane('FASHION', '#3b7ea1', '#ffffff', 3.8, 0.52);
-    shopText.position.set(bt.x, 3.55, d * 0.5 + 0.16);
+    shopText.position.set(bt.x, 3.55, d * 0.5 + 0.2);
     g.add(shopText);
 
     const awning = createOutlinedMesh(new THREE.BoxGeometry(4.5, 0.22, 1.3), makeToonMat(bt.awn), 0.035, false);
@@ -1509,7 +1511,7 @@ function buildGeneralStore() {
   pylon.add(pylonTop);
   [1, -1].forEach((side) => {
     const t = mallTextPlane('PINEWOOD MALL', '#c9643b', '#fff8ee', 4.0, 1.2);
-    t.position.set(0, 7.6, side * 0.21);
+    t.position.set(0, 7.6, side * 0.25);
     if (side < 0) t.rotation.y = Math.PI;
     pylon.add(t);
   });
@@ -1519,7 +1521,7 @@ function buildGeneralStore() {
     pylon.add(panel);
     [1, -1].forEach((side) => {
       const t = mallTextPlane(label, bg, '#ffffff', 3.4, 0.5);
-      t.position.set(0, 6.4 - i * 0.72, side * 0.16);
+      t.position.set(0, 6.4 - i * 0.72, side * 0.2);
       if (side < 0) t.rotation.y = Math.PI;
       pylon.add(t);
     });
@@ -1771,7 +1773,7 @@ function createDinerBuilding() {
   g.add(burger);
 
   // Klein "OPEN 24/7" bordje boven de deur
-  const openSign = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.95), new THREE.MeshBasicMaterial({ map: makeOpenSignTexture() }));
+  const openSign = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.95), new THREE.MeshBasicMaterial({ map: makeOpenSignTexture(), ...SIGN_MAT_OPTS }));
   openSign.position.set(-3.8, h + 0.95, d * 0.5 + 0.55);
   g.add(openSign);
   const openBack = createOutlinedMesh(new THREE.BoxGeometry(2.55, 1.08, 0.12), dinerChromeMat, 0.025, false);
@@ -1789,7 +1791,7 @@ function createDinerPylon() {
     pole.position.set(px, 4.5, 0);
     g.add(pole);
   });
-  const signMat = new THREE.MeshBasicMaterial({ map: makeDinerSignTexture() });
+  const signMat = new THREE.MeshBasicMaterial({ map: makeDinerSignTexture(), ...SIGN_MAT_OPTS });
   const board = createOutlinedMesh(new THREE.BoxGeometry(6.4, 3.2, 0.45), dinerRedMat, 0.05, false);
   board.position.y = 7.6;
   g.add(board);
@@ -2033,8 +2035,8 @@ function createCinemaBuilding() {
   marquee.position.set(0, 3.9, d * 0.5 + 1.6);
   g.add(marquee);
   const mTex = makeMarqueeTexture();
-  const mFace = new THREE.Mesh(new THREE.PlaneGeometry(11.6, 1.5), new THREE.MeshBasicMaterial({ map: mTex }));
-  mFace.position.set(0, 3.9, d * 0.5 + 3.22);
+  const mFace = new THREE.Mesh(new THREE.PlaneGeometry(11.6, 1.5), new THREE.MeshBasicMaterial({ map: mTex, ...SIGN_MAT_OPTS }));
+  mFace.position.set(0, 3.9, d * 0.5 + 3.25);
   g.add(mFace);
   for (let k = 0; k <= 40; k++) {
     const t = k / 40;
@@ -2051,7 +2053,7 @@ function createCinemaBuilding() {
   g.add(blade);
   const bTex = makeBladeTexture();
   [1, -1].forEach((side) => {
-    const face = new THREE.Mesh(new THREE.PlaneGeometry(1.35, 5.7), new THREE.MeshBasicMaterial({ map: bTex }));
+    const face = new THREE.Mesh(new THREE.PlaneGeometry(1.35, 5.7), new THREE.MeshBasicMaterial({ map: bTex, ...SIGN_MAT_OPTS }));
     face.position.set(side * 0.27, 7.6, d * 0.5 + 1.0);
     face.rotation.y = side * Math.PI * 0.5;
     g.add(face);
@@ -2062,7 +2064,7 @@ function createCinemaBuilding() {
     const frame = createOutlinedMesh(new THREE.BoxGeometry(1.6, 2.3, 0.12), cinemaGoldMat, 0.025, false);
     frame.position.set(px, 1.9, d * 0.5 + 0.08);
     g.add(frame);
-    const poster = new THREE.Mesh(new THREE.PlaneGeometry(1.35, 2.05), new THREE.MeshBasicMaterial({ map: makePosterTexture(bg, fg, title) }));
+    const poster = new THREE.Mesh(new THREE.PlaneGeometry(1.35, 2.05), new THREE.MeshBasicMaterial({ map: makePosterTexture(bg, fg, title), ...SIGN_MAT_OPTS }));
     poster.position.set(px, 1.9, d * 0.5 + 0.15);
     g.add(poster);
   });
@@ -2407,7 +2409,7 @@ function buildVilla(lot) {
 }
 
 ruralLots.forEach((lot) => {
-  if (lot.type === 'farm' || lot.type === 'store' || lot.type === 'diner' || lot.type === 'camping' || lot.type === 'sawmill' || lot.type === 'fair' || lot.type === 'cinema') return;
+  if (lot.type === 'farm' || lot.type === 'store' || lot.type === 'diner' || lot.type === 'camping' || lot.type === 'sawmill' || lot.type === 'fair' || lot.type === 'cinema' || lot.type === 'airfield') return;
   if (lot.type === 'villa') {
     buildVilla(lot);
     return;

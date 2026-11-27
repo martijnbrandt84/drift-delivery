@@ -9,6 +9,8 @@ import { createRoadSign } from './scenery.js';
 import { buildPickupTruckMesh, parkedCars } from './vehicles.js';
 import { createPineFast, createDeciduousTreeFast, createShrubFast } from './props.js';
 
+// Tekst op borden: altijd net vóór het bord tekenen (geen flikkeren/wegvallen op afstand)
+const SIGN_MAT_OPTS = { polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 };
 // =========================================================
 // NIEUWE PLEKKEN: STRANDCAMPING, ZAGERIJ & HERFSTKERMIS
 // Lokale assen per kavel: lx langs de weg, lz richting de weg (+). De oprit loopt over lx = 0.
@@ -509,7 +511,7 @@ function createBumperCars() {
   const roof = createOutlinedMesh(new THREE.BoxGeometry(10.6, 0.5, 8.6), makeToonMat(0xd94e3a), 0.04);
   roof.position.y = 3.9;
   g.add(roof);
-  const sign = new THREE.Mesh(new THREE.PlaneGeometry(5.6, 1.1), new THREE.MeshBasicMaterial({ map: makeStandSignTexture('BUMPER CARS', '#ffd23f', '#b8243a') }));
+  const sign = new THREE.Mesh(new THREE.PlaneGeometry(5.6, 1.1), new THREE.MeshBasicMaterial({ map: makeStandSignTexture('BUMPER CARS', '#ffd23f', '#b8243a'), ...SIGN_MAT_OPTS }));
   sign.position.set(0, 4.7, 4.32);
   g.add(sign);
   const signBack = createOutlinedMesh(new THREE.BoxGeometry(5.8, 1.3, 0.15), makeToonMat(0xffd23f), 0.025, false);
@@ -543,7 +545,7 @@ function createFoodStand(kind, colorOverride = null) {
     hotdog: { col: 0xe0a030, label: 'HOT DOGS' }
   }[kind];
   const g = createFairBooth(colorOverride ?? cfg.col);
-  const sign = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 0.8), new THREE.MeshBasicMaterial({ map: makeStandSignTexture(cfg.label, '#fffaf0', '#b8243a') }));
+  const sign = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 0.8), new THREE.MeshBasicMaterial({ map: makeStandSignTexture(cfg.label, '#fffaf0', '#b8243a'), ...SIGN_MAT_OPTS }));
   sign.position.set(0, 3.35, 1.26);
   g.add(sign);
   const prop = new THREE.Group();
@@ -786,7 +788,7 @@ function buildFair(lot) {
     g.add(ball);
     collide(px, archZ, 0.75);
   });
-  const signMat = new THREE.MeshBasicMaterial({ map: makeFairSignTexture() });
+  const signMat = new THREE.MeshBasicMaterial({ map: makeFairSignTexture(), ...SIGN_MAT_OPTS });
   const board = createOutlinedMesh(new THREE.BoxGeometry(13.4, 3.4, 0.4), makeToonMat(0xb8243a), 0.05, false);
   board.position.set(0, 7.0, archZ);
   g.add(board);
@@ -904,7 +906,7 @@ function buildFair(lot) {
 // Spelletjeskraam: ringwerpen met flessen op de toonbank
 function createGameStand() {
   const g = createFairBooth(0xd94e3a);
-  const sign = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 0.8), new THREE.MeshBasicMaterial({ map: makeStandSignTexture('RING TOSS', '#fffaf0', '#b8243a') }));
+  const sign = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 0.8), new THREE.MeshBasicMaterial({ map: makeStandSignTexture('RING TOSS', '#fffaf0', '#b8243a'), ...SIGN_MAT_OPTS }));
   sign.position.set(0, 3.35, 1.26);
   g.add(sign);
   const bottleMat = makeToonMat(0x3f9f6a);

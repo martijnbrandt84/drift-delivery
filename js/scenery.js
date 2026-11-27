@@ -7,6 +7,8 @@ import { getLakeShoreRadius, SANDBAR_ISLAND, getDistToRivers, ruralLots } from '
 import { hardColliders, registerDestructible } from './demolition.js';
 import { getTerrainHeight } from './terrain.js';
 
+// Tekst op borden: altijd net vóór het bord tekenen (geen flikkeren/wegvallen op afstand)
+const SIGN_MAT_OPTS = { polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 };
 // =========================================================
 // GROENE WEGBORDEN, STEIGER, VUURTOREN, LICHTSTRAAL & RIET
 // =========================================================
@@ -51,7 +53,7 @@ export function createRoadSign(x, z, baseY, yaw, lines) {
   const tex = makeSignCanvasTexture(lines);
   const panelW = 2.0;
   const panelH = 1.0;
-  const panelMat = new THREE.MeshBasicMaterial({ map: tex });
+  const panelMat = new THREE.MeshBasicMaterial({ map: tex, ...SIGN_MAT_OPTS });
 
   const panelBack = createOutlinedMesh(new THREE.BoxGeometry(panelW, panelH, 0.06), signBackingMat, 0.025, false);
   panelBack.position.set(0, 2.1, 0.02);

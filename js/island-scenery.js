@@ -36,8 +36,8 @@ const CROWN_COLORS = [0xe89f38, 0xdc6a35, 0xc94a38, 0x5d8f44, 0x889e42, 0xd9b83b
 
 function isInsideSpecialLot(x, z) {
   for (const lot of ruralLots) {
-    if (lot.type === 'camping') {
-      // De camping ligt in het bos: bomen mogen tot vlak aan de rand van het terrein groeien
+    if (lot.flatBox) {
+      // Grote kavels: rechthoek rond het terrein vrijhouden (camping: bos tot vlak aan de rand)
       const c = Math.cos(lot.yaw);
       const s = Math.sin(lot.yaw);
       const dx = x - lot.x;
@@ -45,10 +45,11 @@ function isInsideSpecialLot(x, z) {
       const lx = dx * c - dz * s;
       const lz = dx * s + dz * c;
       const fb = lot.flatBox;
-      if (lx > fb.minLX - 2 && lx < fb.maxLX + 2 && lz > fb.minLZ - 2 && lz < fb.maxLZ + 4) return true;
+      const m = lot.type === 'camping' ? 2 : lot.type === 'farm' ? 10 : 6;
+      if (lx > fb.minLX - m && lx < fb.maxLX + m && lz > fb.minLZ - m && lz < fb.maxLZ + m + 4) return true;
       continue;
     }
-    const pad = lot.type === 'farm' ? 50 : lot.flatBox ? Math.hypot(lot.flatBox.maxLX, lot.flatBox.maxLZ) + 6 : lot.type === 'villa' ? 32 : 12;
+    const pad = lot.type === 'villa' ? 32 : 12;
     if (Math.hypot(x - lot.x, z - lot.z) < pad) return true;
   }
   return false;

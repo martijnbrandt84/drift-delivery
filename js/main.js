@@ -34,6 +34,7 @@ import './village-extras.js';
 import './christmas.js';
 import { updateAttractions } from './attractions.js';
 import { updateOrcas } from './orcas.js';
+import { flight, planeIsNear, canExitPlane, enterPlane, exitPlane, setFlightKey, updateFlight, setAirfieldNight } from './flight.js';
 
 // =========================================================
 // OPRUIMING VAN WILDE BOSBOMEN, STRUIKEN & ROTSEN OP BEBOUWDE ZONES
@@ -416,8 +417,44 @@ policeBtnEl.addEventListener('click', () => {
 clearBtnEl.addEventListener('click', clearWantedStars);
 resetBtnEl.addEventListener('click', resetToClosestRoad);
 
+function toggleFlight() {
+  if (flight.active) {
+    if (!canExitPlane()) {
+      showToast('Eerst landen en stilstaan om uit te stappen');
+      return;
+    }
+    const spot = exitPlane();
+    const st = getDriveHeightAndWaterState(spot.x, spot.z);
+    playerVeh.root.position.set(spot.x, st.height, spot.z);
+    playerVeh.root.visible = true;
+    carState.angle = spot.angle;
+    carState.vx = 0;
+    carState.vz = 0;
+    carState.throttleHold = 0;
+    showToast('Uitgestapt — terug in je auto');
+    return true;
+  }
+  if (planeIsNear(playerVeh.root.position.x, playerVeh.root.position.z)) {
+    Object.keys(keys).forEach((k) => { keys[k] = false; });
+    carState.vx = 0;
+    carState.vz = 0;
+    playerVeh.root.visible = false;
+    enterPlane();
+    return true;
+  }
+  return false;
+}
+
 window.addEventListener('keydown', (e) => {
   sound.init();
+  if (e.code === 'KeyF') {
+    if (!toggleFlight()) tryHijackNearbyVehicle();
+    return;
+  }
+  if (flight.active && setFlightKey(e.code, true)) {
+    e.preventDefault();
+    return;
+  }
   switch (e.code) {
     case 'KeyW':
     case 'ArrowUp': keys.forward = true; break;
@@ -428,7 +465,6 @@ window.addEventListener('keydown', (e) => {
     case 'KeyD':
     case 'ArrowRight': keys.right = true; break;
     case 'Space': keys.handbrake = true; break;
-    case 'KeyF': tryHijackNearbyVehicle(); break;
     case 'KeyN': toggleNightMode(); break;
     case 'KeyV': cycleDriftMode(); break;
     case 'KeyM': soundBtnEl.click(); break;
@@ -445,6 +481,7 @@ window.addEventListener('keydown', (e) => {
 });
 
 window.addEventListener('keyup', (e) => {
+  setFlightKey(e.code, false);
   switch (e.code) {
     case 'KeyW':
     case 'ArrowUp': keys.forward = false; break;
@@ -651,8 +688,18 @@ function animate() {
     }
   }
 
-  const hijackCand = findHijackCandidate();
-  if (hijackCand) {
+  updateFlight(dt, elapsed);
+  setAirfieldNight(isNightMode);
+  const hijackCand = flight.active ? null : findHijackCandidate();
+  if (flight.active && canExitPlane()) {
+    hijackPromptEl.textContent = '[F] Uitstappen';
+    hijackPromptEl.classList.add('visible');
+  } else if (flight.active) {
+    hijackPromptEl.classList.remove('visible');
+  } else if (planeIsNear(playerVeh.root.position.x, playerVeh.root.position.z)) {
+    hijackPromptEl.textContent = '[F] Stap in het vliegtuig';
+    hijackPromptEl.classList.add('visible');
+  } else if (hijackCand) {
     hijackPromptEl.textContent = `[F] Stap over in ${hijackCand.veh.name}`;
     hijackPromptEl.classList.add('visible');
   } else {
@@ -1135,21 +1182,48 @@ function animate() {
     camera.updateProjectionMatrix();
   }
 
-  const speedZoom = Math.min(5.5, totalSpeed * 0.10);
-  tempVec.set(0, 11.4 + speedZoom * 0.35, -19.5 - speedZoom).applyAxisAngle(new THREE.Vector3(0, 1, 0), carState.angle).add(playerVeh.root.position);
-  const camGround = getTerrainHeight(tempVec.x, tempVec.z);
-  tempVec.y = Math.max(tempVec.y, Math.max(camGround, WATER_LEVEL) + 4.2);
+  if (flight.active) {
+    // Volgcamera achter het vliegtuig
+    const back = 15 + flight.speed * 0.08;
+    tempVec.set(
+      flight.x - Math.sin(flight.heading) * back,
+      flight.y + 5.5 - Math.sin(flight.pitch) * 4,
+      flight.z - Math.cos(flight.heading) * back
+    );
+    const camGroundF = getTerrainHeight(tempVec.x, tempVec.z);
+    tempVec.y = Math.max(tempVec.y, Math.max(camGroundF, WATER_LEVEL) + 2.5);
+    currentCamPos.lerp(tempVec, 5.0 * dt);
+    camera.position.copy(currentCamPos);
+    tempVec.set(flight.x + Math.sin(flight.heading) * 8, flight.y + 1.5, flight.z + Math.cos(flight.heading) * 8);
+    currentLookAt.lerp(tempVec, 8.0 * dt);
+    camera.lookAt(currentLookAt);
+    sunLight.position.set(flight.x + sunDirection.x * 95, flight.y + sunDirection.y * 95, flight.z + sunDirection.z * 95);
+    sunLight.target.position.set(flight.x, flight.y, flight.z);
+    speedValEl.textContent = Math.round(flight.speed * 3.6);
+    vehicleBadgeEl.textContent = 'Piper Cub';
+    gearBadgeEl.textContent = flight.airborne ? `${Math.max(0, Math.round(flight.y - Math.max(getTerrainHeight(flight.x, flight.z), WATER_LEVEL)))}m` : 'GND';
+    rpmBarEl.style.width = `${Math.round(flight.throttle * 100)}%`;
+  } else {
+    const speedZoom = Math.min(5.5, totalSpeed * 0.10);
+    tempVec.set(0, 11.4 + speedZoom * 0.35, -19.5 - speedZoom).applyAxisAngle(new THREE.Vector3(0, 1, 0), carState.angle).add(playerVeh.root.position);
+    const camGround = getTerrainHeight(tempVec.x, tempVec.z);
+    tempVec.y = Math.max(tempVec.y, Math.max(camGround, WATER_LEVEL) + 4.2);
 
-  currentCamPos.lerp(tempVec, 7.2 * dt);
-  camera.position.copy(currentCamPos);
+    currentCamPos.lerp(tempVec, 7.2 * dt);
+    camera.position.copy(currentCamPos);
 
-  tempVec.set(px + carState.vx * 0.12, playerVeh.root.position.y + 1.85, pz + carState.vz * 0.12);
-  currentLookAt.lerp(tempVec, 12.0 * dt);
-  camera.lookAt(currentLookAt);
+    tempVec.set(px + carState.vx * 0.12, playerVeh.root.position.y + 1.85, pz + carState.vz * 0.12);
+    currentLookAt.lerp(tempVec, 12.0 * dt);
+    camera.lookAt(currentLookAt);
+    if (vehicleBadgeEl.textContent === 'Piper Cub') vehicleBadgeEl.textContent = playerVeh.name;
+  }
 
   const activeCops = policePool.filter((c) => c.active).map((c) => c.veh.root.position);
-  updateMinimap(px, pz, carState.angle, activeCops);
-  updateFullMap(px, pz, carState.angle, activeCops);
+  const mapX = flight.active ? flight.x : px;
+  const mapZ = flight.active ? flight.z : pz;
+  const mapAngle = flight.active ? flight.heading : carState.angle;
+  updateMinimap(mapX, mapZ, mapAngle, activeCops);
+  updateFullMap(mapX, mapZ, mapAngle, activeCops);
 
   renderer.render(scene, camera);
 }

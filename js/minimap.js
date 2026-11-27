@@ -155,7 +155,7 @@ function bakeStaticMap() {
   // Hutten en huizen
   bctx.fillStyle = '#7a4a2a';
   ruralLots.forEach((lot) => {
-    if (lot.type === 'farm' || lot.type === 'store' || lot.type === 'diner' || lot.type === 'camping' || lot.type === 'sawmill' || lot.type === 'fair' || lot.type === 'cinema') return;
+    if (lot.type === 'farm' || lot.type === 'store' || lot.type === 'diner' || lot.type === 'camping' || lot.type === 'sawmill' || lot.type === 'fair' || lot.type === 'cinema' || lot.type === 'airfield') return;
     if (lot.type === 'villa') {
       const v = worldToBake(lot.x, lot.z);
       bctx.fillStyle = '#f6f0e4';
@@ -263,6 +263,7 @@ ruralLots.forEach((lot) => {
   if (lot.type === 'sawmill') addLabel('Zagerij', lot.x, lot.z - 14);
   if (lot.type === 'fair') addLabel('Kermis', lot.x, lot.z);
   if (lot.type === 'cinema') addLabel('Bioscoop', lot.x + 6, lot.z - 14);
+  if (lot.type === 'airfield') addLabel('Vliegveld', lot.x - 50, lot.z - 16);
 });
 addLabel('Strand', 0, 352, 'water');
 

@@ -156,6 +156,7 @@ ruralLots.forEach((lot) => {
   else if (lot.type === 'camping') spot = at(4, -2);
   else if (lot.type === 'fair' || lot.type === 'sawmill') spot = at(-5, 18);
   else if (lot.type === 'cinema') spot = at(11, -1.5);
+  else if (lot.type === 'airfield') spot = at(-16, 4);
   else spot = at(3.6, 6.2);
   placeSnowman(spot.x, spot.z, lot.yaw, snowmanIdx++);
 });

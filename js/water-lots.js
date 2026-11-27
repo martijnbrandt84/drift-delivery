@@ -94,6 +94,20 @@ export const ruralLots = [
     flatBox: { minLX: -15, maxLX: 15, minLZ: -14, maxLZ: 16, blend: 12 }
   },
 
+  // Klein vliegveld met startbaan naar het westen, aan de zuidelijke verbindingsweg
+  {
+    netSamples: outerRoadDefs.find((d) => d.id === 'south_link').samples,
+    near: [84, 222],
+    outward: true,
+    dist: 22.0,
+    type: 'airfield',
+    name: 'PINEWOOD AIRFIELD',
+    yawOff: -0.5,
+    drivewayStopShort: 10.0,
+    flatElevOffset: -0.05,
+    flatBox: { minLX: -18, maxLX: 18, minLZ: -134, maxLZ: 14, blend: 16 }
+  },
+
   // Strandcamping aan de noordkust (tussen kustweg en strand)
   {
     netSamples: ringSamples,
@@ -198,7 +212,7 @@ ruralLots.forEach((lot) => {
       y2: lot.y,
       z2: rs.z + rs.nz * side * (lot.dist - (lot.drivewayStopShort ?? 0)),
       halfWidth: lot.type === 'farm' ? 3.2 : lot.type === 'store' ? 4.4 : lot.type === 'cinema' ? 3.4 : lot.type === 'villa' ? 2.8 : 2.5,
-      asphalt: lot.type === 'store' || lot.type === 'cinema'
+      asphalt: lot.type === 'store' || lot.type === 'cinema' || lot.type === 'airfield'
     });
   }
 });
