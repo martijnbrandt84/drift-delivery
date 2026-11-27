@@ -41,45 +41,6 @@ export function getCliffiness(theta) {
   return THREE.MathUtils.smoothstep(n, -0.1, 0.45);
 }
 
-// Fjord in het noordoosten: een brede zee-inham die de kustweg met een hangbrug oversteekt
-const FJORD_THETA = -0.72;
-const fjordPts = [];
-for (let k = 0; k <= 12; k++) {
-  const t = k / 12;
-  const r = THREE.MathUtils.lerp(172, 440, t);
-  const th = FJORD_THETA + Math.sin(t * Math.PI * 1.4) * 0.05;
-  fjordPts.push({
-    x: ISLAND_CENTER.x + Math.cos(th) * r,
-    z: ISLAND_CENTER.z + Math.sin(th) * r,
-    hw: THREE.MathUtils.lerp(13, 34, t)
-  });
-}
-export const FJORD = { theta: FJORD_THETA, points: fjordPts };
-
-const fjordBox = (() => {
-  let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
-  fjordPts.forEach((p) => {
-    minX = Math.min(minX, p.x - p.hw); maxX = Math.max(maxX, p.x + p.hw);
-    minZ = Math.min(minZ, p.z - p.hw); maxZ = Math.max(maxZ, p.z + p.hw);
-  });
-  return { minX, maxX, minZ, maxZ };
-})();
-
-function getFjordSignedDist(x, z) {
-  if (x < fjordBox.minX - 12 || x > fjordBox.maxX + 12 || z < fjordBox.minZ - 12 || z > fjordBox.maxZ + 12) return 999;
-  let best = Infinity;
-  for (let i = 0; i < fjordPts.length - 1; i++) {
-    const a = fjordPts[i];
-    const b = fjordPts[i + 1];
-    const abx = b.x - a.x;
-    const abz = b.z - a.z;
-    const t = THREE.MathUtils.clamp(((x - a.x) * abx + (z - a.z) * abz) / (abx * abx + abz * abz), 0, 1);
-    const d = Math.hypot(x - (a.x + abx * t), z - (a.z + abz * t)) - THREE.MathUtils.lerp(a.hw, b.hw, t);
-    if (d < best) best = d;
-  }
-  return best;
-}
-
 // Beboste heuvels (geen bergen meer): glooiend bos in het noordwesten en wat heuvels in het oosten
 export const FOREST_HILLS = [
   { x: -195, z: -95, h: 8.5, s: 34 },
@@ -160,11 +121,6 @@ export function getNaturalGroundBase(x, z) {
     h = THREE.MathUtils.lerp(beachH, cliffH, cliff);
   }
 
-  // Fjord met steile wanden
-  const dFjord = getFjordSignedDist(x, z);
-  if (dFjord < 10) {
-    h = Math.min(h, THREE.MathUtils.lerp(OCEAN_FLOOR, h, THREE.MathUtils.smoothstep(dFjord, 0, 10)));
-  }
 
   return h;
 }

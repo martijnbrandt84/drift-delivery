@@ -4,7 +4,7 @@ import {
 } from './scene-setup.js';
 import { TOWN_ELEV } from './roads.js';
 import { ruralLots } from './water-lots.js';
-import { hardColliders, registerDestructible } from './demolition.js';
+import { hardColliders, registerDestructible, destructibles } from './demolition.js';
 import { getTerrainHeight } from './terrain.js';
 
 // =========================================================
@@ -618,16 +618,20 @@ function buildChristmasTownCenterpiece() {
     const a = (k / 9) * Math.PI * 2 + 0.3;
     const sz = 0.55 + (k % 3) * 0.2;
     const gift = createOutlinedMesh(new THREE.BoxGeometry(sz, sz * 0.8, sz), makeToonMat(giftColors[k % giftColors.length]), 0.025);
-    gift.position.set(Math.cos(a) * 3.3, sz * 0.4, Math.sin(a) * 3.3);
-    gift.rotation.y = a;
-    decoGroup.add(gift);
+    gift.position.set(0, sz * 0.4, 0);
     const ribbonA = new THREE.Mesh(new THREE.BoxGeometry(sz + 0.02, sz * 0.82, 0.1), ribbonMat);
     ribbonA.position.copy(gift.position);
-    ribbonA.rotation.y = a;
-    decoGroup.add(ribbonA);
     const ribbonB = ribbonA.clone();
-    ribbonB.rotation.y = a + Math.PI * 0.5;
-    decoGroup.add(ribbonB);
+    ribbonB.rotation.y = Math.PI * 0.5;
+    const giftHolder = new THREE.Group();
+    giftHolder.add(gift, ribbonA, ribbonB);
+    const gx = treeX + Math.cos(a) * 3.3;
+    const gz = treeZ + Math.sin(a) * 3.3;
+    giftHolder.position.set(gx, baseY, gz);
+    giftHolder.rotation.y = a;
+    christmasGroup.add(giftHolder);
+    registerDestructible(giftHolder, gx, baseY, gz, 0.5, 'small', 6, 'Cadeautje');
+    destructibles[destructibles.length - 1].season = 'winter';
   }
 
   // Zuurstokken in een kring rondom het plein
@@ -646,9 +650,14 @@ function buildChristmasTownCenterpiece() {
     const hook = createOutlinedMesh(new THREE.TorusGeometry(0.3, 0.12, 6, 12, Math.PI), caneRedMat, 0.02, false);
     hook.position.set(0.3, 2.0, 0);
     cane.add(hook);
-    cane.position.set(Math.cos(a) * 7.0, 0, Math.sin(a) * 7.0);
+    const cx = treeX + Math.cos(a) * 7.0;
+    const cz = treeZ + Math.sin(a) * 7.0;
+    const cy = getTerrainHeight(cx, cz);
+    cane.position.set(cx, cy, cz);
     cane.rotation.y = -a;
-    decoGroup.add(cane);
+    christmasGroup.add(cane);
+    registerDestructible(cane, cx, cy, cz, 0.4, 'small', 5, 'Zuurstok');
+    destructibles[destructibles.length - 1].season = 'winter';
   }
 
   hardColliders.push({ x: treeX, z: treeZ, r: 3.0 });

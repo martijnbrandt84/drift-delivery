@@ -69,7 +69,7 @@ export const bakedPineTrunk = createMergedToonProp(
 const bakedPineNeedles = pineMats.map((mat) => createMergedToonProp(pineNeedleParts, mat, 0.05, true));
 export const bakedPineSnow = createMergedToonProp(pineSnowParts, thickSnowMat, 0.035, false);
 
-function createPineFast(scale) {
+export function createPineFast(scale) {
   const g = new THREE.Group();
   g.add(instantiateBakedProp(bakedPineTrunk));
   g.add(instantiateBakedProp(bakedPineNeedles[Math.floor(Math.random() * bakedPineNeedles.length)]));
@@ -118,7 +118,7 @@ export const crownParts = [
 ];
 const bakedAspenCrowns = aspenMats.map((mat) => createMergedToonProp(crownParts, mat, 0.05, true));
 
-function createDeciduousTreeFast(scale) {
+export function createDeciduousTreeFast(scale) {
   const g = new THREE.Group();
   g.add(instantiateBakedProp(bakedBirchSkeleton));
 
@@ -151,7 +151,7 @@ const bakedShrubs = shrubMats.map((mat) =>
 const shrubSnowGeo = sharedLobeGeo.clone();
 shrubSnowGeo.applyMatrix4(new THREE.Matrix4().makeScale(1.05, 0.45, 1.02).setPosition(0, 0.78, 0));
 
-function createShrubFast(baseScale = 1) {
+export function createShrubFast(baseScale = 1) {
   const g = instantiateBakedProp(bakedShrubs[Math.floor(Math.random() * bakedShrubs.length)]);
   const sCap = new THREE.Mesh(shrubSnowGeo, thickSnowMat);
   sCap.visible = false;

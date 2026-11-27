@@ -4,7 +4,7 @@ import {
   WATER_LEVEL, getClosestNetworkRoad, lakeCurve, getLakeLoopBaseElev, getLakeBridgeAtU, valleyCurve, getValleyBaseElev, getValleyBridgeAtU
 } from './roads.js';
 import { getLakeShoreRadius, SANDBAR_ISLAND, getDistToRivers, ruralLots } from './water-lots.js';
-import { hardColliders } from './demolition.js';
+import { hardColliders, registerDestructible } from './demolition.js';
 import { getTerrainHeight } from './terrain.js';
 
 // =========================================================
@@ -73,7 +73,7 @@ export function createRoadSign(x, z, baseY, yaw, lines) {
   g.position.set(x, baseY, z);
   g.rotation.y = yaw;
   scene.add(g);
-  hardColliders.push({ x, z, r: 0.5 });
+  registerDestructible(g, x, baseY, z, 0.55, 'small', 15, 'Wegwijzer');
 }
 
 function buildRoadSigns() {

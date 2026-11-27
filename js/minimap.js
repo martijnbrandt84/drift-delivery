@@ -1,6 +1,6 @@
-import { allRoadNetworks, TOWN_BOUNDS, WORLD_LIMIT, WATER_LEVEL } from './roads.js';
+import { allRoadNetworks, TOWN_BOUNDS, WORLD_LIMIT, WATER_LEVEL, riverCurves } from './roads.js';
 import { SANDBAR_ISLAND, ruralLots } from './water-lots.js';
-import { LOOKOUT_HILL, MOOSE_LAKE, FJORD } from './landscape.js';
+import { LOOKOUT_HILL, MOOSE_LAKE } from './landscape.js';
 import { getTerrainHeight } from './terrain.js';
 import { minimapCanvas, fullmapCanvas, fullmapOverlayEl, minimapCardEl } from './dom.js';
 
@@ -208,8 +208,8 @@ addLabel('Pinewood Lake', 0, -30, 'water');
 addLabel('Moose Lake', MOOSE_LAKE.x, MOOSE_LAKE.z, 'water');
 addLabel('Uitkijktoren', LOOKOUT_HILL.x, LOOKOUT_HILL.z - 14);
 {
-  const fp = FJORD.points[Math.round(FJORD.points.length * 0.55)];
-  addLabel('Fjord', fp.x, fp.z, 'water');
+  const rp = riverCurves[0].sampled[Math.round(riverCurves[0].sampled.length * 0.5)];
+  addLabel('Pine River', rp.x + 34, rp.z, 'water');
 }
 ruralLots.forEach((lot) => {
   if (lot.type === 'store') addLabel('Pinewood Mall', lot.x, lot.z - 16);

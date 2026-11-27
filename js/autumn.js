@@ -5,7 +5,7 @@ import {
 } from './scene-setup.js';
 import { getClosestNetworkRoad, getDistToRivers } from './roads.js';
 import { ruralLots } from './water-lots.js';
-import { destructibles, registerDestructible } from './demolition.js';
+import { destructibles, registerDestructible, registerInstancedDestructible } from './demolition.js';
 import { getTerrainHeight } from './terrain.js';
 
 // =========================================================
@@ -110,6 +110,14 @@ if (pumpkinSpots.length) {
   });
   body.castShadow = true;
   if (body.instanceColor) body.instanceColor.needsUpdate = true;
+  // Elke pompoen kun je aanrijden: hij vliegt weg en ligt na een tijdje weer op zijn plek
+  pumpkinSpots.forEach((p, i) => {
+    registerInstancedDestructible(
+      [{ mesh: body, index: i }, { mesh: outline, index: i }, { mesh: stems, index: i }],
+      p.x, p.y - 0.05, p.z, p.rot, p.scale, 0.5 * p.scale + 0.15, 'small', 4, 'Pompoen'
+    );
+    destructibles[destructibles.length - 1].season = 'autumn';
+  });
 }
 
 // ---------- Bladerhopen onder de loofbomen (rij erdoorheen: blaadjes stuiven op!) ----------
@@ -146,6 +154,7 @@ const leafPileVariants = [0xd9662b, 0xe8a33a, 0xc4472f].map((hex) => {
     scene.add(pile);
     deciduousFoliageObjects.push(pile);
     registerDestructible(pile, x, y, z, 1.2, 'shrub', 3, 'Bladerhoop');
+    destructibles[destructibles.length - 1].season = 'autumn';
     placed++;
   }
 }

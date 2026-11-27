@@ -3,7 +3,7 @@ import { makeToonMat, createOutlinedMesh, christmasGroup } from './scene-setup.j
 import { WATER_LEVEL } from './roads.js';
 import { ruralLots } from './water-lots.js';
 import { ISLAND_CENTER, getIslandPolar, getCoastRadius } from './landscape.js';
-import { destructibles } from './demolition.js';
+import { destructibles, registerDestructible } from './demolition.js';
 import { getTerrainHeight } from './terrain.js';
 import { iceState } from './drive-surface.js';
 import { XMAS_TREE_POS } from './town.js';
@@ -134,6 +134,8 @@ function placeSnowman(x, z, yaw, k) {
   sm.rotation.y = yaw;
   sm.scale.setScalar(0.9 + (k % 3) * 0.12);
   christmasGroup.add(sm);
+  registerDestructible(sm, x, sm.position.y, z, 0.8, 'small', 10, 'Sneeuwpop');
+  destructibles[destructibles.length - 1].season = 'winter';
 }
 
 let snowmanIdx = 0;

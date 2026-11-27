@@ -438,8 +438,8 @@ signAlong(timberTrail.curve, clearDistAlong(timberTrail, 24, -1), 1, ['TIMBER TR
 
 RING_BRIDGES.filter((b) => b.type === 'suspension').forEach((b) => {
   const ringLen = ringCurve.getLength();
-  signAlong(ringCurve, (b.uCenter - b.uHalfSpan - 22 / ringLen + 1) % 1, -1, ['FJORD BRIDGE']);
-  signAlong(ringCurve, (b.uCenter + b.uHalfSpan + 22 / ringLen) % 1, -1, ['FJORD BRIDGE'], true);
+  signAlong(ringCurve, (b.uCenter - b.uHalfSpan - 22 / ringLen + 1) % 1, -1, ['PINEWOOD BRIDGE', 'Pine River']);
+  signAlong(ringCurve, (b.uCenter + b.uHalfSpan + 22 / ringLen) % 1, -1, ['PINEWOOD BRIDGE', 'Pine River'], true);
 });
 
 export const ISLAND_STATS = { forestCount };

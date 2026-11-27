@@ -271,9 +271,11 @@ function handleDestructibleImpacts(moverX, moverZ, moverRadius, velX, velZ, vehi
   const speed = Math.hypot(velX, velZ);
   const maxCheckSq = (moverRadius + 2.2) ** 2;
 
+  const season = isChristmasMode ? 'winter' : 'autumn';
   for (let i = 0; i < destructibles.length; i++) {
     const d = destructibles[i];
     if (!d.intact) continue;
+    if (d.season && d.season !== season) continue;
 
     const dx = moverX - d.x;
     const dz = moverZ - d.z;

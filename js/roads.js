@@ -268,7 +268,7 @@ export const streetSampleSets = townStreetDefs.map((def) => ({
 // =========================================================
 // RIVIEREN (nu doorgetrokken tot aan de oceaan)
 // =========================================================
-function createRiverFromBridgeSample(centerS, halfWidth, flowsIntoLake = true, bendSign = 1) {
+function createRiverFromBridgeSample(centerS, halfWidth, flowsIntoLake = true, bendSign = 1, widenTo = null) {
   const dotToCenter = (-centerS.x) * centerS.nx + (-centerS.z) * centerS.nz;
   const inSign = dotToCenter >= 0 ? 1 : -1;
   const inX = centerS.nx * inSign;
@@ -317,10 +317,13 @@ function createRiverFromBridgeSample(centerS, halfWidth, flowsIntoLake = true, b
   const count = Math.max(70, Math.round(curve.getLength() / 3.2));
   const sampled = [];
   for (let k = 0; k <= count; k++) {
-    const p = curve.getPointAt(k / count);
-    sampled.push({ x: p.x, z: p.z });
+    const t = k / count;
+    const p = curve.getPointAt(t);
+    // Optioneel: de rivier wordt richting zee steeds breder (brede monding)
+    const hw = widenTo ? THREE.MathUtils.lerp(halfWidth, widenTo, THREE.MathUtils.smoothstep(t, 0.3, 0.88)) : halfWidth;
+    sampled.push({ x: p.x, z: p.z, hw });
   }
-  return { sampled, halfWidth, pondCenter: flowsIntoLake ? null : pts[0] };
+  return { sampled, halfWidth, maxHalfWidth: widenTo ?? halfWidth, pondCenter: flowsIntoLake ? null : pts[0] };
 }
 
 const lakeBridge0Sample = lakeSamples[0];
@@ -328,7 +331,8 @@ const lakeBridge1Sample = lakeSamples[Math.round(LAKE_BRIDGES[1].uCenter * lakeS
 const valleyBridgeSample = valleySamples[Math.round(VALLEY_BRIDGE.uCenter * (valleySamples.length - 1))];
 
 export const riverCurves = [
-  createRiverFromBridgeSample(lakeBridge0Sample, 7.4, true, 1),
+  // Pine River: vanuit het meer naar de noordkust, steeds breder — hier ligt de grote rode brug
+  createRiverFromBridgeSample(lakeBridge0Sample, 7.4, true, 1, 32),
   createRiverFromBridgeSample(lakeBridge1Sample, 7.2, true, -1),
   createRiverFromBridgeSample(valleyBridgeSample, 6.2, false, 1)
 ];
@@ -351,10 +355,10 @@ export function getDistToRivers(x, z) {
     // Snelle afwijzing: ver buiten de bounding box hoeven we niet elk punt te toetsen
     const outX = x < b.minX ? b.minX - x : x > b.maxX ? x - b.maxX : 0;
     const outZ = z < b.minZ ? b.minZ - z : z > b.maxZ ? z - b.maxZ : 0;
-    if (Math.hypot(outX, outZ) - riv.halfWidth > Math.min(minEffective, 60)) continue;
+    if (Math.hypot(outX, outZ) - riv.maxHalfWidth > Math.min(minEffective, 60)) continue;
     for (let i = 0; i < riv.sampled.length; i++) {
       const p = riv.sampled[i];
-      const d = Math.hypot(x - p.x, z - p.z) - riv.halfWidth;
+      const d = Math.hypot(x - p.x, z - p.z) - p.hw;
       if (d < minEffective) minEffective = d;
     }
   }
@@ -461,11 +465,20 @@ function buildRoadProfile(curve, closed, opts = {}) {
         if (t < 0) continue;
         const uCenter = ((i + t) / N) % 1;
         if (bridges.some((b) => uDist(uCenter, b.uCenter) * L < 30)) continue;
-        const halfM = riv.halfWidth + 7.5;
-        // Dek iets boven de oever houden (max 4.2m) met een lange, rustige aanloop i.p.v. een steile duik
-        const deckY = THREE.MathUtils.clamp(cur[wrap(Math.round(uCenter * N))], 1.45, 4.2);
-        applyFlat(uCenter, deckY, halfM, halfM + 48);
-        bridges.push({ uCenter, uHalfSpan: halfM / L, archHeight: 1.5, type: 'wood' });
+        const hw = r0.hw + (r1.hw - r0.hw) * 0.5;
+        if (hw > 16) {
+          // Brede rivier: de iconische rode hangbrug, hoog boven het water
+          const halfM = hw + 12;
+          const deckY = Math.max(5.2, cur[wrap(Math.round(uCenter * N))]);
+          applyFlat(uCenter, deckY, halfM, halfM * 2.2);
+          bridges.push({ uCenter, uHalfSpan: halfM / L, archHeight: 2.6, type: 'suspension' });
+        } else {
+          const halfM = hw + 7.5;
+          // Dek iets boven de oever houden (max 4.2m) met een lange, rustige aanloop i.p.v. een steile duik
+          const deckY = THREE.MathUtils.clamp(cur[wrap(Math.round(uCenter * N))], 1.45, 4.2);
+          applyFlat(uCenter, deckY, halfM, halfM + 48);
+          bridges.push({ uCenter, uHalfSpan: halfM / L, archHeight: 1.5, type: 'wood' });
+        }
       }
     }
   }

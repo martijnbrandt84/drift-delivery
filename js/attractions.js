@@ -7,6 +7,7 @@ import { getTerrainHeight } from './terrain.js';
 import { houseWindows, warmWindowMat } from './town.js';
 import { createRoadSign } from './scenery.js';
 import { buildPickupTruckMesh, parkedCars } from './vehicles.js';
+import { createPineFast, createDeciduousTreeFast, createShrubFast } from './props.js';
 
 // =========================================================
 // NIEUWE PLEKKEN: STRANDCAMPING, ZAGERIJ & HERFSTKERMIS
@@ -177,7 +178,7 @@ function createCampfire() {
 }
 
 function buildCamping(lot) {
-  const { g, collide } = lotFrame(lot);
+  const { g, collide, toWorld } = lotFrame(lot);
   const fb = lot.flatBox;
 
   const ground = createOutlinedMesh(new THREE.BoxGeometry(34, 0.3, 26), gravelMat, 0.03, false, true);
@@ -219,11 +220,76 @@ function buildCamping(lot) {
     g.add(bench);
   }
 
+  // Picknicktafels (los in de wereld zodat je ze kunt aanrijden)
   [[8, -2], [-7, 2]].forEach(([lx, lz]) => {
+    const w = toWorld(lx, lz);
+    const y = lot.roadY - 0.16 + 0.12;
     const t = picnicTable(lightWoodMat);
-    t.position.set(lx, 0.12, lz);
-    g.add(t);
+    t.position.set(w.x, y, w.z);
+    t.rotation.y = lot.yaw;
+    scene.add(t);
+    registerDestructible(t, w.x, y, w.z, 1.1, 'small', 10, 'Picknicktafel');
   });
+
+  // Gezellig groen: boompjes rond het terrein en tussen de tenten, struiken langs de oprit
+  const groundY = lot.roadY - 0.16 + 0.1;
+  [[-21, -18, 'd'], [-21, 5, 'p'], [21.5, -18, 'p'], [21, 12, 'd'], [-20, 16, 'd'], [4, -20.5, 'd'],
+    [-11.5, -9.5, 'd'], [9.5, -10, 'd'], [6, 10.5, 'p'], [-6.5, 11.5, 'd'], [18.5, 18, 'p']].forEach(([lx, lz, kind]) => {
+    const w = toWorld(lx, lz);
+    const sc = 0.62 + Math.random() * 0.25;
+    const tree = kind === 'p' ? createPineFast(sc) : createDeciduousTreeFast(sc);
+    tree.position.set(w.x, groundY, w.z);
+    tree.rotation.y = Math.random() * Math.PI * 2;
+    scene.add(tree);
+    registerDestructible(tree, w.x, groundY, w.z, 0.85 * sc, 'tree', 15, kind === 'p' ? 'Dennenboom' : 'Loofboom');
+  });
+  const shrubSpots = [[6, 14], [13, 19.5], [-3.6, 9], [3.6, 13], [-3.6, 18], [3.6, 22], [-3.6, 25],
+    [-18.5, -10], [19.5, -9], [-12, -19], [16, -19.5], [-3, -15.5], [3.5, -14.5], [-17, 13], [17, 1.5], [-9.5, -1]];
+  shrubSpots.forEach(([lx, lz]) => {
+    const w = toWorld(lx, lz);
+    const big = Math.random() < 0.45;
+    const sc = big ? 1.0 + Math.random() * 0.5 : 0.5 + Math.random() * 0.3;
+    const shrub = createShrubFast(sc);
+    shrub.position.set(w.x, groundY, w.z);
+    shrub.rotation.y = Math.random() * Math.PI * 2;
+    scene.add(shrub);
+    registerDestructible(shrub, w.x, groundY, w.z, Math.max(0.6, 0.85 * sc), 'shrub', 3, big ? 'Grote struik' : 'Struik');
+  });
+
+  // Lantaarnpaaltjes met lichtslingers rond het kampvuur
+  const ringR = 6.2;
+  const postCount = 6;
+  const warmBulbMat = new THREE.MeshBasicMaterial({ color: 0xffd98a });
+  const postTops = [];
+  for (let k = 0; k < postCount; k++) {
+    const a = (k / postCount) * Math.PI * 2 + 0.25;
+    const px = Math.cos(a) * ringR;
+    const pz = -7 + Math.sin(a) * ringR;
+    const post = createOutlinedMesh(new THREE.CylinderGeometry(0.07, 0.09, 2.8, 6), darkWoodMat, 0.02, false);
+    post.position.set(px, 1.5, pz);
+    g.add(post);
+    const lantern = createOutlinedMesh(new THREE.BoxGeometry(0.26, 0.34, 0.26), warmBulbMat, 0.02, false);
+    lantern.position.set(px, 3.0, pz);
+    g.add(lantern);
+    postTops.push(new THREE.Vector3(px, 2.75, pz));
+  }
+  for (let k = 0; k < postCount; k++) {
+    const p0 = postTops[k];
+    const p1 = postTops[(k + 1) % postCount];
+    for (let b = 1; b < 7; b++) {
+      const t = b / 7;
+      const bulb = new THREE.Mesh(bulbGeo, b % 2 ? warmBulbMat : bulbMats[k % bulbMats.length]);
+      bulb.position.lerpVectors(p0, p1, t);
+      bulb.position.y -= Math.sin(t * Math.PI) * 0.45;
+      g.add(bulb);
+    }
+  }
+
+  // Stapel brandhout bij het kampvuur
+  const firewood = logStack(3, 1.6, 0.18, logWallMat);
+  firewood.position.set(4.6, 0.15, -11.2);
+  g.add(firewood);
+
 
   // Kano's bij het strand
   [[-5, fb.minLZ + 1.5, 0xd9452f], [-1.5, fb.minLZ + 2.0, 0x2f9fd0]].forEach(([lx, lz, col]) => {
