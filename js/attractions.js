@@ -6,7 +6,7 @@ import { hardColliders, registerDestructible, markLastPlanted, destructibles, sy
 import { LOOKOUT_HILL } from './landscape.js';
 import { clearVegetationAround } from './vegetation.js';
 import { getClosestNetworkRoad } from './roads.js';
-import { getTerrainHeight } from './terrain.js';
+import { getTerrainHeight, getLocalSlope } from './terrain.js';
 import { houseWindows, warmWindowMat, createLogCabin } from './town.js';
 import { createRoadSign } from './scenery.js';
 import { buildPickupTruckMesh, parkedCars } from './vehicles.js';
@@ -399,7 +399,7 @@ function buildMotel(lot) {
   // Natuurlijk bos: willekeurige plekken in een brede band achter en naast het motel, met onderlinge
   // afstand, plukjes en verschillende maten (geen rijtjes). Vrij van het terrein en de oprit.
   const treeSpots = [];
-  for (let attempt = 0; attempt < 400 && treeSpots.length < 26; attempt++) {
+  for (let attempt = 0; attempt < 1500 && treeSpots.length < 26; attempt++) {
     const lx = (Math.random() - 0.5) * 56;
     const lz = -28 + Math.random() * 44;
     const insideSite = lx > -17 && lx < 17 && lz > -14 && lz < 13.5;
@@ -407,6 +407,13 @@ function buildMotel(lot) {
     const nearSign = Math.hypot(lx + 12.5, lz - 15.5) < 4;
     if (insideSite || nearDrive || nearSign || lz > 16) continue;
     if (treeSpots.some(([x, z]) => Math.hypot(x - lx, z - lz) < 3.6)) continue;
+    // niet op de klif of op een steile helling: ongeveer op de hoogte van het motelterrein en vlak genoeg
+    {
+      const tw = toWorld(lx, lz);
+      const th = getTerrainHeight(tw.x, tw.z);
+      if (Math.abs(th - (lot.roadY - 0.16)) > 2.2) continue;
+      if (getLocalSlope(tw.x, tw.z, 1.2) > 0.45 || getLocalSlope(tw.x, tw.z, 3) > 0.45) continue;
+    }
     // plukjes: plekken met een 'dichte' ruis vaker accepteren
     const clump = Math.sin(lx * 0.21 + 1.3) * Math.cos(lz * 0.17 - 0.4);
     if (clump < -0.25 && Math.random() < 0.7) continue;
