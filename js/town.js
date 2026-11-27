@@ -2935,12 +2935,7 @@ function createVilla__build() {
     ladder.position.set(4.0, 0.8, poolZ + side * 0.35);
     g.add(ladder);
   });
-  [-4.5, -2.5, 2.5, 4.5].forEach((lx) => {
-    const lounger = createOutlinedMesh(new THREE.BoxGeometry(0.7, 0.25, 1.9), trimWhiteMat, 0.02, false);
-    lounger.position.set(lx, 0.6, backZ - 4.6);
-    lounger.rotation.x = -0.12;
-    g.add(lounger);
-  });
+  // (ligbedden en parasol staan los in de wereld, zodat je ze kunt omrijden: zie buildVilla)
   // Cabana: witte pergola met doeken naast het zwembad
   {
     const cx = 5.6;
@@ -3059,17 +3054,45 @@ function buildVilla(lot) {
     });
   }
   const lanternGlow = new THREE.MeshBasicMaterial({ color: 0xffe08a });
-  [[-7.6, -4.6], [7.6, -4.6]].forEach(([lx, lz]) => {
+  // Kleine spullen in de tuin: los en omrijdbaar (ligbedden, parasol, tuinlantaarns)
+  const placeSmall = (obj, lx, lz, yOff, r, label, rotY = 0) => {
     const p = rotateLocal(lx, lz, lot.yaw);
+    const wx = vx + p.x;
+    const wz = vz + p.z;
+    const wy = gy + yOff;
+    obj.position.set(wx, wy, wz);
+    obj.rotation.y = lot.yaw + rotY;
+    scene.add(obj);
+    registerDestructible(obj, wx, wy, wz, r, 'small', 4, label);
+  };
+  const deckY = 0.43; // bovenkant van het zwembaddek
+  [-4.5, -2.5, 2.5, 4.5].forEach((lx) => {
+    const l = new THREE.Group();
+    const bed = createOutlinedMesh(new THREE.BoxGeometry(0.7, 0.25, 1.9), trimWhiteMat, 0.02, false);
+    bed.position.y = 0.17;
+    bed.rotation.x = -0.12;
+    l.add(bed);
+    placeSmall(l, lx, -4.25 - 4.6, deckY, 0.7, 'Sun lounger');
+  });
+  {
+    const par = new THREE.Group();
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 2.4, 6), trimWhiteMat);
+    pole.position.y = 1.2;
+    par.add(pole);
+    const umb = createOutlinedMesh(new THREE.ConeGeometry(1.5, 0.5, 8), makeToonMat(0xf4f1ea), 0.025, false);
+    umb.position.y = 2.45;
+    par.add(umb);
+    placeSmall(par, 6.2, -4.25 - 5.2, deckY, 0.5, 'Parasol');
+  }
+  [[-7.6, -4.6], [7.6, -4.6]].forEach(([lx, lz]) => {
+    const lan = new THREE.Group();
     const post = createOutlinedMesh(new THREE.CylinderGeometry(0.05, 0.07, 1.1, 6), streetPostMat, 0.015, false);
-    const lx2 = vx + p.x;
-    const lz2 = vz + p.z;
-    const ly = Math.max(gy, getTerrainHeight(lx2, lz2));
-    post.position.set(lx2, ly + 0.55, lz2);
-    scene.add(post);
+    post.position.y = 0.55;
+    lan.add(post);
     const glow = new THREE.Mesh(new THREE.SphereGeometry(0.16, 8, 6), lanternGlow);
-    glow.position.set(lx2, ly + 1.2, lz2);
-    scene.add(glow);
+    glow.position.y = 1.2;
+    lan.add(glow);
+    placeSmall(lan, lx, lz, 0.3, 0.4, 'Garden lantern');
   });
   const f = rotateLocal(0, 12.25, lot.yaw);
   hardColliders.push({ x: vx + f.x, z: vz + f.z, r: 2.2 });

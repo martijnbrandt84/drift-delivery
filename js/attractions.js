@@ -304,12 +304,18 @@ function buildMotel(lot) {
       stripe.rotation.x = 0.3;
       building.add(stripe);
     }
-    const ice = createOutlinedMesh(new THREE.BoxGeometry(1.0, 1.6, 0.8), makeToonMat(0xdfe8ee), 0.02, false);
-    ice.position.set(9.1, 1.0, -5.6);
-    building.add(ice);
-    const vend = createOutlinedMesh(new THREE.BoxGeometry(1.0, 1.9, 0.8), makeToonMat(0xd62839), 0.02, false);
-    vend.position.set(14.0, 1.1, -5.6);
-    building.add(vend);
+    [[9.1, 1.6, 0xdfe8ee, 'Ice machine'], [14.0, 1.9, 0xd62839, 'Vending machine']].forEach(([lx, hgt, col, name]) => {
+      const box = new THREE.Group();
+      const body = createOutlinedMesh(new THREE.BoxGeometry(1.0, hgt, 0.8), makeToonMat(col), 0.02, false);
+      body.position.y = hgt / 2;
+      box.add(body);
+      const w = toWorld(lx, -5.6);
+      const by = lot.roadY - 0.16 + 0.2;
+      box.position.set(w.x, by, w.z);
+      box.rotation.y = lot.yaw;
+      scene.add(box);
+      registerDestructible(box, w.x, by, w.z, 0.6, 'small', 6, name);
+    });
     [[11.5, -9.5]].forEach(([lx, lz]) => {
       const p = toWorld(lx, lz);
       hardColliders.push({ x: p.x, z: p.z, r: 4.4 });
@@ -353,22 +359,27 @@ function buildMotel(lot) {
 
   // Neonzuil aan de weg: MOTEL + VACANCY (gloeit 's nachts)
   {
+    // Dwars op de weg gedraaid, zodat het verkeer uit beide richtingen het bord ziet aankomen
+    const pyl = new THREE.Group();
+    pyl.position.set(-12.5, 0, 15.5);
+    pyl.rotation.y = Math.PI / 2;
+    g.add(pyl);
     const pole = createOutlinedMesh(new THREE.BoxGeometry(0.45, 7.5, 0.45), trimMat, 0.03);
-    pole.position.set(-12.5, 3.75, 15.5);
-    g.add(pole);
+    pole.position.set(0, 3.75, 0);
+    pyl.add(pole);
     const tex = motelSignTexture([['MOTEL', '#c8321f', 150, 105], ['VACANCY', '#1f8a4c', 58, 202]], '#fdf8ee', '#b8412f');
     [1, -1].forEach((side) => {
       const face = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 2.1), new THREE.MeshBasicMaterial({ map: tex, ...SIGN_MAT_OPTS }));
-      face.position.set(-12.5, 7.4, 15.5 + side * 0.2);
+      face.position.set(0, 7.4, side * 0.2);
       if (side < 0) face.rotation.y = Math.PI;
-      g.add(face);
+      pyl.add(face);
     });
     const frame = createOutlinedMesh(new THREE.BoxGeometry(4.5, 2.4, 0.3), trimMat, 0.03);
-    frame.position.set(-12.5, 7.4, 15.5);
-    g.add(frame);
+    frame.position.set(0, 7.4, 0);
+    pyl.add(frame);
     const glow = new THREE.PointLight(0xff5a5a, 0, 22, 1.6);
-    glow.position.set(-12.5, 7.4, 16.5);
-    g.add(glow);
+    glow.position.set(0, 7.4, 1.0);
+    pyl.add(glow);
     nightLights.push({ light: glow, day: 0, night: 2.6 });
     const p = toWorld(-12.5, 15.5);
     hardColliders.push({ x: p.x, z: p.z, r: 0.6 });
@@ -385,26 +396,37 @@ function buildMotel(lot) {
   });
 
   // Bos rondom (achter en opzij), open aan de wegkant
-  const groundY = lot.roadY - 0.16 + 0.1;
+  // Natuurlijk bos: willekeurige plekken in een brede band achter en naast het motel, met onderlinge
+  // afstand, plukjes en verschillende maten (geen rijtjes). Vrij van het terrein en de oprit.
   const treeSpots = [];
-  for (let z = -15; z <= 12; z += 5) {
-    treeSpots.push([-17.5, z + (Math.random() - 0.5) * 1.5, Math.random() < 0.6 ? 'p' : 'd']);
-    treeSpots.push([17.5, z + (Math.random() - 0.5) * 1.5, Math.random() < 0.6 ? 'p' : 'd']);
+  for (let attempt = 0; attempt < 400 && treeSpots.length < 26; attempt++) {
+    const lx = (Math.random() - 0.5) * 56;
+    const lz = -28 + Math.random() * 44;
+    const insideSite = lx > -17 && lx < 17 && lz > -14 && lz < 13.5;
+    const nearDrive = Math.abs(lx) < 7 && lz > 8;
+    const nearSign = Math.hypot(lx + 12.5, lz - 15.5) < 4;
+    if (insideSite || nearDrive || nearSign || lz > 16) continue;
+    if (treeSpots.some(([x, z]) => Math.hypot(x - lx, z - lz) < 3.6)) continue;
+    // plukjes: plekken met een 'dichte' ruis vaker accepteren
+    const clump = Math.sin(lx * 0.21 + 1.3) * Math.cos(lz * 0.17 - 0.4);
+    if (clump < -0.25 && Math.random() < 0.7) continue;
+    treeSpots.push([lx, lz, Math.random() < 0.6 ? 'p' : 'd']);
   }
-  for (let x = -13; x <= 13; x += 5.2) treeSpots.push([x + (Math.random() - 0.5) * 1.5, -16.5, Math.random() < 0.6 ? 'p' : 'd']);
   treeSpots.forEach(([lx, lz, kind]) => {
     const w = toWorld(lx, lz);
-    const sc = 0.62 + Math.random() * 0.25;
+    const sc = 0.55 + Math.random() * 0.5;
     const tree = kind === 'p' ? createPineFast(sc) : createDeciduousTreeFast(sc);
+    const groundY = getTerrainHeight(w.x, w.z);
     tree.position.set(w.x, groundY, w.z);
     tree.rotation.y = Math.random() * Math.PI * 2;
     scene.add(tree);
     registerDestructible(tree, w.x, groundY, w.z, 0.85 * sc, 'tree', 15, kind === 'p' ? 'Pine tree' : 'Tree');
     markLastPlanted();
   });
-  [[-15, 10], [15, 12], [-3, 12.5], [3, 12.5]].forEach(([lx, lz]) => {
+  [[-18, 11], [18.5, 9.5], [-19.5, -3], [19, 2.5], [-9.5, 14.5], [9.5, 14.8]].forEach(([lx, lz]) => {
     const w = toWorld(lx, lz);
     const shrub = createShrubFast(0.8 + Math.random() * 0.4);
+    const groundY = getTerrainHeight(w.x, w.z);
     shrub.position.set(w.x, groundY, w.z);
     scene.add(shrub);
     registerDestructible(shrub, w.x, groundY, w.z, 0.7, 'shrub', 3, 'Shrub');
