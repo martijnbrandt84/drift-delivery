@@ -4,7 +4,7 @@ import {
   pineSnowCapObjects, deciduousFoliageObjects
 } from './scene-setup.js';
 import {
-  WATER_LEVEL, getClosestNetworkRoad, getDistToRivers, ringCurve, connectorRoads, timberTrail, RING_BRIDGES
+  WATER_LEVEL, getClosestNetworkRoad, getDistToRivers, ringCurve, connectorRoads, timberTrail, RING_BRIDGES, branchRoads
 } from './roads.js';
 import { ruralLots } from './water-lots.js';
 import {
@@ -36,6 +36,18 @@ const CROWN_COLORS = [0xe89f38, 0xdc6a35, 0xc94a38, 0x5d8f44, 0x889e42, 0xd9b83b
 
 function isInsideSpecialLot(x, z) {
   for (const lot of ruralLots) {
+    if (lot.type === 'camping') {
+      // De camping ligt in het bos: bomen mogen tot vlak aan de rand van het terrein groeien
+      const c = Math.cos(lot.yaw);
+      const s = Math.sin(lot.yaw);
+      const dx = x - lot.x;
+      const dz = z - lot.z;
+      const lx = dx * c - dz * s;
+      const lz = dx * s + dz * c;
+      const fb = lot.flatBox;
+      if (lx > fb.minLX - 2 && lx < fb.maxLX + 2 && lz > fb.minLZ - 2 && lz < fb.maxLZ + 4) return true;
+      continue;
+    }
     const pad = lot.type === 'farm' ? 50 : lot.flatBox ? Math.hypot(lot.flatBox.maxLX, lot.flatBox.maxLZ) + 6 : lot.type === 'villa' ? 32 : 12;
     if (Math.hypot(x - lot.x, z - lot.z) < pad) return true;
   }
@@ -459,3 +471,10 @@ export const ISLAND_STATS = { forestCount };
     createRoadSign(sx, sz, getTerrainHeight(sx, sz), mall.yaw, ['PINEWOOD MALL', 'Ingang']);
   }
 }
+
+// Wegwijzers voor de zijtakken
+branchRoads.forEach((road) => {
+  const names = road.id === 'pine_river_road' ? ['PINE RIVER RD', 'Rivier & bos'] : ['PRAIRIE ROAD', 'Moose Lake · Strand'];
+  signAlong(road.curve, clearDistAlong(road, 24, 1), 1, names, true);
+  signAlong(road.curve, clearDistAlong(road, 24, -1), 1, names);
+});

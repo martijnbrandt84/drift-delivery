@@ -6,6 +6,7 @@ import {
 import { ruralLots } from './water-lots.js';
 import { hardColliders, registerDestructible } from './demolition.js';
 import { getTerrainHeight } from './terrain.js';
+import { spawnParticle } from './effects.js';
 
 // =========================================================
 // GROTE AFGELEGEN BOERDERIJ: SCHUUR, DUBBELE SILO, BOERENHUIS,
@@ -341,13 +342,107 @@ for (let k = 0; k < 5; k++) {
 const bakedWheatHeads = createMergedToonProp(wheatHeadParts, wheatHeadMat, 0.015, false);
 
 function addInstanced(geo, mat, matrices, castShadow = false) {
-  if (!matrices.length) return;
+  if (!matrices.length) return null;
   const inst = new THREE.InstancedMesh(geo, mat, matrices.length);
   matrices.forEach((m, i) => inst.setMatrixAt(i, m));
   inst.instanceMatrix.needsUpdate = true;
   inst.castShadow = castShadow;
   inst.computeBoundingSphere();
   scene.add(inst);
+  return inst;
+}
+
+// =========================================================
+// PLATRIJDEN VAN MAIS EN TARWE
+// Elke plant onthoudt zijn plek; rij je erdoorheen dan klapt hij om in je rijrichting
+// en staat hij na een tijdje weer recht (als je uit de buurt bent).
+// =========================================================
+const CROP_CELL = 3;
+const cropFields = [];
+const cropDummy = new THREE.Object3D();
+const cropParticlePos = new THREE.Vector3();
+
+function registerCropField(plants, meshes) {
+  if (!plants.length) return;
+  let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+  const grid = new Map();
+  plants.forEach((p, i) => {
+    minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x);
+    minZ = Math.min(minZ, p.z); maxZ = Math.max(maxZ, p.z);
+    const key = Math.floor(p.x / CROP_CELL) * 100000 + Math.floor(p.z / CROP_CELL);
+    if (!grid.has(key)) grid.set(key, []);
+    grid.get(key).push(i);
+  });
+  cropFields.push({
+    plants, meshes, grid, minX, maxX, minZ, maxZ,
+    flatTimer: new Float32Array(plants.length),
+    flattened: []
+  });
+}
+
+function setPlantMatrix(field, i, flatYaw) {
+  const p = field.plants[i];
+  cropDummy.position.set(p.x, p.y, p.z);
+  cropDummy.rotation.order = 'YXZ';
+  if (flatYaw === null) {
+    cropDummy.rotation.set(0, p.rot, 0);
+    cropDummy.scale.setScalar(p.scale);
+  } else {
+    cropDummy.rotation.set(1.32 + Math.random() * 0.15, flatYaw + (Math.random() - 0.5) * 0.5, 0);
+    cropDummy.scale.set(p.scale, p.scale * 0.85, p.scale);
+  }
+  cropDummy.updateMatrix();
+  field.meshes.forEach((m) => {
+    m.setMatrixAt(i, cropDummy.matrix);
+    m.instanceMatrix.needsUpdate = true;
+  });
+}
+
+export function updateCrops(px, pz, vx, vz, dt) {
+  const speed = Math.hypot(vx, vz);
+  const heading = Math.atan2(vx, vz);
+  for (const field of cropFields) {
+    // Rechtop zetten wat lang genoeg plat ligt en ver genoeg weg is
+    if (field.flattened.length) {
+      for (let k = field.flattened.length - 1; k >= 0; k--) {
+        const i = field.flattened[k];
+        field.flatTimer[i] -= dt;
+        if (field.flatTimer[i] <= 0) {
+          const p = field.plants[i];
+          if ((p.x - px) ** 2 + (p.z - pz) ** 2 > 400) {
+            setPlantMatrix(field, i, null);
+            field.flattened.splice(k, 1);
+          } else {
+            field.flatTimer[i] = 3;
+          }
+        }
+      }
+    }
+    if (speed < 1.2) continue;
+    if (px < field.minX - 3 || px > field.maxX + 3 || pz < field.minZ - 3 || pz > field.maxZ + 3) continue;
+    const cx = Math.floor(px / CROP_CELL);
+    const cz = Math.floor(pz / CROP_CELL);
+    let flattenedNow = 0;
+    for (let dx = -1; dx <= 1; dx++) {
+      for (let dz = -1; dz <= 1; dz++) {
+        const bucket = field.grid.get((cx + dx) * 100000 + (cz + dz));
+        if (!bucket) continue;
+        for (const i of bucket) {
+          if (field.flatTimer[i] > 0) continue;
+          const p = field.plants[i];
+          if ((p.x - px) ** 2 + (p.z - pz) ** 2 > 2.0 * 2.0) continue;
+          setPlantMatrix(field, i, heading);
+          field.flatTimer[i] = 40 + Math.random() * 15;
+          field.flattened.push(i);
+          flattenedNow++;
+        }
+      }
+    }
+    if (flattenedNow > 0 && Math.random() < 0.6) {
+      cropParticlePos.set(px, field.plants[0].y + 0.8, pz);
+      spawnParticle(cropParticlePos, 'leaf', 0.8);
+    }
+  }
 }
 
 // Plaatst een omgeploegd akkerveld (mais of tarwe) dat de terreinhoogte volgt en de oprit vrijlaat
@@ -386,6 +481,7 @@ function buildCropField(baseX, baseY, baseZ, yaw, centerLX, centerLZ, width, dep
   if (furrowGeos.length) scene.add(new THREE.Mesh(BufferGeometryUtils.mergeGeometries(furrowGeos), furrowMat));
 
   const matrices = [];
+  const plants = [];
   const dummy = new THREE.Object3D();
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
@@ -397,22 +493,28 @@ function buildCropField(baseX, baseY, baseZ, yaw, centerLX, centerLZ, width, dep
       const wx = baseX + off.x;
       const wz = baseZ + off.z;
       const wy = Math.max(patchY + 0.04, getTerrainHeight(wx, wz));
+      const rot = yaw + (Math.random() - 0.5) * 0.65;
+      const sc = 0.88 + Math.random() * 0.34;
       dummy.position.set(wx, wy, wz);
-      dummy.rotation.set(0, yaw + (Math.random() - 0.5) * 0.65, 0);
-      dummy.scale.setScalar(0.88 + Math.random() * 0.34);
+      dummy.rotation.set(0, rot, 0);
+      dummy.scale.setScalar(sc);
       dummy.updateMatrix();
       matrices.push(dummy.matrix.clone());
+      plants.push({ x: wx, y: wy, z: wz, rot, scale: sc });
     }
   }
-  if (crop === 'corn') {
-    addInstanced(bakedCornStalk.mergedMain, cornStalkMat, matrices);
-    addInstanced(bakedCornStalk.mergedOut, outlineMat, matrices);
-    addInstanced(cornCobGeo, cornCobMat, matrices);
-  } else {
-    addInstanced(bakedWheatStalks.mergedMain, wheatMat, matrices);
-    addInstanced(bakedWheatStalks.mergedOut, outlineMat, matrices);
-    addInstanced(bakedWheatHeads.mergedMain, wheatHeadMat, matrices);
-  }
+  const meshes = crop === 'corn'
+    ? [
+        addInstanced(bakedCornStalk.mergedMain, cornStalkMat, matrices),
+        addInstanced(bakedCornStalk.mergedOut, outlineMat, matrices),
+        addInstanced(cornCobGeo, cornCobMat, matrices)
+      ]
+    : [
+        addInstanced(bakedWheatStalks.mergedMain, wheatMat, matrices),
+        addInstanced(bakedWheatStalks.mergedOut, outlineMat, matrices),
+        addInstanced(bakedWheatHeads.mergedMain, wheatHeadMat, matrices)
+      ];
+  registerCropField(plants, meshes.filter(Boolean));
 }
 
 // =========================================================
@@ -489,11 +591,19 @@ function createCow() {
     horn.position.set(hx, 1.7, 1.05);
     g.add(horn);
   });
+  const legs = [];
   [[-0.32, 0.6], [0.32, 0.6], [-0.32, -0.6], [0.32, -0.6]].forEach(([lx, lz]) => {
+    // Pivot bovenaan de poot zodat hij kan zwaaien tijdens het lopen
+    const pivot = new THREE.Group();
+    pivot.position.set(lx, 0.7, lz);
     const leg = createOutlinedMesh(new THREE.BoxGeometry(0.2, 0.7, 0.2), cowWhiteMat, 0.02, false);
-    leg.position.set(lx, 0.35, lz);
-    g.add(leg);
+    leg.position.y = -0.35;
+    pivot.add(leg);
+    g.add(pivot);
+    legs.push(pivot);
   });
+  g.userData.legs = legs;
+  g.userData.head = head;
   return g;
 }
 
@@ -661,7 +771,14 @@ function buildFarm(farmLot) {
       cow.position.set(w.x, getTerrainHeight(w.x, w.z), w.z);
       cow.rotation.y = Math.random() * Math.PI * 2;
       scene.add(cow);
-      hardColliders.push({ x: w.x, z: w.z, r: 1.1 });
+      const collider = { x: w.x, z: w.z, r: 1.1 };
+      hardColliders.push(collider);
+      cows.push({
+        mesh: cow, collider, lx, lz, tx: lx, tz: lz, toWorld, yaw,
+        bounds: { minX: pMinX + 2.5, maxX: pMaxX - 2.5, minZ: pMinZ + 2.5, maxZ: pMaxZ - 2.5 },
+        avoid: { x: L.windmill[0], z: L.windmill[1] },
+        idle: Math.random() * 4, phase: Math.random() * 10, speed: 0
+      });
     }
     const tr = toWorld((pMinX + pMaxX) * 0.5, pMaxZ - 2.5);
     const trough = createWaterTrough();
@@ -672,4 +789,62 @@ function buildFarm(farmLot) {
   }
 }
 
+const cows = [];
 ruralLots.filter((l) => l.type === 'farm').forEach(buildFarm);
+
+// Koeien grazen, lopen rustig rond in hun wei en lopen weg als je te dichtbij komt
+export function updateCows(px, pz, dt, elapsed) {
+  for (const c of cows) {
+    const pos = c.mesh.position;
+    const distPlayer = Math.hypot(px - pos.x, pz - pos.z);
+    if (distPlayer > 160) continue;
+    const b = c.bounds;
+    if (distPlayer < 10 && c.speed < 2) {
+      // Schrikken: doel aan de andere kant van de wei kiezen
+      const away = Math.atan2(pos.x - px, pos.z - pz) - c.yaw;
+      c.tx = THREE.MathUtils.clamp(c.lx + Math.sin(away) * 9, b.minX, b.maxX);
+      c.tz = THREE.MathUtils.clamp(c.lz + Math.cos(away) * 9, b.minZ, b.maxZ);
+      c.idle = 0;
+      c.speed = 2.6;
+    }
+    const dx = c.tx - c.lx;
+    const dz = c.tz - c.lz;
+    const d = Math.hypot(dx, dz);
+    if (d < 0.3) {
+      c.speed = 0;
+      c.idle -= dt;
+      // Grazen: kop gaat op en neer
+      c.mesh.userData.head.position.y = 1.35 - (Math.sin(elapsed * 1.4 + c.phase) * 0.5 + 0.5) * 0.45;
+      if (c.idle <= 0) {
+        for (let tries = 0; tries < 6; tries++) {
+          const nx = THREE.MathUtils.lerp(b.minX, b.maxX, Math.random());
+          const nz = THREE.MathUtils.lerp(b.minZ, b.maxZ, Math.random());
+          if (Math.hypot(nx - c.avoid.x, nz - c.avoid.z) < 4) continue;
+          c.tx = nx;
+          c.tz = nz;
+          break;
+        }
+        c.speed = 0.9;
+        c.idle = 3 + Math.random() * 6;
+      }
+    } else {
+      const step = Math.min(d, (c.speed || 0.9) * dt);
+      c.lx += (dx / d) * step;
+      c.lz += (dz / d) * step;
+      const w = c.toWorld(c.lx, c.lz);
+      pos.set(w.x, getTerrainHeight(w.x, w.z), w.z);
+      // Lopen in de richting van het doel (lokale assen -> wereldhoek)
+      const targetRot = c.yaw + Math.atan2(dx, dz);
+      let diff = targetRot - c.mesh.rotation.y;
+      while (diff > Math.PI) diff -= Math.PI * 2;
+      while (diff < -Math.PI) diff += Math.PI * 2;
+      c.mesh.rotation.y += diff * Math.min(1, dt * 3);
+      const swing = Math.sin(elapsed * (c.speed > 1.5 ? 11 : 6) + c.phase) * 0.45;
+      c.mesh.userData.legs.forEach((leg, i) => { leg.rotation.x = i % 3 === 0 ? swing : -swing; });
+      c.mesh.userData.head.position.y = 1.35;
+      c.collider.x = w.x;
+      c.collider.z = w.z;
+      if (c.speed > 1.5 && d < 1) c.speed = 0.9;
+    }
+  }
+}

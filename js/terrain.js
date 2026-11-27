@@ -91,7 +91,9 @@ function getRawTerrainHeight(x, z) {
       if (dDrv < d.halfWidth + 7.5) {
         const drvTargetY = THREE.MathUtils.lerp(d.y1, d.y2, proj) - 0.22;
         const w = THREE.MathUtils.smoothstep(dDrv, d.halfWidth + 1.2, d.halfWidth + 7.5);
-        const allowFactor = Math.max(specialFlatBlend, 1 - proj);
+        // De oprit zelf en een smalle berm ernaast altijd volledig vlak (anders groeit een heuvel over de oprit heen)
+        const onDriveway = 1 - THREE.MathUtils.smoothstep(dDrv, d.halfWidth + 1.2, d.halfWidth + 4.0);
+        const allowFactor = Math.max(specialFlatBlend, 1 - proj, onDriveway);
         h = THREE.MathUtils.lerp(h, THREE.MathUtils.lerp(drvTargetY, h, w), allowFactor);
       }
     }

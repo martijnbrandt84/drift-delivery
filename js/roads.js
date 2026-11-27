@@ -76,7 +76,8 @@ function getRawLakeLoopElev(u) {
 // Extra T-splitsing aan de noordoostkant van de meerweg: verbindingsweg naar de kustweg
 export const U_LAKE_NORTH_JUNCTION = 0.142;
 export const U_LAKE_EAST_JUNCTION = 0.232;
-const lakeJunctionFlats = [U_LAKE_NORTH_JUNCTION, U_LAKE_EAST_JUNCTION].map((uj) => ({ uj, y: getRawLakeLoopElev(uj) }));
+export const U_LAKE_PINE_JUNCTION = 0.928;
+const lakeJunctionFlats = [U_LAKE_NORTH_JUNCTION, U_LAKE_EAST_JUNCTION, U_LAKE_PINE_JUNCTION].map((uj) => ({ uj, y: getRawLakeLoopElev(uj) }));
 
 export function getLakeLoopBaseElev(u) {
   let h = getRawLakeLoopElev(u);
@@ -355,7 +356,8 @@ export const riverCurves = [
   riverCurves.push({ sampled, halfWidth: 5.2, maxHalfWidth: 5.2, pondCenter: null, name: 'Pond Creek' });
 }
 
-export const VALLEY_POND = { x: riverCurves[2].pondCenter.x, z: riverCurves[2].pondCenter.z, r: 14.5 };
+// Vroegere vijver aan het begin van de zuidelijke beek (alleen nog als referentiepunt)
+export const VALLEY_POND = { x: riverCurves[2].pondCenter.x, z: riverCurves[2].pondCenter.z, r: 0 };
 
 riverCurves.forEach((riv) => {
   let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
@@ -403,8 +405,8 @@ export function getDistToRivers(x, z) {
       if (d < minEffective) minEffective = d;
     }
   }
-  const dPond = Math.hypot(x - VALLEY_POND.x, z - VALLEY_POND.z) - VALLEY_POND.r;
-  return Math.min(minEffective, dPond);
+  // Geen ronde vijverkom meer: de beek loopt nu door (Pond Creek sluit aan op de zuidelijke beek)
+  return minEffective;
 }
 
 // =========================================================
@@ -605,6 +607,7 @@ const RING_JUNCTION_POINTS = {
   south: [80, 315],
   west: [-268, 14],
   east: [228, -89],
+  prairie: [152, 270],
   trailWest: [-257, -45],
   trailNorth: [-64, -276]
 };
@@ -650,7 +653,7 @@ function ringEndpoint(ringJ, fromInside = true) {
   return { x: ringJ.x, z: ringJ.z, y: ringJ.y, outX: ringJ.inX * s, outZ: ringJ.inZ * s };
 }
 
-function makeLinkRoad(id, a, b, midPoints, smoothM = 40) {
+function makeLinkRoad(id, a, b, midPoints, smoothM = 40, teePoints = []) {
   // a en b: { x, z, y, outX, outZ } met out = richting waarin de nieuwe weg vertrekt
   const wps = [
     new THREE.Vector3(a.x - a.outX * 1.2, 0, a.z - a.outZ * 1.2),
@@ -660,16 +663,27 @@ function makeLinkRoad(id, a, b, midPoints, smoothM = 40) {
     new THREE.Vector3(b.x - b.outX * 1.2, 0, b.z - b.outZ * 1.2)
   ];
   const curve = new THREE.CatmullRomCurve3(wps, false, 'centripetal', 0.5);
+  const teeFlats = teePoints.map(([tx, tz]) => ({ u: closestUOnCurve(curve, tx, tz, false), flatM: 6, blendM: 30 }));
   const prof = buildRoadProfile(curve, false, {
     id,
     smoothM,
     minY: 1.8,
     flats: [
       { u: 0, y: a.y, flatM: 6, blendM: 34 },
-      { u: 1, y: b.y, flatM: 6, blendM: 34 }
+      { u: 1, y: b.y, flatM: 6, blendM: 34 },
+      ...teeFlats
     ]
   });
-  return { id, curve, elevFn: prof.elevFn, bridgeFn: prof.bridgeFn, bridges: prof.bridges, host: a, ringJ: b };
+  return { id, curve, elevFn: prof.elevFn, bridgeFn: prof.bridgeFn, bridges: prof.bridges, host: a, ringJ: b, tees: teeFlats };
+}
+
+// T-splitsing halverwege een verbindingsweg; 'out' wijst naar de kant waar de nieuwe weg vertrekt
+function teeJunction(road, teeIdx, towardX, towardZ) {
+  const t = road.tees[teeIdx];
+  const fr = frameAt(road.curve, t.u);
+  let outX = fr.nx, outZ = fr.nz;
+  if (outX * (towardX - fr.pt.x) + outZ * (towardZ - fr.pt.z) < 0) { outX = -outX; outZ = -outZ; }
+  return { x: fr.pt.x, z: fr.pt.z, y: t.resolvedY, outX, outZ };
 }
 
 const hostNorth = hostJunction(lakeCurve, U_LAKE_NORTH_JUNCTION, getLakeLoopBaseElev);
@@ -682,7 +696,7 @@ export const connectorRoads = [
   makeLinkRoad('south_link', hostSouth, ringEndpoint(RING_JUNCTIONS.south), [[78, 215], [92, 262]]),
   makeLinkRoad('west_link', hostWest, ringEndpoint(RING_JUNCTIONS.west), [[-176, 52], [-222, 30]]),
   // Fox Lake Road: van de meerweg langs de zuidoever van Fox Lake naar de oostelijke kustweg
-  makeLinkRoad('fox_lake_road', hostEast, ringEndpoint(RING_JUNCTIONS.east), [[132, -24], [168, -34], [198, -48], [212, -70]], 32)
+  makeLinkRoad('fox_lake_road', hostEast, ringEndpoint(RING_JUNCTIONS.east), [[132, -24], [168, -34], [198, -48], [212, -70]], 32, [[176, -37]])
 ];
 
 // Timber Trail: smal kronkelend bospad door de heuvels met een haarspeldbocht,
@@ -695,13 +709,39 @@ export const timberTrail = makeLinkRoad(
     [-200, -52], [-178, -82], [-186, -112], [-212, -124], [-222, -146], [-196, -166],
     [-160, -150], [-128, -132], [-104, -158], [-110, -192], [-82, -214], [-48, -222]
   ],
-  22
+  22,
+  [[-50, -224]]
 );
+
+// =========================================================
+// NIEUWE ZIJTAKKEN
+// - Pine River Road: van de meerweg langs de westoever van Pine River naar het Timber Trail
+// - Prairie Road: van Fox Lake Road dwars door het open oosten, langs Moose Lake, naar de kustweg
+// =========================================================
+const hostPine = hostJunction(lakeCurve, U_LAKE_PINE_JUNCTION, getLakeLoopBaseElev);
+const foxRoad = connectorRoads.find((c) => c.id === 'fox_lake_road');
+export const branchRoads = [
+  makeLinkRoad(
+    'pine_river_road',
+    hostPine,
+    teeJunction(timberTrail, 0, -26, -212),
+    [[-30, -112], [-37, -136], [-25, -162], [-15, -187], [-24, -210]],
+    26
+  ),
+  makeLinkRoad(
+    'prairie_road',
+    teeJunction(foxRoad, 0, 177, 0),
+    ringEndpoint(RING_JUNCTIONS.prairie),
+    [[177, -6], [179, 15], [192, 48], [190, 90], [176, 122], [164, 160], [151, 204], [146, 240]],
+    30
+  )
+];
 
 export const outerRoadDefs = [
   { id: 'coast_hwy', curve: ringCurve, elevFn: getRingBaseElev, bridgeFn: getRingBridgeAtU, bridges: RING_BRIDGES, isClosed: true },
   ...connectorRoads.map((c) => ({ ...c, isClosed: false })),
-  { ...timberTrail, isClosed: false }
+  { ...timberTrail, isClosed: false },
+  ...branchRoads.map((c) => ({ ...c, isClosed: false }))
 ];
 outerRoadDefs.forEach((def) => {
   const count = Math.max(80, Math.round(def.curve.getLength() / 0.85));
@@ -802,7 +842,11 @@ export const INTERSECTIONS = [
     { x: c.ringJ.x, z: c.ringJ.z, y: c.ringJ.y, r: 7.8 }
   ]),
   { x: timberTrail.host.x, z: timberTrail.host.z, y: timberTrail.host.y, r: 7.8 },
-  { x: timberTrail.ringJ.x, z: timberTrail.ringJ.z, y: timberTrail.ringJ.y, r: 7.8 }
+  { x: timberTrail.ringJ.x, z: timberTrail.ringJ.z, y: timberTrail.ringJ.y, r: 7.8 },
+  ...branchRoads.flatMap((c) => [
+    { x: c.host.x, z: c.host.z, y: c.host.y, r: 7.8 },
+    { x: c.ringJ.x, z: c.ringJ.z, y: c.ringJ.y, r: 7.8 }
+  ])
 ];
 
 export function isInsideIntersection(x, z, extraR = 0) {

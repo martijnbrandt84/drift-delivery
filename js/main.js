@@ -27,7 +27,7 @@ import {
 // Side-effect only modules: bouwen de scene op bij import (wegen/bruggen, stadje, bomen/struiken/rotsen, boerderij).
 import './road-meshes.js';
 import './props.js';
-import './farm.js';
+import { updateCrops, updateCows } from './farm.js';
 import './island-scenery.js';
 import './autumn.js';
 import './christmas.js';
@@ -1034,6 +1034,8 @@ function animate() {
   updateEnvironment(dt);
   updateAttractions(elapsed, dt, isNightMode);
   updateOrcas(elapsed, dt, px, pz);
+  updateCrops(px, pz, carState.vx, carState.vz, dt);
+  updateCows(px, pz, dt, elapsed);
   nightSkyGroup.position.set(px, 0, pz);
   // Zichtbare zon: zakt bij zonsondergang echt achter de horizon
   const sunElev = Math.max(-0.12, sunDiscHeight);
