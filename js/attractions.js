@@ -1094,10 +1094,11 @@ function plantVillaJunctionGrove(lot) {
     clusters: [
       [-38, 2, 8, 8, 0.55, 0.8],
       [-33, -10, 6, 3, 0.6, 1.5],
-      [-45, 11, 4, 2, 0.3, 1.2]
+      [-45, 11, 4, 2, 0.3, 1.2],
+      [-30.5, -3.5, 4, 4, 0.5, 0.9] // klein groepje naast de garage
     ],
     // binnen de driehoek: rechts van de schuine weg (die loopt ongeveer via lx = -50 - 0,6·lz) en vrij van garage en tuin
-    allowed: (lx, lz) => lx > -50 - 0.6 * lz + 6 && !(lx > -29 && lz < 15) && lz < 16
+    allowed: (lx, lz) => lx > -50 - 0.6 * lz + 6 && !(lx > -27.2 && lz < 15) && lz < 16
   });
 }
 {

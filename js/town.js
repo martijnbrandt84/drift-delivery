@@ -124,7 +124,6 @@ function createSeamlessBlockBase(minX, maxX, minZ, maxZ, sw = 1.9, innerMat = co
   }
 }
 
-const cypressMat = makeToonMat(0x2c5a3c);
 const blossomMat = registerSeasonalMat(0xe8a6c0, 0xf2f6fb);
 const roundLeafMat = registerSeasonalMat(0x5f8f3e, 0xe8eff4);
 // Losse dubbele garage naast de villa (zelfde muren en dak), linkerdeur open, rechterdeur dicht
@@ -178,16 +177,6 @@ function createVillaGarage() {
 }
 
 function createGardenTree(kind) {
-  if (kind === 'cypress') {
-    const g = new THREE.Group();
-    const trunk = createOutlinedMesh(new THREE.CylinderGeometry(0.12, 0.16, 0.8, 6), parkTreeTrunkMat, 0.02);
-    trunk.position.y = 0.4;
-    g.add(trunk);
-    const body = createOutlinedMesh(new THREE.CylinderGeometry(0.12, 0.62, 4.6, 8), cypressMat, 0.035);
-    body.position.y = 3.0;
-    g.add(body);
-    return g;
-  }
   if (kind === 'blossom' || kind === 'round') {
     const g = new THREE.Group();
     const trunk = createOutlinedMesh(new THREE.CylinderGeometry(0.17, 0.24, 1.6, 7), parkTreeTrunkMat, 0.03);
@@ -1720,7 +1709,7 @@ function buildGeneralStore() {
   }
 
   // Losse winkelwagentjes op de parkeerplaats (omrijdbaar)
-  [[-5.5, 7.0, 0.4], [6.8, 14.2, 2.2], [-12.5, 14.0, -1.0]].forEach(([lx, lz, rot]) => {
+  [[-5.5, 7.0, 0.4], [7.4, 6.4, 2.2], [-12.5, 7.4, -1.0]].forEach(([lx, lz, rot]) => {
     const lp = rl(lx, lz, yaw);
     const cart = createShoppingCart();
     const wx = baseX + lp.x;
@@ -1842,16 +1831,26 @@ function buildGeneralStore() {
     });
   }
 
-  addParkingRow([-13.2, -10.85, -8.5, -6.15, -3.8, 3.8, 6.15, 8.5, 10.85, 13.2], 10.8, 1.5);
-  addParkingRow([-12.0, -9.65, -7.3, -4.95, 4.95, 7.3, 9.65, 12.0], 2.2, -1.5);
-  // Tweede parkeervak bij de uitbreiding rechts
-  addParkingRow([19.6, 21.95, 24.3, 26.65, 29.0, 31.35, 33.7], 10.8, 1.5);
-  addParkingRow([20.8, 23.15, 25.5, 27.85, 30.2, 32.55], 2.2, -1.5);
+  // Twee rijen op één raster (de lijnen lopen door), met één ruim rijpad ertussen (z 4,1 .. 9,7).
+  // Voorste rij met de neus naar de groenstrook; in het midden de inrit en het looppad naar de ingang.
+  const gridMain = [-13.2, -10.85, -8.5, -6.15, -3.8, 3.8, 6.15, 8.5, 10.85, 13.2];
+  const gridExt = [19.6, 21.95, 24.3, 26.65, 29.0, 31.35, 33.7];
+  addParkingRow(gridMain, 11.6, 1.5);
+  addParkingRow(gridMain, 2.2, -1.5);
+  addParkingRow(gridExt, 11.6, 1.5);
+  addParkingRow(gridExt, 2.2, -1.5);
+  // Zebrapad over het rijpad, van de inrit naar de ingang van de mall
+  for (let k = 0; k < 6; k++) {
+    const bar = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 0.5), storeLineMat);
+    bar.rotation.x = -Math.PI * 0.5;
+    bar.position.set(0, 0.016, 4.6 + k * 0.95);
+    complexGroup.add(bar);
+  }
 
   // Plantenstroken rondom de parkeerplaats. De lange stroken stoppen precies waar de voorstroken beginnen,
   // zodat de hoeken netjes als een L aansluiten. Opening voor de inrit (midden) en een doorgang naar de bouwmarkt.
   const STRIP = 1.4;
-  const FRONT_Z0 = 18.2; // voorstrook loopt van 18.2 tot 19.6
+  const FRONT_Z0 = 13.9; // brede groenstrook voor de parkeerplaats: van 13,9 tot 19,6 (geen loze strook asfalt meer)
   const planterStrips = [
     // [x0, x1, z0, z1]
     [-16.7, -15.3, 0, FRONT_Z0],       // linkerrand
@@ -1877,16 +1876,17 @@ function buildGeneralStore() {
     // Lage haag in het midden van de strook (0,7 m breed), doorlopend tot de hoek
     const along = w > d;
     const hedge = createOutlinedMesh(new THREE.BoxGeometry(along ? w - 0.3 : 0.7, 0.5, along ? 0.7 : d - 0.3), hedgeMat, 0.025, false);
-    hedge.position.set(cx, 0.55, cz);
+    // brede voorstroken: haag aan de wegkant, ruimte voor bomen aan de parkeerkant
+    hedge.position.set(cx, 0.55, d > 3 ? z1 - 0.75 : cz);
     complexGroup.add(hedge);
   });
   // Bomen: overal dezelfde regelmaat (~5,5 m), niet op de plek van een lantaarn
   const treeSpots = [
     [-16.0, 1.6], [-16.0, 9.6], [-16.0, 17.0],
-    [-13.0, 18.9], [-8.6, 18.9],
-    [8.6, 18.9], [13.0, 18.9],
+    [-12.6, 16.2], [-8.4, 16.6],
+    [8.6, 16.3], [12.8, 16.7],
     [16.0, 1.6], [16.0, 17.0],
-    [20.4, 18.9], [25.9, 18.9], [31.4, 18.9],
+    [20.6, 16.4], [24.6, 16.8], [28.4, 16.2], [32.2, 16.6],
     [35.7, 1.6], [35.7, 9.6], [35.7, 17.0]
   ];
   treeSpots.forEach(([tx, tz]) => {
@@ -2447,6 +2447,11 @@ function buildCoffeeStop() {
     stripe.rotation.x = -Math.PI * 0.5;
     stripe.position.set(-7.5 + k * 2.5, 0.02, 4.5);
     g.add(stripe);
+    if (k < 3) {
+      const stop = new THREE.Mesh(new THREE.BoxGeometry(1.55, 0.1, 0.22), wheelStopMat);
+      stop.position.set(-7.5 + k * 2.5 + 1.25, 0.05, 4.5 - 2.0 + 0.4);
+      g.add(stop);
+    }
   }
 
   // Ronde koffiezuil aan de weg
@@ -3013,10 +3018,10 @@ function buildVilla(lot) {
   });
   // Tuinbomen rondom en tuinlantaarns langs de oprijlaan
   const gy = getTerrainHeight(lot.x, lot.z);
-  // Gevarieerde tuin: slanke cipressen langs de oprijlaan, sierbomen en een bloeiende boom achter
+  // Gevarieerde tuin: sierbomen rondom en bloeiende en hoge bomen achter
   const garden = [
     ['round', -27.5, -4], ['round', 17, -3], ['blossom', -15.5, -15], ['round', 15.5, -16],
-    ['tall', -11, -22], ['blossom', 11, -22], ['tall', 0, -24], ['cypress', -27, 6], ['cypress', 18.5, 7.5]
+    ['tall', -11, -22], ['blossom', 11, -22], ['tall', 0, -24]
   ];
   garden.forEach(([kind, lx, lz]) => {
     const p = rotateLocal(lx, lz, lot.yaw);
@@ -3027,7 +3032,7 @@ function buildVilla(lot) {
     tree.position.set(tx, ty, tz);
     tree.rotation.y = Math.random() * Math.PI * 2;
     scene.add(tree);
-    registerDestructible(tree, tx, ty, tz, kind === 'cypress' ? 0.45 : 0.7, 'tree', 15, 'Garden tree');
+    registerDestructible(tree, tx, ty, tz, 0.7, 'tree', 15, 'Garden tree');
     markLastPlanted();
   });
   // Voortuin: poort aan het begin van de oprijlaan (ruim van de weg), lage haagjes langs de oprijlaan,
@@ -3072,20 +3077,41 @@ function buildVilla(lot) {
       gate.rotation.y = lot.yaw - side * 0.12;
       scene.add(gate);
       // Laag muurtje van de pilaar opzij, doorgetrokken tot het einde van de voortuin (stopt ruim voor de weg)
+      // Eén rechte muur per kant: de bovenkant loopt in een strakke lijn van pilaar naar eindpilaar
+      // (geen trapjes per stuk); de onderkant steekt wat in de grond zodat hobbels niet zichtbaar zijn
       let endX = 4.35;
       for (let wx = 4.35; wx < 24.4; wx += 2.0) {
         const a = at(side * (wx + 2.0), 23.0);
         if (getClosestNetworkRoad(a.x, a.z).marginDist < 2.2) break;
-        const seg = createOutlinedMesh(new THREE.BoxGeometry(2.04, 0.8, 0.5), pillarMat, 0.025, false);
-        const sp = at(side * (wx + 1.0), 23.0);
-        seg.position.set(sp.x, sp.y + 0.4, sp.z);
-        seg.rotation.y = lot.yaw;
-        scene.add(seg);
-        hardColliders.push({ x: sp.x, z: sp.z, r: 0.7 });
         endX = wx + 2.0;
       }
       if (endX > 6) {
+        const s0 = at(side * 4.35, 23.0);
+        const s1 = at(side * endX, 23.0);
+        let maxAbove = 0;
+        for (let wx = 4.35; wx <= endX; wx += 0.5) {
+          const q = at(side * wx, 23.0);
+          const lineY = s0.y + (s1.y - s0.y) * ((wx - 4.35) / (endX - 4.35));
+          maxAbove = Math.max(maxAbove, q.y - lineY);
+          hardColliders.push({ x: q.x, z: q.z, r: 0.35 });
+        }
+        const lift = Math.min(0.25, maxAbove * 0.6); // iets omhoog als de grond halverwege bolt
+        const len = endX - 4.35;
+        const wallGroup = new THREE.Group();
+        const mid = at(side * (4.35 + len / 2), 23.0);
+        wallGroup.position.set(mid.x, (s0.y + s1.y) / 2 + lift, mid.z);
+        wallGroup.rotation.y = lot.yaw;
+        scene.add(wallGroup);
+        const wall = createOutlinedMesh(new THREE.BoxGeometry(len + 0.04, 1.4, 0.5), pillarMat, 0.025, false);
+        wall.position.set(0, 0.1, 0);
+        wall.rotation.z = Math.atan2((s1.y - s0.y) * side, len);
+        wallGroup.add(wall);
+        const coping = createOutlinedMesh(new THREE.BoxGeometry(len + 0.04, 0.1, 0.62), pillarMat, 0.015, false);
+        coping.position.set(0, 0.85, 0);
+        coping.rotation.z = wall.rotation.z;
+        wallGroup.add(coping);
         const ep = at(side * endX, 23.0);
+        ep.y = s1.y + lift;
         const endPillar = createOutlinedMesh(new THREE.BoxGeometry(0.7, 1.3, 0.7), pillarMat, 0.025, false);
         endPillar.position.set(ep.x, ep.y + 0.65, ep.z);
         scene.add(endPillar);
@@ -3155,7 +3181,7 @@ function buildVilla(lot) {
     scene.add(garage);
     const baseY = getTerrainHeight(lot.x, lot.z);
     // garagevoorplein (x -24,2..-16,8, z 3,4..13,9) + verbindingspad dat over de volle breedte op het voorplein uitkomt
-    [[-20.5, 8.65, 7.4, 10.5], [-11.85, 11.85, 10.9, 4.0]].forEach(([cx, cz, w, d]) => {
+    [[-20.5, 8.225, 7.4, 9.65], [-11.85, 11.85, 10.9, 2.4]].forEach(([cx, cz, w, d]) => {
       const apron = createOutlinedMesh(new THREE.BoxGeometry(w, 0.3, d), poolDeckMat, 0.03, false, true);
       const ap = rotateLocal(cx, cz, lot.yaw);
       apron.position.set(vx + ap.x, baseY + 0.12, vz + ap.z);

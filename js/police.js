@@ -169,7 +169,7 @@ function buildStation() {
     const bx = -4.5 + k * bayW;
     const mark = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 0.35), makeToonMat(0x2a6aff));
     mark.rotation.x = -Math.PI / 2;
-    mark.position.set(bx, 0.025, bayZ - 2.0);
+    mark.position.set(bx, 0.025, bayZ - 1.35);
     g.add(mark);
     const lp = rotLocal(bx, bayZ);
     garageSpots.push({ x: lp.x, z: lp.z, yaw: lot.yaw, taken: false });
@@ -179,6 +179,13 @@ function buildStation() {
     line.rotation.x = -Math.PI / 2;
     line.position.set(x, 0.02, bayZ);
     g.add(line);
+  });
+  // Stootranden achter in alle vakken (vier politievakken en de twee bezoekersvakken)
+  const stopMat = makeToonMat(0xcfc8be);
+  [-4.5, -1.5, 1.5, 4.5, -10.05, 10.05].forEach((bx) => {
+    const stop = new THREE.Mesh(new THREE.BoxGeometry(1.55, 0.1, 0.22), stopMat);
+    stop.position.set(bx, 0.05, bayZ - 1.95);
+    g.add(stop);
   });
 
   // Bos rondom in natuurlijke plukjes: links, rechts en achter het bureau (voorkant en parkeerplaats vrij)
