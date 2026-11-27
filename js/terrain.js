@@ -22,7 +22,7 @@ ruralLots.forEach((lot) => {
   const fb = lot.flatBox;
   lot.terrainReach = fb
     ? Math.hypot(Math.max(-fb.minLX, fb.maxLX), Math.max(-fb.minLZ, fb.maxLZ)) + 40
-    : (lot.blendRadius ?? 18.0) + 14;
+    : (lot.blendRadius ?? 18.0) + 1;
 });
 driveways.forEach((d) => {
   const m = d.halfWidth + 8;
@@ -56,12 +56,9 @@ function getRawTerrainHeight(x, z) {
     } else if (lot.flatBox && lot.type !== 'farm') {
       const fb = lot.flatBox;
       const dBox = getOrientedBoxDist(x, z, lot, fb.minLX - 1, fb.maxLX + 1, fb.minLZ - 1, fb.maxLZ + 1);
-      // Is het land hoger dan het terrein (afgegraven), dan loopt de wand flauwer uit: een dal, geen put
-      const padY = lot.roadY - 0.16;
-      const outerG = h > padY ? 16.0 + Math.min(14.0, (h - padY) * 2.0) : 16.0;
-      if (dBox < outerG) {
-        const t = THREE.MathUtils.smoothstep(dBox, 0.0, outerG);
-        h = THREE.MathUtils.lerp(padY, h, t);
+      if (dBox < 16.0) {
+        const t = THREE.MathUtils.smoothstep(dBox, 0.0, 16.0);
+        h = THREE.MathUtils.lerp(lot.roadY - 0.16, h, t);
         specialFlatBlend = Math.min(specialFlatBlend, t);
       }
     } else if (lot.type === 'farm') {
@@ -96,8 +93,7 @@ function getRawTerrainHeight(x, z) {
     } else {
       const dLot = Math.hypot(x - lot.x, z - lot.z);
       const padR = lot.padRadius ?? 8.8;
-      // Afgegraven (land hoger dan het huis): de helling erachter loopt flauwer uit, geen kuil
-      const blendR = (lot.blendRadius ?? 18.0) + (h > lot.y ? Math.min(12.0, (h - lot.y) * 2.5) : 0);
+      const blendR = lot.blendRadius ?? 18.0;
       if (dLot < blendR) {
         const t = THREE.MathUtils.smoothstep(dLot, padR, blendR);
         h = THREE.MathUtils.lerp(lot.y, h, t);
@@ -273,16 +269,7 @@ for (let i = 0; i < gPos.count; i++) {
   const inTownArea = vx > -45 && vx < 45 && vz > 75 && vz < 137;
   const snowLine = 31 + Math.sin(vx * 0.07) * Math.cos(vz * 0.06) * 3.5;
 
-  if (vy < -3.2) {
-    colA.copy(cDeepSea);
-    colW.copy(cDeepSea);
-  } else if (vy < -0.05) {
-    colA.copy(cShallowSand);
-    colW.copy(cSnowShore); // in de winter ligt hier ijs/sneeuw, geen oranje zandrand
-  } else if (vy < 0.48 && slope < 0.5) {
-    colA.copy(cSand);
-    colW.copy(cSnowShore);
-  } else if (vy > snowLine) {
+  if (vy > snowLine && vy > 2) {
     colA.copy(slope > 1.25 ? cSnowRock : cSnowCap);
     colW.copy(slope > 1.25 ? cSnowRock : cSnowPure);
   } else if (slope > 0.85 || (vy > 13.0 && slope > 0.62)) {
@@ -300,6 +287,19 @@ for (let i = 0; i < gPos.count; i++) {
     colA.lerp(cCliffRock, THREE.MathUtils.smoothstep(slope, 0.55, 0.85) * 0.6);
     colW.lerpColors(cSnowWarm, cSnowPure, n1 * 0.6 + hillTint * 0.4);
   }
+  // Oevers: geleidelijke overgangen gras -> zand -> ondiep -> diep water (geen harde kleurgrens per
+  // rasterpunt, want die geeft een zigzag-rand van 'haaientanden' langs de waterlijn)
+  if (!inTownArea) {
+    const sandF = (1 - THREE.MathUtils.smoothstep(vy, 0.2, 0.85)) * (1 - THREE.MathUtils.smoothstep(slope, 0.45, 0.75));
+    colA.lerp(cSand, sandF);
+    colW.lerp(cSnowShore, sandF);
+  }
+  const wetF = 1 - THREE.MathUtils.smoothstep(vy, -0.4, 0.0);
+  colA.lerp(cShallowSand, wetF);
+  colW.lerp(cSnowShore, wetF);
+  const deepF = 1 - THREE.MathUtils.smoothstep(vy, -3.6, -2.6);
+  colA.lerp(cDeepSea, deepF);
+  colW.lerp(cDeepSea, deepF);
 
   autumnVertexColors[i * 3] = colA.r;
   autumnVertexColors[i * 3 + 1] = colA.g;
