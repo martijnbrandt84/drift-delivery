@@ -6,7 +6,7 @@ import { houseWindows, warmWindowMat, PARK_BAY_W, PARK_BAY_D } from './town.js';
 import { createRoadSign } from './scenery.js';
 import { tagMap } from './map-tags.js';
 import { buildSchoolBusMesh, parkedCars, setVehicleLights } from './vehicles.js';
-import { plantNaturalGrove } from './props.js';
+import { plantForestPatch, lotBoxDist } from './island-scenery.js';
 
 // =========================================================
 // PINEWOOD SCHOOL: klein bakstenen schooltje naast het politiebureau, met een basketbalveld,
@@ -300,51 +300,24 @@ function buildSchool() {
     registerDestructible(bench, p.x, surfaceY + 0.06, p.z, 0.8, 'small', 6, 'Bench');
   });
 
-  // ---- Natuurlijk bos achter en naast de school en langs de startbaan (dennen en loofbomen door elkaar,
-  //      in plukjes met wisselende dichtheid); niet op een perceel, de baan of het platform ----
-  const inLotBox = (o, b, x, z, m) => {
-    const oc = Math.cos(o.yaw);
-    const os = Math.sin(o.yaw);
-    const dx = x - o.x;
-    const dz = z - o.z;
-    const lx = dx * oc - dz * os;
-    const lz = dx * os + dz * oc;
-    return lx > b.minLX - m && lx < b.maxLX + m && lz > b.minLZ - m && lz < b.maxLZ + m;
-  };
-  const blocked = (x, z) => ruralLots.some((o) => {
-    if (!o.flatBox) return false;
-    if (o.flatBoxes) return o.flatBoxes.some((b) => inLotBox(o, b, x, z, o.type === 'airfield' ? 9 : 4));
-    return inLotBox(o, o.flatBox, x, z, o === lot ? 2.5 : 4);
-  });
-  plantNaturalGrove({
-    toWorld,
-    roadGap: 5,
-    maxSlope: 0.55,
-    clusters: [
-      [-20, -27, 8, 7, 0.55, 0.9],
-      [2, -28, 9, 8, 0.5, 0.75],
-      [22, -26, 8, 7, 0.6, 1.0],
-      [30, -6, 7, 6, 0.5, 0.9],
-      [29, 10, 4, 2, 0.4, 0.6]
-    ],
-    allowed: (lx, lz, x, z) => !blocked(x, z)
-  });
-  const airfield = ruralLots.find((o) => o.type === 'airfield');
-  if (airfield) {
-    const ac = Math.cos(airfield.yaw);
-    const as = Math.sin(airfield.yaw);
-    plantNaturalGrove({
-      toWorld: (lx, lz) => ({ x: airfield.x + lx * ac + lz * as, z: airfield.z - lx * as + lz * ac }),
-      roadGap: 5,
-      maxSlope: 0.55,
-      // een rafelige bosrand naast de startbaan, aan de kant van de school
-      clusters: [
-        [20, -36, 6, 5, 0.6, 0.9],
-        [22, -58, 7, 6, 0.55, 0.8],
-        [19, -82, 6, 4, 0.6, 0.7],
-        [23, -104, 7, 5, 0.5, 0.85]
-      ],
-      allowed: (lx, lz, x, z) => lx > 13 && !blocked(x, z)
+  // ---- Natuurlijk bos achter en naast de school, tussen de school en de startbaan ----
+  // Een bosvlak met open plekken; luchtiger vlak bij de school en de politie, en ruim vrij van baan en platform
+  {
+    const police = ruralLots.find((o) => o.type === 'police');
+    const airfield = ruralLots.find((o) => o.type === 'airfield');
+    const runwayDist = (x, z) => (airfield ? Math.min(...airfield.flatBoxes.map((b) => lotBoxDist(airfield, x, z, b))) : 99);
+    const c0 = toWorld(0, -30);
+    plantForestPatch({
+      cx: c0.x, cz: c0.z, r: 70, seed: 5, coverage: 0.55, coreGap: 3.0, edgeGap: 5.0,
+      blocked: (x, z) => {
+        if (lotBoxDist(lot, x, z, lot.flatBox, 2.5) === 0) return true;
+        if (police && lotBoxDist(police, x, z, police.flatBox, 2.5) === 0) return true;
+        // een grillige bosrand langs de startbaan (geen rechte lijn): 10 tot 18 m vrij
+        if (runwayDist(x, z) < 10 + 8 * (0.5 + 0.5 * Math.sin(x * 0.11 + 1.7) * Math.cos(z * 0.09 - 0.6))) return true;
+        return ruralLots.some((o) => o !== lot && o !== police && o !== airfield && o.flatBox && lotBoxDist(o, x, z, o.flatBox, 6) === 0);
+      },
+      edgeDist: (x, z) => Math.min(lotBoxDist(lot, x, z), police ? lotBoxDist(police, x, z) : 99, runwayDist(x, z) - 14),
+      edgeWidth: 10
     });
   }
 

@@ -157,6 +157,12 @@ function buildInstancedSet(baked, list, material, castShadow, tintColors = null)
 
 function buildOuterForest() {
   const spots = collectForestSpots();
+  renderForestSpots(spots);
+  return spots.length;
+}
+
+// Tekent een lijst boomplekken als instanced bos (per chunk een paar draw calls) en maakt elke boom sloopbaar
+function renderForestSpots(spots, planted = false) {
   // Variatie in vorm: slanke hoge dennen, brede lage dennen en hier en daar een boom die iets helt
   spots.forEach((t) => {
     const r = Math.random();
@@ -196,6 +202,7 @@ function buildOuterForest() {
         if (set.outline) refs.push({ mesh: set.outline, index: i });
       });
       registerInstancedDestructible(refs, t.x, t.y, t.z, t.rot, t.scale, 0.85 * t.scale, 'tree', 15, label, t);
+      if (planted) markLastPlanted(); // bewust geplant: niet opruimen op een perceel
     });
   };
 
@@ -220,7 +227,114 @@ function buildOuterForest() {
       registerTrees(decid, [skel, crowns, bSnow], 'Tree');
     }
   });
+}
+
+// =========================================================
+// NATUURLIJK BOSVLAK rond een punt: een ruisveld bepaalt waar bos staat en waar open plekken zijn.
+// In de kern dicht met grotere bomen, aan de rand luchtiger met jongere bomen, loofbomen en struiken.
+// Bij gebouwen dunt het bos geleidelijk uit (edgeDist) in plaats van af te breken langs een rechte lijn.
+//   blocked(x, z)  -> true waar geen boom mag staan
+//   edgeDist(x, z) -> afstand tot het dichtstbijzijnde terrein dat vrij blijft (voor de bosrand)
+// =========================================================
+function hash2(ix, iz, seed) {
+  const h = Math.sin(ix * 127.1 + iz * 311.7 + seed * 74.7) * 43758.5453;
+  return h - Math.floor(h);
+}
+function valueNoise(x, z, seed) {
+  const ix = Math.floor(x);
+  const iz = Math.floor(z);
+  const fx = x - ix;
+  const fz = z - iz;
+  const sx = fx * fx * (3 - 2 * fx);
+  const sz = fz * fz * (3 - 2 * fz);
+  const a = hash2(ix, iz, seed);
+  const b = hash2(ix + 1, iz, seed);
+  const c = hash2(ix, iz + 1, seed);
+  const d = hash2(ix + 1, iz + 1, seed);
+  return a + (b - a) * sx + (c - a) * sz + (a - b - c + d) * sx * sz;
+}
+export function plantForestPatch({
+  cx, cz, r, seed = 1, coverage = 0.55, noiseScale = 0.035, coreGap = 3.0, edgeGap = 5.2,
+  pineShare = 0.62, maxSlope = 0.6, blocked = () => false, edgeDist = () => 99, edgeWidth = 12
+}) {
+  // bestaande bomen (ook die later zijn geplant), zodat het bos er niet doorheen groeit
+  const grid = new Map();
+  const key = (x, z) => `${Math.floor(x / 6)},${Math.floor(z / 6)}`;
+  const addToGrid = (x, z) => {
+    const k = key(x, z);
+    if (!grid.has(k)) grid.set(k, []);
+    grid.get(k).push({ x, z });
+  };
+  destructibles.forEach((d) => { if (d.kind === 'tree' || d.kind === 'shrub') addToGrid(d.x, d.z); });
+  const tooClose = (x, z, minD) => {
+    const gx = Math.floor(x / 6);
+    const gz = Math.floor(z / 6);
+    for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) {
+      const arr = grid.get(`${gx + dx},${gz + dz}`);
+      if (arr) for (const p of arr) if (Math.hypot(x - p.x, z - p.z) < minD) return true;
+    }
+    return false;
+  };
+  const spots = [];
+  const attempts = Math.round((Math.PI * r * r) / (coreGap * coreGap) * 2.2);
+  for (let k = 0; k < attempts; k++) {
+    const ang = Math.random() * Math.PI * 2;
+    const rr = Math.sqrt(Math.random()) * r;
+    const x = cx + Math.cos(ang) * rr;
+    const z = cz + Math.sin(ang) * rr;
+    // bosvlekken uit ruis (twee lagen), naar de buitenrand van het vlak toe zachtjes minder
+    const n = valueNoise(x * noiseScale, z * noiseScale, seed) * 0.68 + valueNoise(x * noiseScale * 2.3, z * noiseScale * 2.3, seed + 7) * 0.32;
+    const thr = 1 - coverage;
+    let mask = THREE.MathUtils.smoothstep(n, thr - 0.12, thr + 0.14);
+    mask *= 1 - THREE.MathUtils.smoothstep(rr, r * 0.72, r);
+    const ed = edgeDist(x, z);
+    mask *= 0.3 + 0.7 * THREE.MathUtils.smoothstep(ed, 0, edgeWidth); // bosrand bij gebouwen: luchtiger
+    if (mask < 0.05 || Math.random() > mask * 1.15) continue;
+    if (blocked(x, z)) continue;
+    const y = getTerrainHeight(x, z);
+    if (y < 0.75) continue;
+    if (getLocalSlope(x, z) > maxSlope || getLocalSlope(x, z, 3) > maxSlope) continue;
+    if (getClosestNetworkRoad(x, z).marginDist < 4.5) continue;
+    if (getDistToRivers(x, z) < 4.0) continue;
+    if (isInsideTownFootprint(x, z, 6) || isNearAnyDriveway(x, z, 3)) continue;
+    const gap = THREE.MathUtils.lerp(edgeGap, coreGap, mask) * (0.9 + Math.random() * 0.25);
+    if (tooClose(x, z, gap)) continue;
+    addToGrid(x, z);
+    // rand: jonger, vaker loofboom of struik; kern: groter, vooral dennen
+    if (mask < 0.45 && Math.random() < 0.28) {
+      const sc = 0.6 + Math.random() * 0.5;
+      const shrub = createShrubFast(sc);
+      shrub.position.set(x, y, z);
+      scene.add(shrub);
+      registerDestructible(shrub, x, y, z, Math.max(0.6, 0.85 * sc), 'shrub', 3, 'Shrub');
+      markLastPlanted();
+      continue;
+    }
+    const isPine = Math.random() < (mask > 0.6 ? pineShare + 0.12 : pineShare - 0.2);
+    spots.push({ x, y, z, scale: 0.55 + mask * 0.65 + Math.random() * 0.35, rot: Math.random() * Math.PI * 2, isPine });
+  }
+  if (spots.length) renderForestSpots(spots, true);
   return spots.length;
+}
+
+// Afstand van (x, z) tot de (meegedraaide) rechthoek van een perceel; 0 = erbinnen
+export function lotBoxDist(lot, x, z, box = lot.flatBox, margin = 0) {
+  const c = Math.cos(lot.yaw);
+  const s = Math.sin(lot.yaw);
+  const dx = x - lot.x;
+  const dz = z - lot.z;
+  const lx = dx * c - dz * s;
+  const lz = dx * s + dz * c;
+  const ox = Math.max(0, box.minLX - margin - lx, lx - box.maxLX - margin);
+  const oz = Math.max(0, box.minLZ - margin - lz, lz - box.maxLZ - margin);
+  return Math.hypot(ox, oz);
+}
+export function lotLocal(lot, x, z) {
+  const c = Math.cos(lot.yaw);
+  const s = Math.sin(lot.yaw);
+  const dx = x - lot.x;
+  const dz = z - lot.z;
+  return [dx * c - dz * s, dx * s + dz * c];
 }
 
 function buildMountainBoulders() {

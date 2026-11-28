@@ -11,6 +11,7 @@ import { houseWindows, warmWindowMat, createLogCabin, PARK_BAY_W, PARK_BAY_D } f
 import { createRoadSign } from './scenery.js';
 import { buildPickupTruckMesh, parkedCars } from './vehicles.js';
 import { createPineFast, createDeciduousTreeFast, createShrubFast, plantNaturalGrove } from './props.js';
+import { plantForestPatch, lotBoxDist, lotLocal } from './island-scenery.js';
 import { tagMap } from './map-tags.js';
 
 // Tekst op borden: altijd net vóór het bord tekenen (geen flikkeren/wegvallen op afstand)
@@ -402,37 +403,24 @@ function buildMotel(lot) {
     parkedCars.push(truck);
   });
 
-  // Bos rondom (achter en opzij), open aan de wegkant
-  // Natuurlijk bos: een paar plukjes achter en naast het motel die aansluiten op het bos aan de oostkant,
-  // naar de zeekant toe dunner; niet op het terrein, de oprit, bij het bord of op de klif
-  plantNaturalGrove({
-    toWorld,
-    refY: lot.roadY - 0.16,
-    maxDY: 2.2,
-    maxSlope: 0.45,
-    clusters: [
-      [16, -24, 12, 13, 0.65, 0.75], // achter rechts: dicht, richting het bos
-      [29, -6, 10, 8, 0.55, 1.0],    // rechts, sluit aan op het bestaande bos
-      [-6, -23, 8, 5, 0.7, 1.3],     // achter midden-links: luchtiger
-      [-24, -12, 6, 3, 0.4, 1.0],    // los groepje links
-      [-27, 8, 5, 2, 0.2, 2.2]       // een paar verspreide bomen richting zee
-    ],
-    allowed: (lx, lz) => {
-      if (lx > -18 && lx < 18 && lz > -15 && lz < 14) return false;
-      if (Math.abs(lx) < 7 && lz > 8) return false;
-      if (Math.hypot(lx + 12.5, lz - 15.5) < 4) return false;
-      return lz < 15;
-    }
-  });
-  [[-18, 11], [18.5, 9.5], [-19.5, -3], [19, 2.5], [-9.5, 14.5], [9.5, 14.8]].forEach(([lx, lz]) => {
-    const w = toWorld(lx, lz);
-    const shrub = createShrubFast(0.8 + Math.random() * 0.4);
-    const groundY = getTerrainHeight(w.x, w.z);
-    shrub.position.set(w.x, groundY, w.z);
-    scene.add(shrub);
-    registerDestructible(shrub, w.x, groundY, w.z, 0.7, 'shrub', 3, 'Shrub');
-    markLastPlanted();
-  });
+  // Natuurlijk bos naast en achter het motel aan de landkant (aansluitend op het bos in het oosten): een bosvlak
+  // met open plekken dat naar het terrein toe luchtiger wordt; niet op de klif, het strand of het terrein
+  {
+    const blocked = (x, z) => {
+      if (lotBoxDist(lot, x, z, lot.flatBox, 2) === 0) return true;
+      const [lx, lz] = lotLocal(lot, x, z);
+      if (lz > 6 && Math.abs(lx) < 16) return true; // de voorkant en de oprit vrij
+      if (Math.hypot(lx + 12.5, lz - 15.5) < 5) return true; // het bord
+      if (lz < -17) return true; // achter het motel ligt de klif naar zee
+      return getTerrainHeight(x, z) < 1.4; // niet op het strand
+    };
+    const edgeDist = (x, z) => lotBoxDist(lot, x, z);
+    // westkant: een bosvlak met open plekken op het lege plateau; oostkant: de rand naar het bestaande bos opvullen
+    [[-34, -2, 42, 11, 0.6], [24, -4, 30, 13, 0.5]].forEach(([lx, lz, r, seed, coverage]) => {
+      const w = toWorld(lx, lz);
+      plantForestPatch({ cx: w.x, cz: w.z, r, seed, coverage, coreGap: 3.0, edgeGap: 5.0, maxSlope: 0.42, blocked, edgeDist, edgeWidth: 9 });
+    });
+  }
 
   entranceSign(lot, ['MOTEL', 'North Beach']);
 }

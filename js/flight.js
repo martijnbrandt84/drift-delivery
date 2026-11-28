@@ -2,9 +2,8 @@ import * as THREE from 'three';
 import { scene, makeToonMat, registerSeasonalMat, createOutlinedMesh } from './scene-setup.js';
 import { WATER_LEVEL } from './roads.js';
 import { ruralLots } from './water-lots.js';
-import { hardColliders, registerDestructible, markLastPlanted } from './demolition.js';
-import { createPineFast, createDeciduousTreeFast, createShrubFast } from './props.js';
-import { getClosestNetworkRoad, getDistToRivers } from './roads.js';
+import { hardColliders } from './demolition.js';
+import { plantForestPatch, lotBoxDist, lotLocal } from './island-scenery.js';
 import { getTerrainHeight } from './terrain.js';
 import { createRoadSign } from './scenery.js';
 import { spawnParticle } from './effects.js';
@@ -211,51 +210,19 @@ function buildAirfield() {
   const sz = lot.roadZ - s * 6 + (tz / tl) * 3.5;
   createRoadSign(sx, sz, getTerrainHeight(sx, sz), lot.yaw, ['AIRFIELD', 'Scenic flights']);
 
-  // Bomenrijen langs beide lange zijden van het vliegveld en groepjes bij het platform
-  // (het eind van de baan blijft vrij voor het aanvliegen)
-  const insideOtherLot = (x, z) => ruralLots.some((o) => {
-    if (o === lot || !o.flatBox) return false;
-    const c = Math.cos(o.yaw);
-    const s = Math.sin(o.yaw);
-    const dx = x - o.x;
-    const dz = z - o.z;
-    const lx2 = dx * c - dz * s;
-    const lz2 = dx * s + dz * c;
-    const fb = o.flatBox;
-    return lx2 > fb.minLX + 2 && lx2 < fb.maxLX - 2 && lz2 > fb.minLZ + 2 && lz2 < fb.maxLZ;
-  });
-  const plant = (lx, lz, kind) => {
-    const w = toWorld(lx, lz);
-    if (insideOtherLot(w.x, w.z)) return;
-    if (getClosestNetworkRoad(w.x, w.z).marginDist < 3.5 || getDistToRivers(w.x, w.z) < 3) return;
-    const y = getTerrainHeight(w.x, w.z);
-    if (y < WATER_LEVEL + 0.4) return;
-    let obj;
-    if (kind === 's') {
-      const sc = 0.6 + Math.random() * 0.6;
-      obj = createShrubFast(sc);
-      obj.position.set(w.x, y, w.z);
-      scene.add(obj);
-      registerDestructible(obj, w.x, y, w.z, Math.max(0.6, 0.85 * sc), 'shrub', 3, 'Shrub');
-    } else {
-      const sc = 0.75 + Math.random() * 0.45;
-      obj = kind === 'p' ? createPineFast(sc) : createDeciduousTreeFast(sc);
-      obj.position.set(w.x, y, w.z);
-      obj.rotation.y = Math.random() * Math.PI * 2;
-      scene.add(obj);
-      registerDestructible(obj, w.x, y, w.z, 0.85 * sc, 'tree', 15, kind === 'p' ? 'Pine tree' : 'Tree');
-    }
-    markLastPlanted();
+  // Bos langs beide lange zijden van het vliegveld: natuurlijke bosvlakken met open plekken en een grillige
+  // rand (10 tot 18 m van de baan), het eind van de baan blijft vrij om aan te vliegen
+  const runwayDist = (x, z) => Math.min(...lot.flatBoxes.map((b) => lotBoxDist(lot, x, z, b)));
+  const blocked = (x, z) => {
+    if (runwayDist(x, z) < 10 + 8 * (0.5 + 0.5 * Math.sin(x * 0.11 + 1.7) * Math.cos(z * 0.09 - 0.6))) return true;
+    const [lx, lz] = lotLocal(lot, x, z);
+    if (lz < -125 && Math.abs(lx + 6) < 30) return true; // aanvliegroute
+    return ruralLots.some((o) => o !== lot && o.flatBox && lotBoxDist(o, x, z, o.flatBox, o.type === 'school' || o.type === 'police' ? 3 : 6) === 0);
   };
-  for (let lz = 6; lz > -128; lz -= 6.5) {
-    [-1, 1].forEach((side) => {
-      const lx = side * (22 + Math.random() * 3) + (side > 0 && lz > -20 ? 3 : 0);
-      plant(lx, lz + (Math.random() - 0.5) * 2, Math.random() < 0.55 ? 'p' : 'd');
-      if (Math.random() < 0.6) plant(lx + side * (4 + Math.random() * 3), lz + 3, Math.random() < 0.6 ? 'p' : 'd');
-      if (Math.random() < 0.5) plant(lx - side * 2.5, lz + 1.5, 's');
-    });
-  }
-  [[-20, 9, 'd'], [-23, 4, 'p'], [-21, 13, 's'], [19, 13, 's'], [21, -18, 'd'], [17, -21, 's']].forEach(([lx, lz, k]) => plant(lx, lz, k));
+  [[-42, -40, 36, 21], [-40, -98, 36, 22], [32, -42, 34, 23], [32, -100, 34, 24]].forEach(([lx, lz, r, seed]) => {
+    const w = toWorld(lx, lz);
+    plantForestPatch({ cx: w.x, cz: w.z, r, seed, coverage: 0.58, coreGap: 3.0, edgeGap: 5.0, blocked, edgeDist: (x, z) => runwayDist(x, z) - 14, edgeWidth: 10 });
+  });
 }
 buildAirfield();
 

@@ -5,7 +5,6 @@ import {
 } from './scene-setup.js';
 import { ruralLots } from './water-lots.js';
 import { hardColliders, registerDestructible } from './demolition.js';
-import { plantNaturalGrove } from './props.js';
 import { getTerrainHeight } from './terrain.js';
 import { spawnParticle } from './effects.js';
 import { tagMap } from './map-tags.js';
@@ -730,8 +729,6 @@ const FARM_LAYOUTS = {
       ['corn', -38.5, -7.5, 4.0, 34.0],
       ['corn', 7.5, 38.5, 4.0, 34.0]
     ],
-    // achter de silo's: natuurlijk bos dat doorloopt richting het tuincentrum
-    backForest: true,
     pastures: [],
     noDriveFence: [],
     pumpkinPatch: [23.5, 37.5, -25.5, -17.0], // rechts naast het woonhuis, voor de tarweakker
@@ -914,37 +911,7 @@ function buildFarm(farmLot) {
     hardColliders.push({ x: tr.x, z: tr.z, r: 1.2 });
   });
 
-  // 7. Natuurlijk bos achter de boerderij (Pinewood): plukjes met wisselende dichtheid, die doorlopen
-  //    richting het tuincentrum; niet op een ander perceel
-  if (L.backForest) {
-    const insideOther = (x, z, margin) => ruralLots.some((o) => {
-      if (o === farmLot || !o.flatBox) return false;
-      const oc = Math.cos(o.yaw);
-      const os = Math.sin(o.yaw);
-      const dx = x - o.x;
-      const dz = z - o.z;
-      const lx = dx * oc - dz * os;
-      const lz = dx * os + dz * oc;
-      const ob = o.flatBox;
-      return lx > ob.minLX - margin && lx < ob.maxLX + margin && lz > ob.minLZ - margin && lz < ob.maxLZ + margin;
-    });
-    plantNaturalGrove({
-      toWorld: (lx, lz) => toWorld(lx, lz),
-      roadGap: 5,
-      maxSlope: 0.55,
-      clusters: [
-        [-26, -34, 9, 10, 0.55, 1.0],
-        [-4, -33, 7, 6, 0.6, 0.75],
-        [18, -35, 9, 9, 0.5, 0.9],
-        [34, -38, 6, 5, 0.6, 1.1],
-        [-14, -50, 12, 14, 0.6, 0.85],
-        [12, -54, 11, 10, 0.65, 0.75],
-        [-34, -60, 9, 7, 0.55, 0.9],
-        [-22, -66, 8, 6, 0.6, 0.6]
-      ],
-      allowed: (lx, lz, x, z) => lz < -28.5 && !(Math.abs(lx) < 6 && lz > -30) && !insideOther(x, z, 6)
-    });
-  }
+  // 7. Achter Pinewood Farm loopt het bosvlak van het tuincentrum door (zie garden-center.js)
 }
 
 // Een laag die het terrein volgt (grindpad, stopstrook), van x0..x1 en z0..z1 in lokale coördinaten

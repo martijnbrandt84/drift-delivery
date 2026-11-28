@@ -6,7 +6,8 @@ import { ruralLots } from './water-lots.js';
 import { hardColliders, registerDestructible } from './demolition.js';
 import { houseWindows, warmWindowMat, PARK_BAY_W, PARK_BAY_D, createParkTree, createSmashableStreetLampAt, createBenchAt } from './town.js';
 import { tagMap } from './map-tags.js';
-import { plantNaturalGrove } from './props.js';
+import { createPineFast, createDeciduousTreeFast } from './props.js';
+import { plantForestPatch, lotBoxDist, lotLocal } from './island-scenery.js';
 import { getTerrainHeight } from './terrain.js';
 
 // =========================================================
@@ -515,38 +516,30 @@ function buildGardenCenter() {
     winterLot.add(post);
   });
 
-  // ---- Natuurlijk bos achter en naast het terrein (dichter naar achteren, open naar de weg) ----
-  const fb = lot.flatBox;
-  const nearOtherLot = (x, z) => ruralLots.some((o) => {
-    if (o === lot || !o.flatBox) return false;
-    const oc = Math.cos(o.yaw);
-    const os = Math.sin(o.yaw);
-    const dx = x - o.x;
-    const dz = z - o.z;
-    const lx = dx * oc - dz * os;
-    const lz = dx * os + dz * oc;
-    const ob = o.flatBox;
-    return lx > ob.minLX - 5 && lx < ob.maxLX + 5 && lz > ob.minLZ - 5 && lz < ob.maxLZ + 5;
-  });
-  plantNaturalGrove({
-    toWorld,
-    roadGap: 6,
-    maxSlope: 0.55,
-    clusters: [
-      [-22, -34, 12, 18, 0.55, 1.2],
-      [6, -35, 13, 18, 0.5, 1.05],
-      [30, -32, 10, 12, 0.6, 1.25],
-      [-41, -16, 8, 10, 0.6, 1.1],
-      [-40, 0, 6, 6, 0.55, 0.9],
-      [-39, 12, 5, 3, 0.4, 0.6],
-      [42, -14, 8, 10, 0.55, 1.1],
-      [41, 4, 6, 5, 0.45, 0.8],
-      [-6, -50, 12, 12, 0.65, 0.85],
-      [24, -50, 9, 8, 0.6, 0.8]
-    ],
-    // het tuincentrum ligt in het bos: bomen tot vlak achter en naast het terrein, open naar de weg
-    allowed: (lx, lz, x, z) => (lx < fb.minLX - 1 || lx > fb.maxLX + 1 || lz < -24.0) && lz < 13 && !nearOtherLot(x, z)
-  });
+  // ---- Natuurlijk bos rond het tuincentrum en tussen het tuincentrum en Pinewood Farm ----
+  // Eén doorlopend bosvlak met open plekken; dicht achter en naast het terrein, open naar de weg.
+  // Achter de boerderij (achter de silo's) mag het bos het perceel op lopen.
+  {
+    const farm = ruralLots.find((o) => o.name === 'PINEWOOD FARM');
+    const gardenBox = { ...lot.flatBox, minLZ: -24.5 };
+    const farmFront = farm ? { ...farm.flatBox, minLZ: -27.5 } : null;
+    const blocked = (x, z) => {
+      const [glx, glz] = lotLocal(lot, x, z);
+      if (lotBoxDist(lot, x, z, gardenBox, 1.5) === 0) return true;
+      if (glz > 11 && glx > -52 && glx < 54) return true; // zicht vanaf de weg op het tuincentrum
+      if (farm && lotBoxDist(farm, x, z, farmFront, 3) === 0) return true;
+      return ruralLots.some((o) => o !== lot && o !== farm && o.flatBox && lotBoxDist(o, x, z, o.flatBox, 6) === 0);
+    };
+    const edgeDist = (x, z) => Math.min(
+      lotBoxDist(lot, x, z, gardenBox),
+      farm ? lotBoxDist(farm, x, z, farmFront) : 99
+    );
+    const mid = farm ? { x: (lot.x + farm.x) / 2, z: (lot.z + farm.z) / 2 } : { x: lot.x, z: lot.z };
+    plantForestPatch({
+      cx: mid.x, cz: mid.z, r: 115, seed: 3, coverage: 0.62, coreGap: 2.8, edgeGap: 4.6,
+      blocked, edgeDist, edgeWidth: 9
+    });
+  }
 
   // ---- Groot houten bord aan de weg, naast de inrit, met een bloembak aan de voet ----
   {
@@ -622,117 +615,61 @@ function buildGardenCenter() {
     createBenchAt(p.x, surfaceY + 0.16, p.z, lot.yaw);
   });
 
-  // Showtuin links van de parkeerplaats: twee tuinhuisjes, een picknicktafel, een vogelbad en kabouters
+  // Kwekerij links van de parkeerplaats: rijen jonge boompjes in kweekpotten op grind, een paar grote bomen
+  // met een kluit in jute vooraan en een bordje. Alles los en omrijdbaar.
   slab(-31, -17.5, -2.5, 13.5, gravelMat);
-  const shedMats = [makeToonMat(0x7a9a6a), makeToonMat(0xb89a6a)];
-  [[-27.5, 2.5, 0.4], [-27.5, 9.5, -0.3]].forEach(([sx, sz, rot], i) => {
-    const shed = new THREE.Group();
-    const body = createOutlinedMesh(new THREE.BoxGeometry(3.0, 2.2, 2.6), shedMats[i], 0.035);
-    body.position.y = 1.1;
-    shed.add(body);
-    [-1, 1].forEach((side) => {
-      const pane = createOutlinedMesh(new THREE.BoxGeometry(3.4, 0.12, 1.75), roofMat, 0.02);
-      pane.position.set(0, 2.55, side * 0.68);
-      pane.rotation.x = side * 0.55;
-      shed.add(pane);
-    });
-    const doorS = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 1.7), woodDarkMat);
-    doorS.position.set(0, 0.85, 1.31);
-    shed.add(doorS);
-    const winS = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 0.55), new THREE.MeshBasicMaterial({ color: 0xbfe3ea }));
-    winS.position.set(0.95, 1.4, 1.31);
-    shed.add(winS);
-    const tag = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.35), new THREE.MeshBasicMaterial({ map: makeSignTexture(['SALE'], '#c63b3b', '#ffffff'), ...SIGN_OPTS }));
-    tag.position.set(-0.9, 1.6, 1.32);
-    shed.add(tag);
-    const p = toWorld(sx, sz);
-    shed.position.set(p.x, surfaceY + 0.05, p.z);
-    shed.rotation.y = lot.yaw + Math.PI / 2 + rot;
-    scene.add(shed);
-    collide(sx, sz, 1.8);
-  });
-  {
-    const table = new THREE.Group();
-    const top = createOutlinedMesh(new THREE.BoxGeometry(1.8, 0.08, 0.8), woodMat, 0.015, false);
-    top.position.y = 0.75;
-    table.add(top);
-    [-0.65, 0.65].forEach((oz) => {
-      const benchT = createOutlinedMesh(new THREE.BoxGeometry(1.8, 0.07, 0.3), woodMat, 0.012, false);
-      benchT.position.set(0, 0.45, oz);
-      table.add(benchT);
-    });
-    [-0.75, 0.75].forEach((ox) => {
-      const leg = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.75, 1.5), woodDarkMat);
-      leg.position.set(ox, 0.38, 0);
-      table.add(leg);
-    });
-    const p = toWorld(-21.5, 6.0);
-    table.position.set(p.x, surfaceY + 0.05, p.z);
-    table.rotation.y = lot.yaw + 0.3;
-    scene.add(table);
-    registerDestructible(table, p.x, surfaceY + 0.05, p.z, 1.0, 'small', 6, 'Picnic table');
-  }
-  {
-    const bath = new THREE.Group();
-    const foot = createOutlinedMesh(new THREE.CylinderGeometry(0.16, 0.26, 0.8, 8), makeToonMat(0xc8c2b4), 0.015, false);
-    foot.position.y = 0.4;
-    bath.add(foot);
-    const bowl = createOutlinedMesh(new THREE.CylinderGeometry(0.55, 0.3, 0.2, 10), makeToonMat(0xc8c2b4), 0.015, false);
-    bowl.position.y = 0.88;
-    bath.add(bowl);
-    const water = new THREE.Mesh(new THREE.CircleGeometry(0.45, 10), new THREE.MeshBasicMaterial({ color: 0x5fb6cf }));
-    water.rotation.x = -Math.PI / 2;
-    water.position.y = 0.99;
-    bath.add(water);
-    const p = toWorld(-21.0, 11.0);
-    bath.position.set(p.x, surfaceY + 0.05, p.z);
-    scene.add(bath);
-    registerDestructible(bath, p.x, surfaceY + 0.05, p.z, 0.6, 'small', 4, 'Bird bath');
-  }
-  const gnomeHat = makeToonMat(0xc63b3b);
-  const gnomeCoat = [makeToonMat(0x2f6fb0), makeToonMat(0x3f8a3a), makeToonMat(0xe0a020)];
-  const gnomeFace = makeToonMat(0xf1c9a5);
-  [[-23.8, 0.2], [-23.2, 1.0], [-19.5, 3.2], [-19.0, 12.4]].forEach(([gx, gz], i) => {
-    const gnome = new THREE.Group();
-    const coat = createOutlinedMesh(new THREE.ConeGeometry(0.22, 0.45, 8), gnomeCoat[i % 3], 0.012, false);
-    coat.position.y = 0.23;
-    gnome.add(coat);
-    const face = createOutlinedMesh(new THREE.SphereGeometry(0.12, 8, 6), gnomeFace, 0.01, false);
-    face.position.y = 0.5;
-    gnome.add(face);
-    const beard = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.18, 6), makeToonMat(0xf6f2ea));
-    beard.rotation.x = Math.PI;
-    beard.position.set(0, 0.42, 0.06);
-    gnome.add(beard);
-    const hat = createOutlinedMesh(new THREE.ConeGeometry(0.13, 0.32, 8), gnomeHat, 0.01, false);
-    hat.position.y = 0.72;
-    gnome.add(hat);
-    const p = toWorld(gx, gz);
-    gnome.position.set(p.x, surfaceY + 0.05, p.z);
-    gnome.rotation.y = lot.yaw + (Math.random() - 0.5) * 0.8;
-    scene.add(gnome);
-    registerDestructible(gnome, p.x, surfaceY + 0.05, p.z, 0.3, 'small', 2, 'Garden gnome');
-  });
-  {
-    // kruiwagen met bloemen
-    const wb = new THREE.Group();
-    const tray = createOutlinedMesh(new THREE.BoxGeometry(0.7, 0.35, 1.0), makeToonMat(0x3f6e9a), 0.015, false);
-    tray.position.set(0, 0.55, 0);
-    wb.add(tray);
-    const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.08, 10), makeToonMat(0x2b2b2b));
-    wheel.rotation.z = Math.PI / 2;
-    wheel.position.set(0, 0.2, 0.6);
-    wb.add(wheel);
-    for (let k = 0; k < 4; k++) {
-      const fl = new THREE.Mesh(new THREE.IcosahedronGeometry(0.2, 0), flowerMats[k % 4]);
-      fl.position.set(k % 2 ? 0.15 : -0.15, 0.82, -0.25 + Math.floor(k / 2) * 0.45);
-      wb.add(fl);
+  const containerMat = makeToonMat(0x2b2b2b);
+  const burlapMat = makeToonMat(0xb08a5a);
+  [-29.6, -27.0, -24.4, -21.8, -19.2].forEach((rx, ri) => {
+    for (let rz = -1.4; rz <= 12.6; rz += 1.75) {
+      const young = new THREE.Group();
+      const potC = createOutlinedMesh(new THREE.CylinderGeometry(0.3, 0.24, 0.42, 8), containerMat, 0.012, false);
+      potC.position.y = 0.21;
+      young.add(potC);
+      const pine = (ri + Math.round(rz)) % 3 !== 0;
+      const sc = 0.24 + Math.random() * 0.14;
+      const tree = pine ? createPineFast(sc) : createDeciduousTreeFast(sc * 1.1);
+      tree.position.y = 0.4;
+      tree.rotation.y = Math.random() * Math.PI * 2;
+      young.add(tree);
+      const p = toWorld(rx + (Math.random() - 0.5) * 0.25, rz);
+      young.position.set(p.x, surfaceY + 0.05, p.z);
+      scene.add(young);
+      registerDestructible(young, p.x, surfaceY + 0.05, p.z, 0.45, 'small', 2, 'Young tree');
     }
-    const p = toWorld(-18.6, 7.8);
-    wb.position.set(p.x, surfaceY + 0.05, p.z);
-    wb.rotation.y = lot.yaw - 0.6;
-    scene.add(wb);
-    registerDestructible(wb, p.x, surfaceY + 0.05, p.z, 0.6, 'small', 4, 'Wheelbarrow');
+  });
+  [[-29.0, 13.2], [-25.5, 13.4], [-22.0, 13.2]].forEach(([bx, bz]) => {
+    const big = new THREE.Group();
+    const ball = createOutlinedMesh(new THREE.SphereGeometry(0.5, 8, 6), burlapMat, 0.015, false);
+    ball.scale.y = 0.75;
+    ball.position.y = 0.35;
+    big.add(ball);
+    const tree = Math.random() < 0.5 ? createPineFast(0.55) : createDeciduousTreeFast(0.6);
+    tree.position.y = 0.55;
+    big.add(tree);
+    const p = toWorld(bx, bz);
+    big.position.set(p.x, surfaceY + 0.05, p.z);
+    big.rotation.y = Math.random() * Math.PI * 2;
+    scene.add(big);
+    registerDestructible(big, p.x, surfaceY + 0.05, p.z, 0.7, 'small', 4, 'Nursery tree');
+  });
+  {
+    const board = new THREE.Group();
+    [-0.9, 0.9].forEach((px) => {
+      const post = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.7, 0.1), woodDarkMat);
+      post.position.set(px, 0.85, 0);
+      board.add(post);
+    });
+    const face = new THREE.Mesh(
+      new THREE.PlaneGeometry(2.2, 0.6),
+      new THREE.MeshBasicMaterial({ map: makeSignTexture(['TREE NURSERY'], '#2f5e3f', '#f6f2ea'), ...SIGN_OPTS, side: THREE.DoubleSide })
+    );
+    face.position.y = 1.45;
+    board.add(face);
+    const p = toWorld(-17.9, 12.6);
+    board.position.set(p.x, surfaceY + 0.05, p.z);
+    board.rotation.y = lot.yaw + 0.5;
+    scene.add(board);
   }
 }
 buildGardenCenter();
