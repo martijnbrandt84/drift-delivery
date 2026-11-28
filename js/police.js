@@ -21,6 +21,16 @@ import { getTerrainHeight } from './terrain.js';
 // en rijden na afloop terug. Er wordt niemand meer naast de speler neergezet.
 // =========================================================
 const lot = ruralLots.find((l) => l.type === 'police');
+const schoolLot = ruralLots.find((l) => l.type === 'school');
+function insideLotBox(l, x, z, m = 0) {
+  if (!l || !l.flatBox) return false;
+  const dx = x - l.x;
+  const dz = z - l.z;
+  const lx = dx * Math.cos(l.yaw) - dz * Math.sin(l.yaw);
+  const lz = dx * Math.sin(l.yaw) + dz * Math.cos(l.yaw);
+  const fb = l.flatBox;
+  return lx > fb.minLX - m && lx < fb.maxLX + m && lz > fb.minLZ - m && lz < fb.maxLZ + m;
+}
 
 const rotLocal = (lx, lz) => {
   const c = Math.cos(lot.yaw);
@@ -199,7 +209,8 @@ function buildStation() {
       [-4, -19, 8, 8, 0.7, 0.75],
       [11, -18, 5, 3, 0.6, 1.2]
     ],
-    allowed: (lx, lz) => (Math.abs(lx) > 13.5 || lz < -13.5) && lz < 9
+    // niet op het schoolterrein ernaast
+    allowed: (lx, lz, x, z) => (Math.abs(lx) > 13.5 || lz < -13.5) && lz < 9 && !insideLotBox(schoolLot, x, z, 2.5)
   });
 
   const sp = rotLocal(-7.5, padFrontLZ + 2.0);

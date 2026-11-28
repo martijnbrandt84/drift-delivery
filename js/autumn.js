@@ -69,7 +69,7 @@ ruralLots.forEach((lot) => {
     });
     return;
   }
-  if (lot.type === 'motel' || lot.type === 'sawmill' || lot.type === 'fair' || lot.type === 'airfield' || lot.type === 'coffee' || lot.type === 'police') return;
+  if (lot.type === 'motel' || lot.type === 'sawmill' || lot.type === 'fair' || lot.type === 'airfield' || lot.type === 'coffee' || lot.type === 'police' || lot.type === 'school' || lot.type === 'garden') return;
   if (lot.type === 'villa') {
     const stepY = getTerrainHeight(lot.x, lot.z) + 0.16; // onderste trede van het bordes
     [[-2.35, -1.65, 1.15], [2.35, -1.65, 1.15], [-1.75, -1.6, 0.8]].forEach(([lx, lz, sc]) => {

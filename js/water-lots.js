@@ -56,6 +56,18 @@ export const ruralLots = [
     drivewayStopShort: 8.9, flatElevOffset: -0.12,
     flatBox: { minLX: -14.5, maxLX: 14.5, minLZ: -13, maxLZ: 12, blend: 10 }
   },
+  // Pinewood Garden Center met café, aan de kustweg in het zuidwesten (landinwaarts)
+  {
+    netSamples: ringSamples, near: [-213, 199], outward: false, dist: 30.0, type: 'garden', name: 'PINEWOOD GARDEN CENTER', yawOff: 0,
+    drivewayStopShort: 14.6, flatElevOffset: -0.1,
+    flatBox: { minLX: -34, maxLX: 36, minLZ: -29, maxLZ: 16, blend: 14 }
+  },
+  // Pinewood School met basketbalveld, naast het politiebureau (aan de kant van het dorp)
+  {
+    netSamples: valleySamples, u: 0.418, outward: true, dist: 26.0, type: 'school', name: 'PINEWOOD SCHOOL', yawOff: 0,
+    drivewayStopShort: 13.2, flatElevOffset: -0.12,
+    flatBox: { minLX: -20.5, maxLX: 20.5, minLZ: -18, maxLZ: 15, blend: 10 }
+  },
 
   // Supermarkt & Pinewood Mall op het vlakke noordoostelijke stuk van de meerweg (u=0.055, vlakke weg!).
   // flatBox legt het hele winkelcentrum én de hele parkeerplaats tot aan de wegrand 100% waterpas.
@@ -69,7 +81,7 @@ export const ruralLots = [
     // Brede geasfalteerde inrit van de weg tot aan de rand van de parkeerplaats (lz = 23.1)
     drivewayStopShort: 24.5,
     flatElevOffset: -0.06,
-    flatBox: { minLX: -19.5, maxLX: 37.5, minLZ: -14.0, maxLZ: 26.0, blend: 12.0 }
+    flatBox: { minLX: -19.5, maxLX: 19.5, minLZ: -14.0, maxLZ: 26.0, blend: 12.0 }
   },
 
   // Huizen en hutten langs de kustweg en het bospad (near = wereldpunt, u wordt opgezocht)
@@ -321,8 +333,8 @@ ruralLots.forEach((lot) => {
       x2: rs.x + rs.nx * side * (lot.dist - (lot.drivewayStopShort ?? 0)),
       y2: lot.y,
       z2: rs.z + rs.nz * side * (lot.dist - (lot.drivewayStopShort ?? 0)),
-      halfWidth: lot.type === 'farm' ? 3.2 : lot.type === 'store' ? 4.4 : ['cinema', 'diner', 'coffee', 'police', 'motel'].includes(lot.type) ? 3.4 : lot.type === 'villa' ? 2.8 : 2.5,
-      asphalt: lot.type === 'store' || lot.type === 'cinema' || lot.type === 'airfield' || lot.type === 'coffee' || lot.type === 'police' || lot.type === 'diner' || lot.type === 'motel'
+      halfWidth: lot.type === 'farm' ? 3.2 : lot.type === 'store' ? 4.4 : ['cinema', 'diner', 'coffee', 'police', 'motel', 'school', 'garden'].includes(lot.type) ? 3.4 : lot.type === 'villa' ? 2.8 : 2.5,
+      asphalt: lot.type === 'store' || lot.type === 'cinema' || lot.type === 'airfield' || lot.type === 'coffee' || lot.type === 'police' || lot.type === 'diner' || lot.type === 'motel' || lot.type === 'school' || lot.type === 'garden'
     });
   }
 });

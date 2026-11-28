@@ -38,6 +38,8 @@ import { updateOrcas } from './orcas.js';
 import { race, startRace, cancelRace, updateRace } from './race.js';
 import { updateHarvest } from './harvest.js';
 import { bindPolicePool, pickPursuers, startPursuit, releaseFromPursuit, markUnitLost, updatePolicePatrol } from './police.js';
+import './school.js';
+import './garden-center.js';
 import './touch-controls.js';
 import { flight, planeIsNear, canExitPlane, enterPlane, exitPlane, setFlightKey, updateFlight, setAirfieldNight } from './flight.js';
 

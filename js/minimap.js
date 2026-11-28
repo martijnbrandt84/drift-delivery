@@ -339,6 +339,8 @@ ruralLots.forEach((lot) => {
   if (lot.type === 'airfield') addLabel('Airfield', lot.x - 50, lot.z - 16);
   if (lot.type === 'coffee') addLabel('Pine Coffee', lot.x, lot.z - 12);
   if (lot.type === 'police') addLabel('Police station', lot.x, lot.z - 16);
+  if (lot.type === 'school') addLabel('School', lot.x, lot.z - 16);
+  if (lot.type === 'garden') addLabel('Garden Center', lot.x, lot.z - 18);
 });
 addLabel('Beach', 0, 352, 'water');
 

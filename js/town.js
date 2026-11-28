@@ -1730,81 +1730,6 @@ function buildGeneralStore() {
     addRoofStringLights(wing, wing.userData.lightSpecs.width, wing.userData.lightSpecs.yPos, wing.userData.lightSpecs.zFront);
   });
 
-  // ---- Uitbreiding rechts: bouwmarkt met tuincentrum, een café en een tweede parkeervak ----
-  {
-    const extPad = tagMap(new THREE.Mesh(new THREE.BoxGeometry(19.8, slabDepthH, PARK_Z1), storeAsphaltMat), 'paved');
-    extPad.position.set(26.5, -slabDepthH * 0.5, PARK_Z1 / 2);
-    extPad.receiveShadow = true;
-    complexGroup.add(extPad);
-    const extProm = createOutlinedMesh(new THREE.BoxGeometry(19.8, slabDepthH + 0.16, 2.3), sidewalkMat, 0.042, false, true);
-    extProm.position.set(26.5, -slabDepthH * 0.5 + 0.08, -1.15);
-    complexGroup.add(extProm);
-    const extPlinth = createOutlinedMesh(new THREE.BoxGeometry(19.8, slabDepthH + 0.16, 9.8), stoneMat, 0.04, false, true);
-    extPlinth.position.set(26.5, -slabDepthH * 0.5 + 0.08, -7.2);
-    complexGroup.add(extPlinth);
-
-    const hardware = createHardwareStore();
-    hardware.position.set(23.4, 0.16, -6.9);
-    complexGroup.add(hardware);
-    const cafe = createMallCafe();
-    cafe.position.set(32.4, 0.16, -6.4);
-    complexGroup.add(cafe);
-    [19.6, 23.4, 27.2].forEach((cx) => {
-      const wc = rl(cx, -6.9, yaw);
-      hardColliders.push({ x: baseX + wc.x, z: baseZ + wc.z, r: 4.4 });
-    });
-    {
-      const wc = rl(32.4, -6.6, yaw);
-      hardColliders.push({ x: baseX + wc.x, z: baseZ + wc.z, r: 3.4 });
-    }
-
-    // Tuincentrum-uitstalling voor de bouwmarkt: planten in potten op pallets, stapel brandhout
-    const potMat = makeToonMat(0xb8643a);
-    const palletMat = makeToonMat(0xc9a06a);
-    const plantMats = [makeToonMat(0x4f8a3c), makeToonMat(0x6a9a40), makeToonMat(0x3f6e3c)];
-    [[19.4, -0.9], [21.9, -0.9]].forEach(([px, pz], pi) => {
-      const pallet = createOutlinedMesh(new THREE.BoxGeometry(2.0, 0.18, 1.1), palletMat, 0.02, false);
-      pallet.position.set(px, 0.25, pz);
-      complexGroup.add(pallet);
-      for (let k = 0; k < 6; k++) {
-        const ox = -0.7 + (k % 3) * 0.7;
-        const oz = k < 3 ? -0.25 : 0.25;
-        const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.15, 0.3, 7), potMat);
-        pot.position.set(px + ox, 0.5, pz + oz);
-        complexGroup.add(pot);
-        const plant = createOutlinedMesh(new THREE.IcosahedronGeometry(0.28, 0), plantMats[(k + pi) % 3], 0.015, false);
-        plant.position.set(px + ox, 0.8, pz + oz);
-        complexGroup.add(plant);
-      }
-    });
-    const woodMat = makeToonMat(0x8a5a36);
-    const woodEndMat = makeToonMat(0xd8b07a);
-    for (let r = 0; r < 3; r++) {
-      for (let k = 0; k < 4 - r; k++) {
-        const log = createOutlinedMesh(new THREE.CylinderGeometry(0.16, 0.16, 1.1, 7), woodMat, 0.012, false);
-        log.rotation.x = Math.PI / 2;
-        log.position.set(23.0 + k * 0.34 + r * 0.17, 0.33 + r * 0.29, -1.0);
-        complexGroup.add(log);
-        const end = new THREE.Mesh(new THREE.CircleGeometry(0.15, 7), woodEndMat);
-        end.position.set(23.0 + k * 0.34 + r * 0.17, 0.33 + r * 0.29, -0.44);
-        complexGroup.add(end);
-      }
-    }
-    // Café-terrasje
-    [[30.6, -0.8], [33.6, -0.8]].forEach(([tx, tz], k) => {
-      const top = createOutlinedMesh(new THREE.CylinderGeometry(0.5, 0.5, 0.06, 10), makeToonMat(0xf6f2ea), 0.012, false);
-      top.position.set(tx, 0.92, tz);
-      complexGroup.add(top);
-      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 2.3, 6), streetPostMat);
-      leg.position.set(tx, 1.3, tz);
-      complexGroup.add(leg);
-      const umb = createOutlinedMesh(new THREE.ConeGeometry(1.2, 0.45, 8), makeToonMat(k ? 0x2f7a8a : 0xf4b41a), 0.02, false);
-      umb.position.set(tx, 2.5, tz);
-      complexGroup.add(umb);
-    });
-
-  }
-
   [-13.8, -8.2, -2.7, 2.7, 8.2, 13.8].forEach((cx) => {
     const wc = rl(cx, -6.8, yaw);
     hardColliders.push({ x: baseX + wc.x, z: baseZ + wc.z, r: 4.35 * MALL_SCALE });
@@ -1843,15 +1768,14 @@ function buildGeneralStore() {
   //   rij C  z 14,2..18,8  neus naar de mall ┘        rijpad 2  z 18,8..23,6 (hier komt de inrit op uit)
   // In het midden een doorsteek tussen de twee rijpaden en het looppad naar de ingang.
   const gridMain = [-14.0, -11.4, -8.8, -6.2, -3.6, 3.6, 6.2, 8.8, 11.4, 14.0];
-  const gridExt = [19.35, 21.95, 24.55, 27.15, 29.75, 32.35];
   const stopOff = PARK_BAY_D * 0.5 - 0.45;
-  [gridMain, gridExt].forEach((grid) => {
+  [gridMain].forEach((grid) => {
     addParkingRow(grid, 2.5, -stopOff);
     addParkingRow(grid, 11.9, stopOff);
     addParkingRow(grid, 16.5, -stopOff);
   });
   // Middenlijn tussen de rug-aan-rugrijen
-  [[-8.8, 13.0], [8.8, 13.0], [25.85, 15.6]].forEach(([mx, mw]) => {
+  [[-8.8, 13.0], [8.8, 13.0]].forEach(([mx, mw]) => {
     const ml = new THREE.Mesh(new THREE.PlaneGeometry(mw, 0.14), storeLineMat);
     ml.rotation.x = -Math.PI * 0.5;
     ml.position.set(mx, 0.016, 14.2);
@@ -1866,18 +1790,14 @@ function buildGeneralStore() {
   }
 
   // Plantenstroken rondom de parkeerplaats. De lange stroken stoppen precies waar de voorstroken beginnen,
-  // zodat de hoeken netjes als een L aansluiten. Opening voor de inrit (midden) en doorgangen naar de bouwmarkt
-  // (de middenstrook heeft openingen bij beide rijpaden).
+  // zodat de hoeken netjes als een L aansluiten. Opening voor de inrit (midden); links en rechts gespiegeld.
   const FRONT_Z0 = 23.6; // voorstrook loopt van 23,6 tot 25,0
   const planterStrips = [
     // [x0, x1, z0, z1]
     [-16.7, -15.3, 0, FRONT_Z0],       // linkerrand
     [-16.7, -5.9, FRONT_Z0, PARK_Z1],  // voor links (tot de inrit)
     [5.9, 16.7, FRONT_Z0, PARK_Z1],    // voor rechts (vanaf de inrit)
-    [15.3, 16.7, 0, 4.8],              // middenstrook (deel 1)
-    [15.3, 16.7, 9.6, 18.8],           // middenstrook (deel 2) — openingen bij beide rijpaden
-    [16.7, 36.4, FRONT_Z0, PARK_Z1],   // voor bouwmarkt-vak
-    [35.0, 36.4, 0, FRONT_Z0]          // rechterrand
+    [15.3, 16.7, 0, FRONT_Z0]          // rechterrand (spiegelbeeld van links)
   ];
   const hedgeMat = registerSeasonalMat(0x3f6e3c, 0xe8eff4);
   planterStrips.forEach(([x0, x1, z0, z1]) => {
@@ -1902,12 +1822,10 @@ function buildGeneralStore() {
     [-16.0, 1.6], [-16.0, 7.4], [-16.0, 13.2], [-16.0, 19.0],
     [-13.0, 24.3], [-8.6, 24.3],
     [8.6, 24.3], [13.0, 24.3],
-    [16.0, 1.6], [16.0, 14.2],
-    [20.4, 24.3], [25.9, 24.3], [31.4, 24.3],
-    [35.7, 1.6], [35.7, 7.4], [35.7, 13.2], [35.7, 19.0]
+    [16.0, 1.6], [16.0, 7.4], [16.0, 13.2], [16.0, 19.0]
   ];
   // Lantaarns: op alle drie de lange stroken op dezelfde hoogtes (z = 4,3 en 14,8)
-  const lampSpots = [[-16.0, 4.5], [-16.0, 16.1], [16.0, 4.0], [16.0, 17.0], [35.7, 4.5], [35.7, 16.1]];
+  const lampSpots = [[-16.0, 4.5], [-16.0, 16.1], [16.0, 4.5], [16.0, 16.1]];
   treeSpots.forEach(([tx, tz]) => {
     const wp = rl(tx, tz, yaw);
     const tree = createParkTree();
@@ -3351,7 +3269,7 @@ function buildVilla(lot) {
 }
 
 ruralLots.forEach((lot) => {
-  if (lot.type === 'farm' || lot.type === 'store' || lot.type === 'diner' || lot.type === 'motel' || lot.type === 'sawmill' || lot.type === 'fair' || lot.type === 'cinema' || lot.type === 'airfield' || lot.type === 'coffee' || lot.type === 'police') return;
+  if (lot.type === 'farm' || lot.type === 'store' || lot.type === 'diner' || lot.type === 'motel' || lot.type === 'sawmill' || lot.type === 'fair' || lot.type === 'cinema' || lot.type === 'airfield' || lot.type === 'coffee' || lot.type === 'police' || lot.type === 'school' || lot.type === 'garden') return;
   if (lot.type === 'villa') {
     buildVilla(lot);
     return;

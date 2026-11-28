@@ -47,7 +47,7 @@ function getRawTerrainHeight(x, z) {
   for (const lot of ruralLots) {
     if (Math.abs(x - lot.x) > lot.terrainReach || Math.abs(z - lot.z) > lot.terrainReach) continue;
     if (lot.type === 'store') {
-      const dBox = getOrientedBoxDist(x, z, lot, -20.5, 38.3, -15.0, 25.5);
+      const dBox = getOrientedBoxDist(x, z, lot, -20.5, 20.5, -15.0, 25.5);
       if (dBox < 18.0) {
         const t = THREE.MathUtils.smoothstep(dBox, 0.0, 18.0);
         const targetY = lot.roadY - 0.16;
@@ -87,7 +87,8 @@ function getRawTerrainHeight(x, z) {
       // het erf geen grote aarden wal de omgeving (of een rivieroever) in duwt
       const outer = h > targetY ? (lot.blendOuter ?? 22.0) : 14.0;
       if (dBox < outer) {
-        const t = THREE.MathUtils.smoothstep(dBox, 0.0, outer);
+        // Terrein dat al bij een ander (vlak) perceel hoort, laat de boerderij met rust
+        const t = Math.max(THREE.MathUtils.smoothstep(dBox, 0.0, outer), 1 - specialFlatBlend);
         h = THREE.MathUtils.lerp(targetY, h, t);
         specialFlatBlend = Math.min(specialFlatBlend, t);
       }
