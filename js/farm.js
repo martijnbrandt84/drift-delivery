@@ -711,8 +711,9 @@ function createWaterTrough() {
 // =========================================================
 // BOERDERIJ-INDELINGEN (lokaal: lx langs de weg, lz richting weg = +; de oprit loopt over lx = 0)
 // Elke boerderij heeft een eigen karakter:
-//  - Pinewood Farm (akkerbouw): mais en tarwe aan de weg, een pompoenveld met de windmolen op de hoek bij de
-//    oprit, en achter de silo's één brede tarweakker over de hele breedte. Hier staat de oogsttractor.
+//  - Pinewood Farm (akkerbouw): twee grote maisvelden aan weerszijden van de oprit, rechts naast het woonhuis
+//    een pompoenveld met de windmolen, en achter de silo's één brede tarweakker over de hele breedte.
+//    Hier staat de oogsttractor.
 //  - Sunny Acres (melkvee): de koeienwei ligt vooraan langs de weg (je ziet ze grazen als je langsrijdt),
 //    tarwe aan de andere kant, achter de stal een hooiland met balen en de windmolen, en mais achter het woonhuis.
 // Rechthoeken: [x0, x1, z0, z1]
@@ -724,19 +725,19 @@ const FARM_LAYOUTS = {
     silos: [[-2.5, -23, 2.05, 9.2], [2.6, -23.6, 1.75, 7.8]],
     house: [18, -8, -Math.PI * 0.5],
     shed: [-32, -5, 0, 9, 6],
-    windmill: [31, 8.5],
+    windmill: [34.5, -12.5],
     fields: [
       ['corn', -38.5, -7.5, 4.0, 34.0],
-      ['wheat', 7.5, 38.5, 15.5, 34.0],
+      ['corn', 7.5, 38.5, 4.0, 34.0],
       ['wheat', -38.5, 38.5, -38.0, -28.0]
     ],
     pastures: [],
     noDriveFence: [],
-    pumpkinPatch: [9.0, 23.0, 5.0, 12.5],
-    scarecrows: [[-22, 20], [23, 25], [-14, -33]],
+    pumpkinPatch: [23.5, 37.5, -25.5, -17.0], // rechts naast het woonhuis, voor de tarweakker
+    scarecrows: [[-22, 20], [22, 16], [-14, -33]],
     hay: [
       [-7, 1.2, 0], [-5.5, 1.8, 0], [-6.2, 1.5, 1.18], [-9.5, -1.5, 0],
-      [27.5, 5.2, 0], [28.9, 4.6, 0], [28.2, 4.9, 1.18],
+      [30.0, -12.0, 0], [31.4, -11.4, 0], [30.7, -11.7, 1.18],
       [-27.6, -10.2, 0], [-30.4, -10.2, 0], [-33.2, -10.2, 0], [-29.0, -10.2, 1.18], [-31.8, -10.2, 1.18]
     ]
   },
