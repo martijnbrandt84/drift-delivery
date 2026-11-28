@@ -36,6 +36,7 @@ import './christmas.js';
 import { updateAttractions, buildLookoutCampfire } from './attractions.js';
 import { updateOrcas } from './orcas.js';
 import { race, startRace, cancelRace, updateRace } from './race.js';
+import { updateHarvest } from './harvest.js';
 import { bindPolicePool, pickPursuers, startPursuit, releaseFromPursuit, markUnitLost, updatePolicePatrol } from './police.js';
 import './touch-controls.js';
 import { flight, planeIsNear, canExitPlane, enterPlane, exitPlane, setFlightKey, updateFlight, setAirfieldNight } from './flight.js';
@@ -677,6 +678,7 @@ function animate() {
 
   updateFlight(dt, elapsed);
   setAirfieldNight(isNightMode);
+  if (!flight.active) updateHarvest(dt, playerVeh, carState);
   if (!flight.active) updateRace(dt, playerVeh, carState);
   else if (race.state !== 'idle') cancelRace('Race cancelled');
   document.body.classList.toggle('flying', flight.active);

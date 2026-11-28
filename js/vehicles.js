@@ -663,6 +663,104 @@ export function buildSportsCarMesh(paintHex = 0xd62839, label = 'Pine Racer GT',
   };
 }
 
+// =========================================================
+// TRACTOR met maaibord voorop (oogst-minigame op Pinewood Farm)
+// =========================================================
+export function buildTractorMesh() {
+  const root = new THREE.Group();
+  const body = new THREE.Group();
+  root.add(body);
+  const green = makeToonMat(0x3f8f3a);
+  const yellow = makeToonMat(0xf1c232);
+  const dark = makeToonMat(0x2d2a28);
+
+  // Chassis en lange motorkap
+  const frame = createOutlinedMesh(new THREE.BoxGeometry(1.1, 0.5, 3.6), dark, 0.04);
+  frame.position.set(0, 0.75, 0.1);
+  body.add(frame);
+  const hood = createOutlinedMesh(new THREE.BoxGeometry(1.15, 0.85, 1.9), green, 0.05);
+  hood.position.set(0, 1.35, 0.85);
+  body.add(hood);
+  const grille = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.6, 0.06), dark);
+  grille.position.set(0, 1.3, 1.82);
+  body.add(grille);
+  // Cabine met dak en ramen
+  const cabBase = createOutlinedMesh(new THREE.BoxGeometry(1.7, 0.7, 1.5), green, 0.05);
+  cabBase.position.set(0, 1.45, -0.85);
+  body.add(cabBase);
+  [[-0.78, 2.4, -0.15], [0.78, 2.4, -0.15], [-0.78, 2.4, -1.55], [0.78, 2.4, -1.55]].forEach(([px, py, pz]) => {
+    const post = createOutlinedMesh(new THREE.BoxGeometry(0.1, 1.25, 0.1), dark, 0.02, false);
+    post.position.set(px, py, pz);
+    body.add(post);
+  });
+  const glass = new THREE.Mesh(new THREE.BoxGeometry(1.52, 1.1, 1.3), winBlueMat);
+  glass.position.set(0, 2.4, -0.85);
+  body.add(glass);
+  const roof = createOutlinedMesh(new THREE.BoxGeometry(1.9, 0.14, 1.75), green, 0.04);
+  roof.position.set(0, 3.08, -0.85);
+  body.add(roof);
+  const beacon = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.18, 8), amberFlashMat);
+  beacon.position.set(0.55, 3.24, -1.3);
+  body.add(beacon);
+  const exhaust = createOutlinedMesh(new THREE.CylinderGeometry(0.07, 0.07, 1.1, 6), dark, 0.02, false);
+  exhaust.position.set(0.42, 2.15, 1.35);
+  body.add(exhaust);
+  // Spatborden boven de grote achterwielen
+  [-1, 1].forEach((side) => {
+    const fender = createOutlinedMesh(new THREE.BoxGeometry(0.62, 0.12, 1.7), green, 0.03);
+    fender.position.set(side * 1.1, 1.92, -1.05);
+    body.add(fender);
+  });
+  // Maaibord voorop: brede gele haspel met tanden
+  const header = new THREE.Group();
+  const bar = createOutlinedMesh(new THREE.BoxGeometry(4.6, 0.35, 0.9), yellow, 0.04);
+  bar.position.set(0, 0.55, 0);
+  header.add(bar);
+  const reel = createOutlinedMesh(new THREE.CylinderGeometry(0.32, 0.32, 4.4, 8), yellow, 0.035);
+  reel.rotation.z = Math.PI / 2;
+  reel.position.set(0, 1.05, 0.15);
+  header.add(reel);
+  for (let k = -2; k <= 2; k++) {
+    const tine = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.45, 4), dark);
+    tine.rotation.x = Math.PI / 2;
+    tine.position.set(k * 1.0, 0.45, 0.6);
+    header.add(tine);
+  }
+  [-1, 1].forEach((side) => {
+    const arm = createOutlinedMesh(new THREE.BoxGeometry(0.12, 0.12, 1.1), dark, 0.02, false);
+    arm.position.set(side * 0.45, 0.85, -0.6);
+    header.add(arm);
+  });
+  header.position.set(0, 0, 2.75);
+  body.add(header);
+
+  attachHeadlightBulbs(body, 1.45, 1.85, 0.38);
+  attachHeadlightBeams(body, 1.85, 0.38);
+  attachTailLights(body, 1.2, -1.6, 0.7);
+
+  const { wheels, frontPivots } = buildSteerableWheels(root, [
+    { x: -0.82, y: 0.42, z: 1.15, front: true },
+    { x: 0.82, y: 0.42, z: 1.15, front: true },
+    { x: -1.1, y: 0.86, z: -1.05, front: false },
+    { x: 1.1, y: 0.86, z: -1.05, front: false }
+  ]);
+  // grote achterwielen
+  wheels[2].scale.setScalar(1.85);
+  wheels[3].scale.setScalar(1.85);
+  wheels[0].scale.setScalar(0.92);
+  wheels[1].scale.setScalar(0.92);
+
+  return {
+    root, body, wheels, frontPivots,
+    name: 'Farm Tractor',
+    isTractor: true,
+    headerOffset: 2.75,
+    headerHalfW: 2.4,
+    radius: 1.7, rearAxleZ: -1.05, trackHalfW: 1.1,
+    stats: { baseSpeed: 7, maxSpeed: 11.5, baseAccel: 14, peakAccel: 22, turnRate: 2.25, driftGripMod: 1.45, mass: 2.2 }
+  };
+}
+
 export const parkedCars = [];
 export const trafficVehicles = [];
 
@@ -742,6 +840,23 @@ if (dinerLot) {
     car.root.rotation.y = villaLot.yaw;
     scene.add(car.root);
     parkedCars.push(car);
+  }
+}
+
+// Tractor op het erf van Pinewood Farm (oogst-minigame)
+{
+  const farmLot = ruralLots.find((l) => l.type === 'farm' && l.name === 'PINEWOOD FARM');
+  if (farmLot) {
+    const tractor = buildTractorMesh();
+    const c = Math.cos(farmLot.yaw);
+    const s = Math.sin(farmLot.yaw);
+    const lx = 9.0;
+    const lz = -4.0;
+    tractor.root.position.set(farmLot.x + lx * c + lz * s, farmLot.y + 0.08, farmLot.z - lx * s + lz * c);
+    tractor.root.rotation.y = farmLot.yaw; // met het maaibord richting de akkers en de weg
+    tractor.harvestFarm = farmLot.name;
+    scene.add(tractor.root);
+    parkedCars.push(tractor);
   }
 }
 

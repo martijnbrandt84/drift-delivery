@@ -6,6 +6,7 @@ import { hardColliders } from './demolition.js';
 import { getDriveHeightAndWaterState } from './drive-surface.js';
 import { buildSportsCarMesh } from './vehicles.js';
 import { showToast } from './ui-controls.js';
+import { addCash } from './wallet.js';
 
 // =========================================================
 // RONDE VAN PINEWOOD — race tegen een rivaal over de kustweg rond het eiland
@@ -396,9 +397,13 @@ export function updateRace(dt, playerVeh, carState) {
     showCount(won ? 'YOU WIN!' : 'YOU LOSE', won ? 'go' : 'lost');
     race.countdown = 2.5;
     hud.innerHTML = `<b>${won ? '🏆 Winner' : 'Second'}</b><span>${fmt(race.timer)}</span><span>Best ${fmt(bestTime)}${record}</span>`;
-    showToast(won
-      ? `Won in ${fmt(race.timer)}${record}`
-      : `The rival was ${fmt(race.timer - race.rivalFinish)} faster${record}. Stop under the arch for a rematch`);
+    if (won) {
+      // Winnen levert geld op (een nieuw record nog wat extra)
+      const prize = 500 + (record ? 250 : 0);
+      addCash(prize, `${RACE_NAME} won in ${fmt(race.timer)}${record}`);
+    } else {
+      showToast(`The rival was ${fmt(race.timer - race.rivalFinish)} faster${record}. Stop under the arch for a rematch`);
+    }
     race.state = 'done';
     race.doneTimer = 6;
   }

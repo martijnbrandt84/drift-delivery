@@ -82,13 +82,13 @@ ruralLots.forEach((lot) => {
   });
 });
 
-// Pompoenveld in de wei van Pinewood Farm (naast de windmolen)
+// Pompoenveld in de buitenste helft van de hooiweide van Pinewood Farm (achter de schuur)
 ruralLots.filter((l) => l.type === 'farm' && l.variant !== 'wheat').forEach((farm) => {
   for (let r = 0; r < 4; r++) {
     for (let c = 0; c < 9; c++) {
       if (Math.random() < 0.18) continue;
-      const lx = 9 + c * 1.5 + (Math.random() - 0.5) * 0.5;
-      const lz = -32 - r * 1.8 + (Math.random() - 0.5) * 0.5;
+      const lx = -36 + c * 1.5 + (Math.random() - 0.5) * 0.5;
+      const lz = -28.5 - r * 1.8 + (Math.random() - 0.5) * 0.5;
       const w = lotLocalToWorld(farm, lx, lz);
       addPumpkin(w.x, w.z, 0.8 + Math.random() * 0.6);
     }
