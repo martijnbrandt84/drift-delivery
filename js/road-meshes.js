@@ -318,6 +318,7 @@ function buildCompleteRoadSystem() {
   if (allYellowDashGeos.length) scene.add(new THREE.Mesh(BufferGeometryUtils.mergeGeometries(allYellowDashGeos), yellowStripeMat));
 
   driveways.forEach((d) => {
+    if (d.noMesh) return;
     const dx = d.x2 - d.x1;
     const dz = d.z2 - d.z1;
     const horizLen = Math.hypot(dx, dz);

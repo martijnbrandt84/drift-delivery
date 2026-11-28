@@ -93,7 +93,7 @@ export const ruralLots = [
   // Grote villa aan Moose Lake (met zwembad en oprijlaan)
   { netSamples: ringSamples, near: [200, 240], outward: false, dist: 22.0, type: 'villa', yawOff: 0.0, padRadius: 28, blendRadius: 40, frontLine: 13.6,
     // In- en uitrit: twee inritten van de weg naar de twee poorten (kavel-lokaal lx, lz van de poort)
-    gateDriveways: [[-20.5, 6.5], [11.0, 13.5]] }, // links ligt de weg lager: die inrit loopt verder door (flauwe helling)
+    gateDriveways: [[-20.5, 6.5], [20.5, 5.5]] }, // beide inritten lopen ver het perceel op: links ligt de weg lager, rechts hoger (flauwe helling)
   { netSamples: ringSamples, near: [-55, 320], outward: false, dist: 18.0, type: 'house_red', yawOff: -0.06 },
   { netSamples: ringSamples, near: [-130, 303], outward: false, dist: 18.0, type: 'cabin', yawOff: 0.08 },
 
@@ -283,22 +283,34 @@ ruralLots.forEach((lot) => {
     lot.gateDriveways.forEach(([glx, glz]) => {
       const gx = lot.x + glx * cy + glz * sy;
       const gz = lot.z - glx * sy + glz * cy;
-      let best = null;
-      let bestD = Infinity;
-      lot.netSamples.forEach((smp) => {
-        const d = (smp.x - gx) ** 2 + (smp.z - gz) ** 2;
-        if (d < bestD) { bestD = d; best = smp; }
-      });
-      const sgn = (gx - best.x) * best.nx + (gz - best.z) * best.nz >= 0 ? 1 : -1;
+      // vanaf de poort (lz = 13,5) recht naar voren lopen tot net op de weg
+      const roadMargin = (px, pz) => {
+        let bm = Infinity;
+        let bs = null;
+        lot.netSamples.forEach((smp) => {
+          const d = Math.hypot(smp.x - px, smp.z - pz) - smp.halfWidth;
+          if (d < bm) { bm = d; bs = smp; }
+        });
+        return { m: bm, smp: bs };
+      };
+      let ex = gx;
+      let ez = gz;
+      let hit = roadMargin(ex, ez);
+      for (let lz = 13.5; lz < 40 && hit.m > -0.35; lz += 0.1) {
+        ex = lot.x + glx * cy + lz * sy;
+        ez = lot.z - glx * sy + lz * cy;
+        hit = roadMargin(ex, ez);
+      }
       driveways.push({
-        x1: best.x + best.nx * sgn * (best.halfWidth - 0.35),
-        y1: best.y,
-        z1: best.z + best.nz * sgn * (best.halfWidth - 0.35),
+        x1: ex,
+        y1: hit.smp.y,
+        z1: ez,
         x2: gx,
         y2: lot.y,
         z2: gz,
         halfWidth: 2.6,
-        asphalt: false
+        asphalt: false,
+        noMesh: true
       });
     });
   } else if (!lot.noDriveway) {

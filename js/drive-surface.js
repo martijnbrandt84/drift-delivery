@@ -28,6 +28,7 @@ function computeExactDriveSurface(x, z, currentY = null) {
   }
 
   for (const d of driveways) {
+    if (d.noMesh) continue; // grindinrit zonder eigen plaat: je rijdt gewoon over het (gladde) terrein
     const l2 = (d.x2 - d.x1) ** 2 + (d.z2 - d.z1) ** 2;
     if (l2 > 0) {
       const proj = THREE.MathUtils.clamp(((x - d.x1) * (d.x2 - d.x1) + (z - d.z1) * (d.z2 - d.z1)) / l2, 0, 1);

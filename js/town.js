@@ -4,6 +4,7 @@ import {
 } from './scene-setup.js';
 import { TOWN_ELEV, getClosestNetworkRoad } from './roads.js';
 import { ruralLots } from './water-lots.js';
+import { getDriveHeightAndWaterState } from './drive-surface.js';
 import { hardColliders, registerDestructible, destructibles, markLastPlanted } from './demolition.js';
 import { getTerrainHeight } from './terrain.js';
 import { tagMap } from './map-tags.js';
@@ -3061,49 +3062,152 @@ function buildVilla(lot) {
       return { x, z, y: getTerrainHeight(x, z) };
     };
     const padY = gy + 0.2;
-    // De oprit: een vloeiende boog van de rechterpoort langs het bordes naar de rijstrook voor de garage
+    // De oprit (spiegelsymmetrisch rond de as van de villa): één vloeiende grindstrook van de weg door de rechterpoort, in een boog langs het bordes naar de
+    // rijstrook voor de garage en rechtdoor de linkerpoort uit naar de weg. Bij de weg wijkt hij trechtervormig uit.
     const drive = new THREE.CatmullRomCurve3([
-      [11.0, 24.0], [10.6, 19.5], [8.4, 13.6], [3.6, 10.0], [-3.5, 9.3], [-10.5, 9.5], [-16.2, 11.4], [-19.8, 15.2], [-20.5, 19.5], [-20.5, 24.0]
+      [20.5, 29.5], [20.5, 24.0], [20.5, 19.5], [19.8, 15.2], [16.2, 11.4], [10.5, 9.5], [3.5, 9.3], [-3.5, 9.3], [-10.5, 9.5], [-16.2, 11.4], [-19.8, 15.2], [-20.5, 19.5], [-20.5, 24.0], [-20.5, 29.5]
     ].map(([px, pz]) => new THREE.Vector3(px, 0, pz)), false, 'centripetal');
-    const driveLen = drive.getLength();
-    const nSeg = Math.ceil(driveLen / 0.9);
-    const gravelMat = poolDeckMat;
-    for (let k = 0; k < nSeg; k++) {
-      const u0 = k / nSeg;
-      const u1 = (k + 1) / nSeg;
-      const p0 = drive.getPointAt(u0);
-      const p1 = drive.getPointAt(u1);
-      const mx = (p0.x + p1.x) / 2;
-      const mz = (p0.z + p1.z) / 2;
-      const segLen = Math.hypot(p1.x - p0.x, p1.z - p0.z) + 0.35;
-      const ang = Math.atan2(p1.x - p0.x, p1.z - p0.z);
-      const seg = new THREE.Mesh(new THREE.BoxGeometry(4.0, 0.4, segLen), gravelMat);
-      const w = at(mx, mz);
-      // volgt de grond (bij de linkerpoort loopt de oprit af naar de lagere weg)
-      const sy = Math.min(gy + 0.27, Math.max(at(p0.x, p0.z).y, at(p1.x, p1.z).y, w.y) + 0.07);
-      seg.position.set(w.x, sy - 0.2, w.z);
-      seg.rotation.y = lot.yaw + ang;
-      seg.receiveShadow = true;
-      scene.add(seg);
+    const DRIVE_HW = 2.0;
+    // Het grind ligt net op de grond (die langs de inritten al glad afloopt naar de weg); de auto rijdt erover
+    const gravelY = (x, z) => Math.max(getTerrainHeight(x, z) + 0.07, getDriveHeightAndWaterState(x, z).height - 0.02);
+    {
+      const nS = Math.ceil(drive.getLength() / 0.45);
+      const rows = [];
+      for (let k = 0; k <= nS; k++) {
+        const u = k / nS;
+        const p = drive.getPointAt(u);
+        const w = at(p.x, p.z);
+        const m = getClosestNetworkRoad(w.x, w.z).marginDist;
+        if (m < -0.3) continue; // niet over de weg heen
+        const tg = drive.getTangentAt(u);
+        const hw = DRIVE_HW + 1.7 * (1 - THREE.MathUtils.smoothstep(m, -0.3, 3.2)); // trechter bij de weg
+        rows.push({ p, nx: -tg.z, nz: tg.x, hw });
+      }
+      const ACROSS = 6;
+      const pos = [];
+      const idx = [];
+      rows.forEach(({ p, nx, nz, hw }) => {
+        for (let j = 0; j <= ACROSS; j++) {
+          const o = -hw + (2 * hw * j) / ACROSS;
+          const q = at(p.x + nx * o, p.z + nz * o);
+          pos.push(q.x, gravelY(q.x, q.z), q.z);
+        }
+        // randjes die tot onder de grond reiken (geen kier zichtbaar)
+        [-hw, hw].forEach((o) => {
+          const q = at(p.x + nx * o, p.z + nz * o);
+          pos.push(q.x, gravelY(q.x, q.z) - 0.45, q.z);
+        });
+      });
+      const stride = ACROSS + 3;
+      for (let r = 0; r < rows.length - 1; r++) {
+        const a0 = r * stride;
+        const b0 = (r + 1) * stride;
+        for (let j = 0; j < ACROSS; j++) {
+          idx.push(a0 + j, a0 + j + 1, b0 + j, a0 + j + 1, b0 + j + 1, b0 + j); // bovenkant naar boven
+        }
+        // zijkanten (beide kanten zichtbaar)
+        [[a0, b0, a0 + ACROSS + 1, b0 + ACROSS + 1], [a0 + ACROSS, b0 + ACROSS, a0 + ACROSS + 2, b0 + ACROSS + 2]].forEach(([p0, p1, q0, q1]) => {
+          idx.push(p0, q0, p1, p1, q0, q1, p0, p1, q0, p1, q1, q0);
+        });
+      }
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+      geo.setIndex(idx);
+      geo.computeVertexNormals();
+      const ribbon = new THREE.Mesh(geo, poolDeckMat);
+      ribbon.receiveShadow = true;
+      scene.add(ribbon);
     }
-    // Strak gemaaide gazons met maaistroken: binnen de boog (rond de fontein) en rechts van de oprit
+    // Haag rechts loopt door tot vlak voor de weg
+    let rightEnd = 24.1;
+    for (let hx = 24.1; hx < 30; hx += 0.5) {
+      const q = at(hx + 0.5, 23.0);
+      if (getClosestNetworkRoad(q.x, q.z).marginDist < 1.8) break;
+      rightEnd = hx + 0.5;
+    }
+    // Gazon met maaistroken binnen de boog (rond de fontein), precies langs de rand van het grind
     const lawnA = registerSeasonalMat(0x6fae4f, 0xeef3f6);
     const lawnB = registerSeasonalMat(0x5f9c43, 0xe4ebf0);
-    [[-15.8, 5.6, 12.6, 22.2], [13.6, 23.4, 6.6, 22.2]].forEach(([x0, x1, z0, z1]) => {
-      const n = Math.round((x1 - x0) / 1.7);
-      const sw = (x1 - x0) / n;
-      for (let k = 0; k < n; k++) {
-        const cxs = x0 + sw * (k + 0.5);
-        const p = at(cxs, (z0 + z1) / 2);
-        const stripe = new THREE.Mesh(new THREE.BoxGeometry(sw, 0.03, z1 - z0), k % 2 ? lawnA : lawnB);
-        stripe.position.set(p.x, gy + 0.22, p.z);
-        stripe.rotation.y = lot.yaw;
-        stripe.receiveShadow = true;
-        scene.add(stripe);
+    const LAWN_TOP = 22.6; // tot net onder de haag
+    const edgeOff = DRIVE_HW + 0.05;
+    const innerLawn = [];
+    for (let k = 0; k <= 240; k++) {
+      const u = k / 240;
+      const p = drive.getPointAt(u);
+      const tg = drive.getTangentAt(u);
+      let nx = -tg.z;
+      let nz = tg.x;
+      if (nx * (0 - p.x) + nz * (17 - p.z) < 0) { nx = -nx; nz = -nz; } // naar het midden van de boog
+      const ip = [p.x + nx * edgeOff, p.z + nz * edgeOff];
+      if (ip[1] <= LAWN_TOP) innerLawn.push(ip);
+    }
+    innerLawn.push([innerLawn[innerLawn.length - 1][0], LAWN_TOP], [innerLawn[0][0], LAWN_TOP]);
+    // Een polygoon afknippen op een verticale strook x0..x1 (Sutherland-Hodgman)
+    const clipX = (poly, x0, x1) => {
+      const clipSide = (pts, inside, cut) => {
+        const out = [];
+        pts.forEach((cur, i) => {
+          const prev = pts[(i + pts.length - 1) % pts.length];
+          const ci = inside(cur);
+          const pi = inside(prev);
+          if (ci) {
+            if (!pi) out.push(cut(prev, cur));
+            out.push(cur);
+          } else if (pi) out.push(cut(prev, cur));
+        });
+        return out;
+      };
+      const cutAt = (xc) => (p, q) => [xc, p[1] + ((q[1] - p[1]) * (xc - p[0])) / (q[0] - p[0])];
+      let r = clipSide(poly, (p) => p[0] >= x0, cutAt(x0));
+      if (r.length) r = clipSide(r, (p) => p[0] <= x1, cutAt(x1));
+      return r;
+    };
+    // Driehoeken opdelen tot ze klein genoeg zijn om het (bij de linkerpoort aflopende) terrein te volgen
+    const tessellate = (tris, maxLen) => {
+      const out = [];
+      const stack = [...tris];
+      while (stack.length) {
+        const [p, q, r] = stack.pop();
+        const e = [Math.hypot(q[0] - p[0], q[1] - p[1]), Math.hypot(r[0] - q[0], r[1] - q[1]), Math.hypot(p[0] - r[0], p[1] - r[1])];
+        const lm = Math.max(...e);
+        if (lm <= maxLen) { out.push([p, q, r]); continue; }
+        const mid = (a2, b2) => [(a2[0] + b2[0]) / 2, (a2[1] + b2[1]) / 2];
+        if (lm === e[0]) { const m = mid(p, q); stack.push([p, m, r], [m, q, r]); }
+        else if (lm === e[1]) { const m = mid(q, r); stack.push([p, q, m], [p, m, r]); }
+        else { const m = mid(r, p); stack.push([p, q, m], [m, q, r]); }
+      }
+      return out;
+    };
+    const STRIPE = 1.7;
+    [innerLawn].forEach((poly) => {
+      const xs = poly.map((p) => p[0]);
+      const k0 = Math.floor(Math.min(...xs) / STRIPE + 0.5);
+      const k1 = Math.ceil(Math.max(...xs) / STRIPE + 0.5);
+      for (let k = k0; k < k1; k++) {
+        const part = clipX(poly, (k - 0.5) * STRIPE, (k + 0.5) * STRIPE); // stroken symmetrisch rond de middenas
+        if (part.length < 3) continue;
+        const contour = part.map(([px, pz]) => new THREE.Vector2(px, pz));
+        const faces = THREE.ShapeUtils.triangulateShape(contour, []);
+        const tris = tessellate(faces.map((f) => f.map((i) => part[i])), 0.9);
+        const pos = [];
+        tris.forEach((t) => {
+          // altijd met de bovenkant naar boven
+          const cr = (t[1][0] - t[0][0]) * (t[2][1] - t[0][1]) - (t[1][1] - t[0][1]) * (t[2][0] - t[0][0]);
+          (cr > 0 ? [t[0], t[2], t[1]] : t).forEach(([px, pz]) => {
+            const w = at(px, pz);
+            pos.push(w.x, w.y + 0.09, w.z);
+          });
+        });
+        const g2 = new THREE.BufferGeometry();
+        g2.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+        g2.computeVertexNormals();
+        const m = new THREE.Mesh(g2, (k & 1) ? lawnA : lawnB);
+        m.receiveShadow = true;
+        scene.add(m);
       }
     });
     // Hoge geschoren haag langs de weg met twee poorten (stenen pilaren met lantaarns)
-    const gates = [[-23.6, -17.4], [7.9, 14.1]];
+    const gates = [[-23.6, -17.4], [17.4, 23.6]];
     const pillar = (lx) => {
       const p = at(lx, 23.0);
       const pl = createOutlinedMesh(new THREE.BoxGeometry(1.0, 4.4, 1.0), pillarMat, 0.03, false);
@@ -3119,13 +3223,7 @@ function buildVilla(lot) {
     };
     gates.flat().forEach(pillar);
     // Haagdelen: van het linkereinde tot de linkerpoort, tussen de poorten, en van de rechterpoort tot vlak voor de weg
-    let rightEnd = 14.6;
-    for (let hx = 14.6; hx < 26; hx += 0.5) {
-      const q = at(hx + 0.5, 23.0);
-      if (getClosestNetworkRoad(q.x, q.z).marginDist < 1.8) break;
-      rightEnd = hx + 0.5;
-    }
-    [[-28.0, -24.1], [-16.9, 7.4], [14.6, rightEnd]].forEach(([h0, h1]) => {
+    [[-28.0, -24.1], [-16.9, 16.9], [24.1, rightEnd]].forEach(([h0, h1]) => {
       if (h1 - h0 < 0.8) return;
       const hm = at((h0 + h1) / 2, 23.0);
       const hedgeTall = createOutlinedMesh(new THREE.BoxGeometry(h1 - h0, 3.2, 1.1), hedgeMat, 0.035, false);
@@ -3137,8 +3235,8 @@ function buildVilla(lot) {
         hardColliders.push({ x: q.x, z: q.z, r: 0.55 });
       }
     });
-    // Eén solitaire boom op elk gazon
-    [['round', -11.5, 18.6, 1.2], ['blossom', 18.0, 13.5, 1.35]].forEach(([kind, lx, lz, sc]) => {
+    // Twee solitaire bomen, gespiegeld links en rechts van de fontein
+    [['round', -12.0, 18.4, 1.2], ['round', 12.0, 18.4, 1.2]].forEach(([kind, lx, lz, sc]) => {
       const p = at(lx, lz);
       const tree = createGardenTree(kind);
       tree.scale.setScalar(sc);

@@ -109,6 +109,8 @@ function getRawTerrainHeight(x, z) {
   }
 
   let nearDriveway = false;
+  let gravelTarget = 0;
+  let gravelW = 0; // grindinrit zonder plaat: het terrein is zelf de rijbaan, ook vlak bij de wegrand
   for (const d of driveways) {
     if (x < d.bbox.minX || x > d.bbox.maxX || z < d.bbox.minZ || z > d.bbox.maxZ) continue;
     const l2 = (d.x2 - d.x1) ** 2 + (d.z2 - d.z1) ** 2;
@@ -119,11 +121,13 @@ function getRawTerrainHeight(x, z) {
       const dDrv = Math.hypot(x - px, z - pz);
       if (dDrv < d.halfWidth + 1.5) nearDriveway = true;
       if (dDrv < d.halfWidth + 7.5) {
-        const drvTargetY = THREE.MathUtils.lerp(d.y1, d.y2, proj) - 0.22;
+        // (een grindinrit zonder eigen plaat ligt op het terrein zelf: dan geen verlaging voor de plaat)
+        const drvTargetY = THREE.MathUtils.lerp(d.y1, d.y2, proj) - (d.noMesh ? 0.02 : 0.22);
         const w = THREE.MathUtils.smoothstep(dDrv, d.halfWidth + 1.2, d.halfWidth + 7.5);
         // De oprit zelf en een smalle berm ernaast altijd volledig vlak (anders groeit een heuvel over de oprit heen)
         const onDriveway = 1 - THREE.MathUtils.smoothstep(dDrv, d.halfWidth + 1.2, d.halfWidth + 4.0);
         const allowFactor = Math.max(specialFlatBlend, 1 - proj, onDriveway);
+        if (d.noMesh && onDriveway > gravelW) { gravelW = onDriveway; gravelTarget = drvTargetY; }
         h = THREE.MathUtils.lerp(h, THREE.MathUtils.lerp(drvTargetY, h, w), allowFactor);
       }
     }
@@ -152,6 +156,7 @@ function getRawTerrainHeight(x, z) {
       }
       h = THREE.MathUtils.lerp(h, roadAdjustedH, keepPlateau);
       if (marginDist <= 0.6) h = Math.min(h, rs.y - 0.26);
+      if (gravelW > 0 && marginDist > 0) h = THREE.MathUtils.lerp(h, gravelTarget, gravelW * THREE.MathUtils.smoothstep(marginDist, 0, 1.0));
     }
   } else if (rs && rs.onBridge && marginDist < 12.0) {
     // Naast een brug: alleen terrein dat door/tegen het brugdek zou steken gaat omlaag, verder blijft de natuur
