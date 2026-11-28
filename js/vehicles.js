@@ -737,9 +737,9 @@ if (dinerLot) {
     // Voor de garage op de geplaveide oprit (villa staat 9,5 m achter het kavelmidden)
     car.isRaceCar = false; // dit is geen raceauto: instappen start geen race
     const lx = -20.5;
-    const lz = -9.5 + 6.6;
+    const lz = -9.5 + 7.2;
     car.root.position.set(villaLot.x + lx * c + lz * s, villaLot.y + 0.32, villaLot.z - lx * s + lz * c);
-    car.root.rotation.y = villaLot.yaw + 0.35;
+    car.root.rotation.y = villaLot.yaw;
     scene.add(car.root);
     parkedCars.push(car);
   }

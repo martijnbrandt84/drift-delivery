@@ -91,7 +91,9 @@ export const ruralLots = [
   { netSamples: foxRoadSamples, near: [192, -45], outward: true, dist: 17.5, type: 'cabin', yawOff: -0.05 },
 
   // Grote villa aan Moose Lake (met zwembad en oprijlaan)
-  { netSamples: ringSamples, near: [200, 240], outward: false, dist: 22.0, type: 'villa', yawOff: 0.0, padRadius: 28, blendRadius: 40, frontLine: 13.6 },
+  { netSamples: ringSamples, near: [200, 240], outward: false, dist: 22.0, type: 'villa', yawOff: 0.0, padRadius: 28, blendRadius: 40, frontLine: 13.6,
+    // In- en uitrit: twee inritten van de weg naar de twee poorten (kavel-lokaal lx, lz van de poort)
+    gateDriveways: [[-20.5, 6.5], [11.0, 13.5]] }, // links ligt de weg lager: die inrit loopt verder door (flauwe helling)
   { netSamples: ringSamples, near: [-55, 320], outward: false, dist: 18.0, type: 'house_red', yawOff: -0.06 },
   { netSamples: ringSamples, near: [-130, 303], outward: false, dist: 18.0, type: 'cabin', yawOff: 0.08 },
 
@@ -274,7 +276,32 @@ ruralLots.forEach((lot) => {
   }
   lot.yaw = Math.atan2(-rs.nx * side, -rs.nz * side) + lot.yawOff;
 
-  if (!lot.noDriveway) {
+  if (lot.gateDriveways) {
+    // Meerdere inritten: van het dichtstbijzijnde wegpunt (wegrand) recht naar elke poort
+    const cy = Math.cos(lot.yaw);
+    const sy = Math.sin(lot.yaw);
+    lot.gateDriveways.forEach(([glx, glz]) => {
+      const gx = lot.x + glx * cy + glz * sy;
+      const gz = lot.z - glx * sy + glz * cy;
+      let best = null;
+      let bestD = Infinity;
+      lot.netSamples.forEach((smp) => {
+        const d = (smp.x - gx) ** 2 + (smp.z - gz) ** 2;
+        if (d < bestD) { bestD = d; best = smp; }
+      });
+      const sgn = (gx - best.x) * best.nx + (gz - best.z) * best.nz >= 0 ? 1 : -1;
+      driveways.push({
+        x1: best.x + best.nx * sgn * (best.halfWidth - 0.35),
+        y1: best.y,
+        z1: best.z + best.nz * sgn * (best.halfWidth - 0.35),
+        x2: gx,
+        y2: lot.y,
+        z2: gz,
+        halfWidth: 2.6,
+        asphalt: false
+      });
+    });
+  } else if (!lot.noDriveway) {
     driveways.push({
       x1: lot.roadX,
       y1: lot.roadY,
