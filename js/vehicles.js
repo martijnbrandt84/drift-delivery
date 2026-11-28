@@ -810,15 +810,15 @@ if (dinerLot) {
   const c = Math.cos(dinerLot.yaw);
   const s = Math.sin(dinerLot.yaw);
   // Rij A: neus naar het restaurant; rij B: neus naar de weg
-  [[-9.75, 2.5, buildYellowTaxiMesh(), Math.PI], [-15.25, 11.7, buildPickupTruckMesh(0xc94a38, 'Red Diner Pickup'), 0]].forEach(([lx, lz, veh, turn]) => {
+  [[-9.6, 2.3, buildYellowTaxiMesh(), Math.PI], [-15.3, 11.9, buildPickupTruckMesh(0xc94a38, 'Red Diner Pickup'), 0]].forEach(([lx, lz, veh, turn]) => {
     veh.root.position.set(dinerLot.x + lx * c + lz * s, dinerLot.roadY + 0.08, dinerLot.z - lx * s + lz * c);
     veh.root.rotation.y = dinerLot.yaw + turn;
     scene.add(veh.root);
     parkedCars.push(veh);
   });
   const racer = buildSportsCarMesh(0xd62839, 'Pine Racer GT', 7);
-  const rlx = -7.75;
-  const rlz = 11.7;
+  const rlx = -7.5;
+  const rlz = 11.9;
   racer.root.position.set(dinerLot.x + rlx * c + rlz * s, dinerLot.roadY + 0.08, dinerLot.z - rlx * s + rlz * c);
   racer.root.rotation.y = dinerLot.yaw;
   scene.add(racer.root);

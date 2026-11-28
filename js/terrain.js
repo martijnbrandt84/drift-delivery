@@ -47,7 +47,7 @@ function getRawTerrainHeight(x, z) {
   for (const lot of ruralLots) {
     if (Math.abs(x - lot.x) > lot.terrainReach || Math.abs(z - lot.z) > lot.terrainReach) continue;
     if (lot.type === 'store') {
-      const dBox = getOrientedBoxDist(x, z, lot, -20.5, 38.3, -15.0, 23.6);
+      const dBox = getOrientedBoxDist(x, z, lot, -20.5, 38.3, -15.0, 25.5);
       if (dBox < 18.0) {
         const t = THREE.MathUtils.smoothstep(dBox, 0.0, 18.0);
         const targetY = lot.roadY - 0.16;

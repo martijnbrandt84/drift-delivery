@@ -7,7 +7,7 @@ import {
 import { ruralLots } from './water-lots.js';
 import { hardColliders } from './demolition.js';
 import { getDriveHeightAndWaterState } from './drive-surface.js';
-import { houseWindows, warmWindowMat } from './town.js';
+import { houseWindows, warmWindowMat, PARK_BAY_W, PARK_BAY_D } from './town.js';
 import { createRoadSign } from './scenery.js';
 import { tagMap } from './map-tags.js';
 import { setVehicleLights } from './vehicles.js';
@@ -165,9 +165,9 @@ function buildStation() {
   // (gewoon asfalt) naar de deur, met daarvoor een ruime rijbaan die op de inrit aansluit.
   const stopMat = makeToonMat(0xcfc8be);
   const policeMarkMat = makeToonMat(0x2a6aff);
-  const BAY_W = 2.8;
+  const BAY_W = PARK_BAY_W;      // standaardmaat
   const BAY_Z0 = -0.6;           // achterkant van de vakken (tegen de sokkel van het gebouw)
-  const BAY_Z1 = 3.9;            // voorkant: daarna de rijbaan tot de stoeprand (z 9,3)
+  const BAY_Z1 = BAY_Z0 + PARK_BAY_D; // voorkant: daarna de rijbaan tot de stoeprand (z 9,3)
   const bayMid = (BAY_Z0 + BAY_Z1) / 2;
   const WALK = 1.2;              // looppad voor de deur: x -1,2 .. 1,2
   [-1, 1].forEach((side) => {
@@ -178,7 +178,7 @@ function buildStation() {
       g.add(line);
     }
   });
-  [-5.4, -2.6, 2.6, 5.4].forEach((bx) => {
+  [-1, 1].flatMap((side) => [0, 1].map((k) => side * (WALK + (k + 0.5) * BAY_W))).forEach((bx) => {
     const stop = new THREE.Mesh(new THREE.BoxGeometry(1.55, 0.1, 0.22), stopMat);
     stop.position.set(bx, 0.05, BAY_Z0 + 0.45);
     g.add(stop);

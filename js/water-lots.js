@@ -67,7 +67,7 @@ export const ruralLots = [
     type: 'store',
     yawOff: 0,
     // Brede geasfalteerde inrit van de weg tot aan de rand van de parkeerplaats (lz = 23.1)
-    drivewayStopShort: 22.6,
+    drivewayStopShort: 24.5,
     flatElevOffset: -0.06,
     flatBox: { minLX: -19.5, maxLX: 37.5, minLZ: -14.0, maxLZ: 26.0, blend: 12.0 }
   },
@@ -119,9 +119,9 @@ export const ruralLots = [
     type: 'cinema',
     name: 'PINEWOOD CINEMA',
     yawOff: 0,
-    drivewayStopShort: 14.4,
+    drivewayStopShort: 18.0,
     flatElevOffset: -0.05,
-    flatBox: { minLX: -15, maxLX: 15, minLZ: -14, maxLZ: 16, blend: 12 }
+    flatBox: { minLX: -15, maxLX: 15, minLZ: -14, maxLZ: 20, blend: 12 }
   },
 
   // PINE COFFEE: losse drive-thru koffiekiosk aan de Prairie Road, met uitzicht op Moose Lake
