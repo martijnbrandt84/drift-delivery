@@ -3,11 +3,11 @@ import {
   scene, createOutlinedMesh, makeToonMat, registerSeasonalMat, christmasGroup, deciduousFoliageObjects
 } from './scene-setup.js';
 import { ruralLots } from './water-lots.js';
-import { hardColliders, registerDestructible, markLastPlanted } from './demolition.js';
+import { hardColliders, registerDestructible } from './demolition.js';
 import { houseWindows, warmWindowMat, PARK_BAY_W, PARK_BAY_D, createParkTree } from './town.js';
 import { createRoadSign } from './scenery.js';
 import { tagMap } from './map-tags.js';
-import { getTerrainHeight } from './terrain.js';
+import { plantNaturalGrove } from './props.js';
 
 // =========================================================
 // PINEWOOD GARDEN CENTER aan de kustweg in het zuidwesten
@@ -140,15 +140,19 @@ function buildGardenCenter() {
     shop.add(win);
     houseWindows.push({ mesh: win, timer: Math.random() * 10 });
   });
-  const awning = createOutlinedMesh(new THREE.BoxGeometry(SW - 1, 0.16, 1.8), roofMat, 0.03, false);
-  awning.position.set(0, 3.05, fz + 0.85);
-  awning.rotation.x = 0.18;
+  // Luifel laag boven de deuren; het naambord hangt vrij daarboven, onder de dakrand
+  const awning = createOutlinedMesh(new THREE.BoxGeometry(SW - 1, 0.14, 1.4), roofMat, 0.03, false);
+  awning.position.set(0, 2.78, fz + 0.68);
+  awning.rotation.x = 0.16;
   shop.add(awning);
+  const signBack = createOutlinedMesh(new THREE.BoxGeometry(8.8, 1.2, 0.12), makeToonMat(0x2f5e3f), 0.02, false);
+  signBack.position.set(0, 3.58, fz + 0.08);
+  shop.add(signBack);
   const sign = new THREE.Mesh(
-    new THREE.PlaneGeometry(9.0, 1.4),
+    new THREE.PlaneGeometry(8.5, 1.05),
     new THREE.MeshBasicMaterial({ map: makeSignTexture(['PINEWOOD', 'GARDEN CENTER'], '#2f5e3f', '#f6f2ea'), ...SIGN_OPTS })
   );
-  sign.position.set(0, SH - 0.5, fz + 0.05);
+  sign.position.set(0, 3.58, fz + 0.15);
   shop.add(sign);
   [-12.5, -8.5, -4.5].forEach((lx) => collide(lx, -13, 4.4));
 
@@ -245,7 +249,6 @@ function buildGardenCenter() {
   gh.add(cafeGlow);
   houseWindows.push({ mesh: cafeGlow, timer: Math.random() * 10 });
   for (let x = GX0 + 3; x <= GX1 - 2.5; x += 4.6) [gcz - 2.6, gcz + 2.6].forEach((z) => collide(x, z, 4.0));
-  collide(GX1 - 2.5, gcz - 3.5, 3.0);
 
   // ---- Terras van het café (los meubilair, omrijdbaar) ----
   [[15.5, -5.5, 0x2f5e3f], [19.0, -5.5, 0xf2c230], [22.5, -5.5, 0x2f5e3f]].forEach(([tx, tz, hex]) => {
@@ -275,20 +278,25 @@ function buildGardenCenter() {
   const fenceMat = makeToonMat(0xa8794c);
   const fenceRun = (x1, z1, x2, z2) => {
     const len = Math.hypot(x2 - x1, z2 - z1);
+    const n = Math.max(1, Math.round(len / 2.4));
+    const segLen = len / n;
     const ang2 = Math.atan2(z2 - z1, x2 - x1);
-    const rail = new THREE.Mesh(new THREE.BoxGeometry(len, 0.1, 0.08), fenceMat);
-    rail.position.set((x1 + x2) / 2, 0.95, (z1 + z2) / 2);
-    rail.rotation.y = -ang2;
-    g.add(rail);
-    const rail2 = rail.clone();
-    rail2.position.y = 0.5;
-    g.add(rail2);
-    for (let k = 0; k <= Math.round(len / 2); k++) {
-      const t = k / Math.round(len / 2);
+    for (let k = 0; k < n; k++) {
+      const t = (k + 0.5) / n;
+      const seg = new THREE.Group();
+      [0.5, 0.95].forEach((ry) => {
+        const rail = new THREE.Mesh(new THREE.BoxGeometry(segLen, 0.1, 0.08), fenceMat);
+        rail.position.y = ry;
+        seg.add(rail);
+      });
       const post = new THREE.Mesh(new THREE.BoxGeometry(0.12, 1.15, 0.12), fenceMat);
-      post.position.set(x1 + (x2 - x1) * t, 0.58, z1 + (z2 - z1) * t);
-      g.add(post);
-      collide(x1 + (x2 - x1) * t, z1 + (z2 - z1) * t, 0.3);
+      post.position.set(-segLen / 2, 0.58, 0);
+      seg.add(post);
+      const p = toWorld(x1 + (x2 - x1) * t, z1 + (z2 - z1) * t);
+      seg.position.set(p.x, surfaceY, p.z);
+      seg.rotation.y = lot.yaw - ang2;
+      scene.add(seg);
+      registerDestructible(seg, p.x, surfaceY + 0.5, p.z, 1.0, 'small', 6, 'Fence');
     }
   };
   fenceRun(-31, -21, -16.5, -21);
@@ -314,28 +322,37 @@ function buildGardenCenter() {
     collide(-22, z, 0.8);
   }
   // jonge boompjes in grote potten langs het voorplein
-  [[-14.5, -6.0], [-11.5, -6.0], [9.5, -6.0], [12.0, -6.0]].forEach(([tx, tz]) => {
+  [[-14.5, -6.6], [-11.5, -6.6], [9.5, -6.6], [12.0, -6.6]].forEach(([tx, tz]) => {
+    const potted = new THREE.Group();
     const pot = createOutlinedMesh(new THREE.CylinderGeometry(0.55, 0.42, 0.7, 10), potMat, 0.02, false);
-    pot.position.set(tx, 0.35, tz);
-    g.add(pot);
+    pot.position.y = 0.35;
+    potted.add(pot);
     const tree = createParkTree();
     tree.scale.setScalar(0.6);
-    tree.position.set(tx, 0.6, tz);
-    g.add(tree);
-    collide(tx, tz, 0.6);
+    tree.position.y = 0.6;
+    potted.add(tree);
+    const p = toWorld(tx, tz);
+    potted.position.set(p.x, surfaceY, p.z);
+    scene.add(potted);
+    registerDestructible(potted, p.x, surfaceY, p.z, 0.6, 'small', 6, 'Potted tree');
   });
   // pallets met zakken potgrond en een stapel brandhout tegen de zijgevel van de winkel
   const bagMat = makeToonMat(0x3f6e3c);
-  [[-2.5, -5.4], [5.0, -5.4]].forEach(([px, pz]) => {
+  [[-3.0, -7.0], [4.5, -7.0]].forEach(([px, pz]) => {
+    const stack = new THREE.Group();
     const pallet = createOutlinedMesh(new THREE.BoxGeometry(2.0, 0.18, 1.2), makeToonMat(0xc9a06a), 0.02, false);
-    pallet.position.set(px, 0.25, pz);
-    g.add(pallet);
+    pallet.position.y = 0.09;
+    stack.add(pallet);
     for (let k = 0; k < 6; k++) {
       const bag = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.22, 0.5), bagMat);
-      bag.position.set(px - 0.45 + (k % 2) * 0.9, 0.45 + Math.floor(k / 2) * 0.22, pz);
-      g.add(bag);
+      bag.position.set(-0.45 + (k % 2) * 0.9, 0.29 + Math.floor(k / 2) * 0.22, 0);
+      stack.add(bag);
     }
-    collide(px, pz, 1.0);
+    const p = toWorld(px, pz);
+    stack.position.set(p.x, surfaceY + 0.16, p.z);
+    stack.rotation.y = lot.yaw;
+    scene.add(stack);
+    registerDestructible(stack, p.x, surfaceY + 0.16, p.z, 0.9, 'small', 6, 'Potting soil');
   });
   {
     const logMat = makeToonMat(0x8a5a36);
@@ -501,17 +518,35 @@ function buildGardenCenter() {
     winterLot.add(post);
   });
 
-  // ---- Bomen om het terrein ----
-  [[-33, -23], [-33, 0], [-33, 12], [35, -22], [35, -14], [28, -23], [-20, 14], [36, 6]].forEach(([tx, tz]) => {
-    const p = toWorld(tx, tz);
-    const y = getTerrainHeight(p.x, p.z);
-    const tree = createParkTree();
-    tree.scale.setScalar(1.2 + Math.random() * 0.3);
-    tree.position.set(p.x, y, p.z);
-    tree.rotation.y = Math.random() * Math.PI * 2;
-    scene.add(tree);
-    registerDestructible(tree, p.x, y, p.z, 0.7, 'tree', 15, 'Tree');
-    markLastPlanted();
+  // ---- Natuurlijk bos achter en naast het terrein (dichter naar achteren, open naar de weg) ----
+  const fb = lot.flatBox;
+  const nearOtherLot = (x, z) => ruralLots.some((o) => {
+    if (o === lot || !o.flatBox) return false;
+    const oc = Math.cos(o.yaw);
+    const os = Math.sin(o.yaw);
+    const dx = x - o.x;
+    const dz = z - o.z;
+    const lx = dx * oc - dz * os;
+    const lz = dx * os + dz * oc;
+    const ob = o.flatBox;
+    return lx > ob.minLX - 5 && lx < ob.maxLX + 5 && lz > ob.minLZ - 5 && lz < ob.maxLZ + 5;
+  });
+  plantNaturalGrove({
+    toWorld,
+    roadGap: 6,
+    maxSlope: 0.55,
+    clusters: [
+      [-22, -36, 12, 14, 0.55, 1.0],
+      [8, -38, 13, 15, 0.5, 0.85],
+      [32, -34, 9, 9, 0.6, 1.1],
+      [-44, -18, 8, 7, 0.6, 0.9],
+      [-46, 2, 6, 4, 0.5, 0.6],
+      [46, -12, 8, 7, 0.55, 0.9],
+      [47, 8, 5, 3, 0.4, 0.5],
+      [-6, -52, 10, 8, 0.65, 0.7]
+    ],
+    // niet op het terrein zelf (met een strook gras eromheen) en niet op een ander perceel
+    allowed: (lx, lz, x, z) => (lx < fb.minLX - 3 || lx > fb.maxLX + 3 || lz < -24.5) && lz < 12 && !nearOtherLot(x, z)
   });
 
   // ---- Bord aan de weg ----

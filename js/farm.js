@@ -1,12 +1,11 @@
 import * as THREE from 'three';
 import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
 import {
-  scene, createOutlinedMesh, makeToonMat, registerSeasonalMat, createMergedToonProp, outlineMat,
-  christmasGroup, deciduousFoliageObjects
+  scene, createOutlinedMesh, makeToonMat, registerSeasonalMat, createMergedToonProp, outlineMat
 } from './scene-setup.js';
 import { ruralLots } from './water-lots.js';
-import { hardColliders, registerDestructible, markLastPlanted } from './demolition.js';
-import { createPineFast } from './props.js';
+import { hardColliders, registerDestructible } from './demolition.js';
+import { plantNaturalGrove } from './props.js';
 import { getTerrainHeight } from './terrain.js';
 import { spawnParticle } from './effects.js';
 import { tagMap } from './map-tags.js';
@@ -714,12 +713,10 @@ function createWaterTrough() {
 // BOERDERIJ-INDELINGEN (lokaal: lx langs de weg, lz richting weg = +; de oprit loopt over lx = 0)
 // Elke boerderij heeft een eigen karakter:
 //  - Pinewood Farm (akkerbouw): twee grote maisvelden aan weerszijden van de oprit, rechts naast het woonhuis
-//    een pompoenveld met de windmolen, en achter de silo's één brede tarweakker over de hele breedte.
-//    Hier staat de oogsttractor.
+//    een pompoenveld met de windmolen, en achter de silo's natuurlijk bos. Hier staat de oogsttractor.
 //  - Sunny Acres (melkvee): de koeienwei ligt vooraan langs de weg (je ziet ze grazen als je langsrijdt),
-//    tarwe aan de andere kant, achter de stal een kerstbomenkwekerij (rijen dennen in drie maten, met een pad
-//    ertussen) en mais achter het woonhuis. Aan de weg staat een boerderijkraampje: in de herfst melk en kaas,
-//    in de winter kerstbomen ("cut your own").
+//    tarwe aan de andere kant, achter de stal een hooiland met balen en de windmolen, en mais achter het woonhuis.
+//    Aan de weg staat een boerderijkraampje met melk en kaas.
 // Rechthoeken: [x0, x1, z0, z1]
 // =========================================================
 const FARM_LAYOUTS = {
@@ -732,13 +729,14 @@ const FARM_LAYOUTS = {
     windmill: [34.5, -12.5],
     fields: [
       ['corn', -38.5, -7.5, 4.0, 34.0],
-      ['corn', 7.5, 38.5, 4.0, 34.0],
-      ['wheat', -38.5, 38.5, -38.0, -28.0]
+      ['corn', 7.5, 38.5, 4.0, 34.0]
     ],
+    // achter de silo's: natuurlijk bos dat doorloopt richting het tuincentrum
+    backForest: true,
     pastures: [],
     noDriveFence: [],
     pumpkinPatch: [23.5, 37.5, -25.5, -17.0], // rechts naast het woonhuis, voor de tarweakker
-    scarecrows: [[-22, 20], [22, 16], [-14, -33]],
+    scarecrows: [[-22, 20], [22, 16]],
     hay: [
       [-7, 1.2, 0], [-5.5, 1.8, 0], [-6.2, 1.5, 1.18], [-9.5, -1.5, 0],
       [30.0, -12.0, 0], [31.4, -11.4, 0], [30.7, -11.7, 1.18],
@@ -751,23 +749,23 @@ const FARM_LAYOUTS = {
     silos: [[1.5, -24, 2.5, 11.0], [-4.2, -23.2, 1.5, 6.8]],
     house: [-18, -8, Math.PI * 0.5],
     shed: [30, -4, 0, 14, 6],
-    windmill: [36.5, -22.0],
+    windmill: [23.5, -33.5],
     fields: [
       ['wheat', -38.5, -7.5, 4.0, 38.0],
       ['corn', -38.5, -9.0, -40.0, -27.0]
     ],
-    // kerstbomenkwekerij achter de stal: [x0, x1, z0, z1], met een rijpad in het midden (pathZ)
-    nursery: { rect: [9.0, 38.0, -41.0, -26.0], pathZ: -33.5, lane: [22.0, 26.0, -26.0, -9.0] },
     // kraampje aan de weg, links naast de oprit, met een grindstrook om even te stoppen
     farmStand: { at: [-15.5, 39.8], pull: [-23.0, -8.0, 41.0, 45.4] },
     pastures: [{ rect: [6.5, 38.5, 5.0, 37.0], cows: 8, trough: [22.5, 8.0] }],
     noDriveFence: [1], // de wei grenst zelf aan de oprit
     pumpkinPatch: null,
     scarecrows: [[-23, 22], [-24, -33]],
-    // hooibalen op het erf en een stapeltje bij de windmolen
+    // hooiland achter de stal: balen in losse rijen rond de windmolen
     hay: [
       [7, 1.2, 0], [5.5, 1.8, 0], [6.2, 1.5, 1.18], [-9.5, -1.5, 0],
-      [32.5, -21.0, 0], [33.9, -21.6, 0], [33.2, -21.3, 1.18]
+      [11, -30, 0], [16, -30.5, 0], [31, -30, 0], [35.5, -29.5, 0],
+      [12, -36.5, 0], [17.5, -37, 0], [30, -37, 0], [35, -36.5, 0],
+      [23.5, -28.5, 0], [24.9, -28.0, 0], [24.2, -28.25, 1.18]
     ]
   }
 };
@@ -894,8 +892,37 @@ function buildFarm(farmLot) {
     hardColliders.push({ x: tr.x, z: tr.z, r: 1.2 });
   });
 
-  // 7. Kerstbomenkwekerij (Sunny Acres)
-  if (L.nursery) buildTreeNursery(L.nursery, toWorld, yaw, baseY);
+  // 7. Natuurlijk bos achter de boerderij (Pinewood): plukjes met wisselende dichtheid, die doorlopen
+  //    richting het tuincentrum; niet op een ander perceel
+  if (L.backForest) {
+    const insideOther = (x, z, margin) => ruralLots.some((o) => {
+      if (o === farmLot || !o.flatBox) return false;
+      const oc = Math.cos(o.yaw);
+      const os = Math.sin(o.yaw);
+      const dx = x - o.x;
+      const dz = z - o.z;
+      const lx = dx * oc - dz * os;
+      const lz = dx * os + dz * oc;
+      const ob = o.flatBox;
+      return lx > ob.minLX - margin && lx < ob.maxLX + margin && lz > ob.minLZ - margin && lz < ob.maxLZ + margin;
+    });
+    plantNaturalGrove({
+      toWorld: (lx, lz) => toWorld(lx, lz),
+      roadGap: 5,
+      maxSlope: 0.55,
+      clusters: [
+        [-26, -34, 9, 10, 0.55, 1.0],
+        [-4, -33, 7, 6, 0.6, 0.75],
+        [18, -35, 9, 9, 0.5, 0.9],
+        [34, -38, 6, 5, 0.6, 1.1],
+        [-14, -50, 12, 14, 0.6, 0.85],
+        [12, -54, 11, 10, 0.65, 0.75],
+        [-34, -60, 9, 7, 0.55, 0.9],
+        [-22, -66, 8, 6, 0.6, 0.6]
+      ],
+      allowed: (lx, lz, x, z) => lz < -28.5 && !(Math.abs(lx) < 6 && lz > -30) && !insideOther(x, z, 6)
+    });
+  }
   // 8. Boerderijkraampje aan de weg
   if (L.farmStand) buildFarmStand(L.farmStand, toWorld, yaw, L.pal);
 }
@@ -935,81 +962,6 @@ function drapeStrip(toWorld, x0, x1, z0, z1, mat, lift = 0.05) {
   return mesh;
 }
 
-// Rijen jonge dennen in drie maten (klein, half, verkoopklaar) met een rijpad in het midden.
-// In de winter hangen er lichtjes langs het pad en staat er een bord "CUT YOUR OWN".
-function buildTreeNursery({ rect: [x0, x1, z0, z1], pathZ, lane }, toWorld, yaw, baseY) {
-  // grindlaan van het erf naar de kwekerij en het rijpad ertussen
-  drapeStrip(toWorld, lane[0], lane[1], lane[2], lane[3], yardGravelMat);
-  drapeStrip(toWorld, x0, x1, pathZ - 1.9, pathZ + 1.9, yardGravelMat);
-  // rijen dennen
-  const rowsZ = [];
-  for (let z = z0 + 1.4; z < pathZ - 2.6; z += 2.8) rowsZ.push(z);
-  for (let z = pathZ + 3.2; z < z1 - 0.6; z += 2.8) rowsZ.push(z);
-  const span = x1 - x0;
-  rowsZ.forEach((rz, ri) => {
-    for (let x = x0 + 1.2; x <= x1 - 1.0; x += 2.4) {
-      const t = (x - x0) / span; // links klein, rechts verkoopklaar
-      const sc = (t < 0.34 ? 0.3 : t < 0.67 ? 0.45 : 0.62) * (0.92 + Math.random() * 0.16);
-      const p = toWorld(x + (ri % 2) * 0.6, rz);
-      const y = getTerrainHeight(p.x, p.z);
-      const tree = createPineFast(sc);
-      tree.position.set(p.x, y, p.z);
-      tree.rotation.y = Math.random() * Math.PI * 2;
-      scene.add(tree);
-      registerDestructible(tree, p.x, y, p.z, Math.max(0.35, 0.8 * sc), 'tree', sc > 0.5 ? 10 : 5, 'Christmas tree');
-      markLastPlanted();
-    }
-  });
-  // bordje bij het begin van het pad
-  const signPos = toWorld(lane[1] + 0.8, pathZ + 2.4);
-  const signY = getTerrainHeight(signPos.x, signPos.z);
-  const post = createOutlinedMesh(new THREE.BoxGeometry(0.14, 1.6, 0.14), makeToonMat(0x5e3a22), 0.015, false);
-  post.position.set(signPos.x, signY + 0.8, signPos.z);
-  scene.add(post);
-
-  // winter: lichtjes op paaltjes langs beide kanten van het pad, en een bord
-  const winter = new THREE.Group();
-  christmasGroup.add(winter);
-  const bulbMats = [0xff5a5a, 0xffd75e, 0x6ad1ff, 0x7bea7b].map((col) => new THREE.MeshBasicMaterial({ color: col }));
-  const bulbGeo = new THREE.SphereGeometry(0.08, 5, 4);
-  const poleMat = makeToonMat(0x5e3a22);
-  [-1, 1].forEach((side) => {
-    const z = pathZ + side * 2.2;
-    for (let x = x0; x <= x1 + 0.01; x += 4.0) {
-      const p = toWorld(x, z);
-      const y = getTerrainHeight(p.x, p.z);
-      const pole = new THREE.Mesh(new THREE.BoxGeometry(0.09, 1.9, 0.09), poleMat);
-      pole.position.set(p.x, y + 0.95, p.z);
-      winter.add(pole);
-      if (x + 4.0 > x1 + 0.01) break;
-      for (let k = 0; k < 6; k++) {
-        const t = k / 6;
-        const q = toWorld(x + 4.0 * t, z);
-        const sag = Math.sin(t * Math.PI) * 0.3;
-        const bulb = new THREE.Mesh(bulbGeo, bulbMats[(k + Math.round(x)) % 4]);
-        bulb.position.set(q.x, getTerrainHeight(q.x, q.z) + 1.85 - sag, q.z);
-        winter.add(bulb);
-      }
-    }
-  });
-  const board = new THREE.Mesh(
-    new THREE.PlaneGeometry(2.6, 0.7),
-    new THREE.MeshBasicMaterial({ map: makeFarmSignTexture('CUT YOUR OWN', '#b23a2c', '#ffffff'), polygonOffset: true, polygonOffsetFactor: -4, side: THREE.DoubleSide })
-  );
-  board.position.set(signPos.x, signY + 1.85, signPos.z);
-  board.rotation.y = yaw;
-  winter.add(board);
-  const autumnBoard = new THREE.Mesh(
-    new THREE.PlaneGeometry(2.6, 0.7),
-    new THREE.MeshBasicMaterial({ map: makeFarmSignTexture('TREE NURSERY', '#3f6b4a', '#ffffff'), polygonOffset: true, polygonOffsetFactor: -4, side: THREE.DoubleSide })
-  );
-  autumnBoard.position.copy(board.position);
-  autumnBoard.rotation.y = yaw;
-  scene.add(autumnBoard);
-  deciduousFoliageObjects.push(autumnBoard);
-  void baseY;
-}
-
 function makeFarmSignTexture(text, bg, fg) {
   const c = document.createElement('canvas');
   c.width = 512;
@@ -1027,7 +979,7 @@ function makeFarmSignTexture(text, bg, fg) {
   return tex;
 }
 
-// Houten kraampje met afdak aan de weg. Herfst: melkbussen en kaas. Winter: ingepakte kerstbomen.
+// Houten kraampje met afdak aan de weg, met melkbussen en kaas.
 function buildFarmStand({ at: [sx, sz], pull }, toWorld, yaw, pal) {
   drapeStrip(toWorld, pull[0], pull[1], pull[2], pull[3], yardGravelMat, 0.06);
   // houten stootbalken langs de achterkant van de stopstrook
@@ -1063,10 +1015,9 @@ function buildFarmStand({ at: [sx, sz], pull }, toWorld, yaw, pal) {
   stand.add(roof);
   hardColliders.push({ x: base.x, z: base.z, r: 2.0 });
 
-  // herfst: melkbussen en kaaswielen + bord
+  // melkbussen en kaaswielen + bord
   const autumn = new THREE.Group();
   stand.add(autumn);
-  deciduousFoliageObjects.push(autumn);
   const steel = makeToonMat(0xc9ced4);
   [[-1.4, 0.6], [-0.9, 0.7], [1.3, 1.45]].forEach(([px, pz]) => {
     const churn = createOutlinedMesh(new THREE.CylinderGeometry(0.22, 0.26, 0.7, 10), steel, 0.015, false);
@@ -1085,38 +1036,26 @@ function buildFarmStand({ at: [sx, sz], pull }, toWorld, yaw, pal) {
   );
   milkSign.position.set(0, 2.15, -0.5);
   autumn.add(milkSign);
-
-  // winter: ingepakte kerstbomen tegen het kraampje en een bord
-  const winter = new THREE.Group();
-  winter.position.copy(stand.position);
-  winter.rotation.copy(stand.rotation);
-  christmasGroup.add(winter);
-  const pine = makeToonMat(0x2f5e3a);
-  const net = makeToonMat(0xe8e2d4);
-  for (let k = 0; k < 6; k++) {
-    const bundle = new THREE.Group();
-    const cone = createOutlinedMesh(new THREE.ConeGeometry(0.32, 1.9, 7), pine, 0.015, false);
-    cone.position.y = 0.95;
-    bundle.add(cone);
-    [0.6, 1.1].forEach((h) => {
-      const band = new THREE.Mesh(new THREE.CylinderGeometry(0.31 - h * 0.12, 0.31 - h * 0.12, 0.06, 7), net);
-      band.position.y = h;
-      bundle.add(band);
-    });
-    bundle.position.set(-2.3 + (k % 3) * 0.45 - (k < 3 ? 0 : 0.2), 0, -0.2 + (k < 3 ? 0 : 0.45));
-    bundle.rotation.z = 0.12;
-    winter.add(bundle);
-  }
-  const treeSign = new THREE.Mesh(
-    new THREE.PlaneGeometry(3.6, 0.8),
-    new THREE.MeshBasicMaterial({ map: makeFarmSignTexture('CHRISTMAS TREES', '#b23a2c', '#ffffff'), polygonOffset: true, polygonOffsetFactor: -4 })
-  );
-  treeSign.position.set(0, 2.15, -0.5);
-  winter.add(treeSign);
 }
 
 const cows = [];
+// Koe op een helling: hoogte uit het midden onder het lijf en meekantelen (voor/achter en links/rechts)
+function alignCow(c) {
+  const p = c.mesh.position;
+  const yaw = c.mesh.rotation.y;
+  const fx = Math.sin(yaw);
+  const fz = Math.cos(yaw);
+  const hF = getTerrainHeight(p.x + fx * 0.85, p.z + fz * 0.85);
+  const hB = getTerrainHeight(p.x - fx * 0.85, p.z - fz * 0.85);
+  const hR = getTerrainHeight(p.x + fz * 0.35, p.z - fx * 0.35);
+  const hL = getTerrainHeight(p.x - fz * 0.35, p.z + fx * 0.35);
+  p.y = (hF + hB + hL + hR) * 0.25;
+  c.mesh.rotation.order = 'YXZ';
+  c.mesh.rotation.x = THREE.MathUtils.clamp(-Math.atan2(hF - hB, 1.7), -0.4, 0.4);
+  c.mesh.rotation.z = THREE.MathUtils.clamp(Math.atan2(hR - hL, 0.7), -0.3, 0.3);
+}
 ruralLots.filter((l) => l.type === 'farm').forEach(buildFarm);
+cows.forEach(alignCow);
 
 // Koeien grazen, lopen rustig rond in hun wei en lopen weg als je te dichtbij komt
 export function updateCows(px, pz, dt, elapsed) {
@@ -1170,6 +1109,7 @@ export function updateCows(px, pz, dt, elapsed) {
       c.mesh.userData.head.position.y = 1.35;
       c.collider.x = w.x;
       c.collider.z = w.z;
+      alignCow(c);
       if (c.speed > 1.5 && d < 1) c.speed = 0.9;
     }
   }

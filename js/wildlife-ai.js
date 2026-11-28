@@ -83,6 +83,28 @@ function step(a, speed, dt, allowRoad = false) {
   return true;
 }
 
+// Op een helling: het lijf kantelt mee (voor/achter en links/rechts), zodat geen poot in de grond verdwijnt
+function alignToGround(a) {
+  const p = a.root.position;
+  const half = (a.bodyR || 0.6) * 1.3;
+  const side = (a.bodyR || 0.6) * 0.6;
+  const yaw = a.root.rotation.y;
+  const fx = Math.sin(yaw);
+  const fz = Math.cos(yaw);
+  const hF = getTerrainHeight(p.x + fx * half, p.z + fz * half);
+  const hB = getTerrainHeight(p.x - fx * half, p.z - fz * half);
+  const hR = getTerrainHeight(p.x + fz * side, p.z - fx * side);
+  const hL = getTerrainHeight(p.x - fz * side, p.z + fx * side);
+  const hC = getTerrainHeight(p.x, p.z);
+  if (a.wader && hC < WATER_LEVEL) return; // in het water: zwemmend, niet kantelen
+  p.y = Math.max(hC, (hF + hB + hL + hR) * 0.25);
+  a.root.rotation.order = 'YXZ';
+  const pitch = THREE.MathUtils.clamp(-Math.atan2(hF - hB, 2 * half), -0.45, 0.45);
+  const roll = THREE.MathUtils.clamp(Math.atan2(hR - hL, 2 * side), -0.35, 0.35);
+  a.root.rotation.x += (pitch - a.root.rotation.x) * 0.35;
+  a.root.rotation.z += (roll - a.root.rotation.z) * 0.35;
+}
+
 // Poten laten lopen
 function animateGait(a, speed, dt, elapsed, stride) {
   a.cycle = (a.cycle || 0) + speed * dt * stride;
@@ -468,6 +490,7 @@ export function updateWildlife(dt, elapsed, px, pz, playerSpeed) {
     }
 
     a.root.rotation.y = turnTowards(a.root.rotation.y, a.angle, 8 * dt);
+    alignToGround(a);
     animateGait(a, speed, dt, elapsed, a.stride);
 
     // Kop: grazen bij stilstand, omhoog bij schrik

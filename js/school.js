@@ -274,12 +274,12 @@ function buildSchool() {
   // Een paar basketballen (los, omrijdbaar)
   const ballMat = makeToonMat(0xe8661c);
   [[ccx + 1.6, CZ0 + 3.2], [ccx - 3.0, ccz + 1.0], [CX1 + 0.6, CZ1 - 2.0]].forEach(([bx, bz]) => {
-    const ball = createOutlinedMesh(new THREE.SphereGeometry(0.13, 10, 8), ballMat, 0.012, false);
+    const ball = createOutlinedMesh(new THREE.SphereGeometry(0.3, 12, 9), ballMat, 0.02, false);
     const p = toWorld(bx, bz);
-    const by = surfaceY + courtTop + 0.13;
+    const by = surfaceY + courtTop + 0.3;
     ball.position.set(p.x, by, p.z);
     scene.add(ball);
-    registerDestructible(ball, p.x, by, p.z, 0.3, 'small', 2, 'Basketball');
+    registerDestructible(ball, p.x, by, p.z, 0.45, 'small', 2, 'Basketball');
   });
   // Bankjes langs de zijlijn (los, omrijdbaar)
   const benchMat = makeToonMat(0x8a5a36);

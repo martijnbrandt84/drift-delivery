@@ -60,13 +60,13 @@ export const ruralLots = [
   {
     netSamples: ringSamples, near: [-213, 199], outward: false, dist: 30.0, type: 'garden', name: 'PINEWOOD GARDEN CENTER', yawOff: 0,
     drivewayStopShort: 14.6, flatElevOffset: -0.1,
-    flatBox: { minLX: -34, maxLX: 36, minLZ: -29, maxLZ: 16, blend: 14 }
+    flatBox: { minLX: -34, maxLX: 36, minLZ: -29, maxLZ: 16, blend: 24 }
   },
   // Pinewood School met basketbalveld, naast het politiebureau (aan de kant van het dorp)
   {
     netSamples: valleySamples, u: 0.418, outward: true, dist: 26.0, type: 'school', name: 'PINEWOOD SCHOOL', yawOff: 0,
     drivewayStopShort: 13.2, flatElevOffset: -0.12,
-    flatBox: { minLX: -20.5, maxLX: 20.5, minLZ: -18, maxLZ: 15, blend: 10 }
+    flatBox: { minLX: -20.5, maxLX: 20.5, minLZ: -18, maxLZ: 15, blend: 26 }
   },
 
   // Supermarkt & Pinewood Mall op het vlakke noordoostelijke stuk van de meerweg (u=0.055, vlakke weg!).
@@ -161,7 +161,12 @@ export const ruralLots = [
     yawOff: -0.5,
     drivewayStopShort: 10.0,
     flatElevOffset: -0.05,
-    flatBox: { minLX: -18, maxLX: 18, minLZ: -134, maxLZ: 14, blend: 16 }
+    flatBox: { minLX: -18, maxLX: 18, minLZ: -134, maxLZ: 14, blend: 16 },
+    // alleen het platform en de startbaan (lx -12..0) zelf vlak; het land ernaast mag gewoon glooien
+    flatBoxes: [
+      { minLX: -18, maxLX: 18, minLZ: -16, maxLZ: 14 },
+      { minLX: -16, maxLX: 4, minLZ: -134, maxLZ: -16 }
+    ]
   },
 
   // Strandcamping aan de noordkust (tussen kustweg en strand)

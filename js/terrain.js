@@ -42,6 +42,11 @@ function getRawTerrainHeight(x, z) {
   }
 
   let specialFlatBlend = 1.0;
+  // Vlakke percelen: hun doelhoogtes worden gemengd naar nabijheid (binnen een perceel telt alleen dat perceel),
+  // zodat twee pleinen op verschillende hoogte vloeiend in elkaar overlopen in plaats van elkaar te overschrijven
+  let flatMaxW = 0;
+  let flatSumK = 0;
+  let flatSumKT = 0;
   let frontBeyond = -1; // afstand voorbij de voorgrens van een perceel met een muur langs de weg (villa)
 
   for (const lot of ruralLots) {
@@ -56,10 +61,17 @@ function getRawTerrainHeight(x, z) {
       }
     } else if (lot.flatBox && lot.type !== 'farm') {
       const fb = lot.flatBox;
-      const dBox = getOrientedBoxDist(x, z, lot, fb.minLX - 1, fb.maxLX + 1, fb.minLZ - 1, fb.maxLZ + 1);
-      if (dBox < 16.0) {
-        const t = THREE.MathUtils.smoothstep(dBox, 0.0, 16.0);
-        h = THREE.MathUtils.lerp(lot.roadY - 0.16, h, t);
+      let dBox = Infinity;
+      (lot.flatBoxes ?? [fb]).forEach((b) => {
+        dBox = Math.min(dBox, getOrientedBoxDist(x, z, lot, b.minLX - 1, b.maxLX + 1, b.minLZ - 1, b.maxLZ + 1));
+      });
+      const reach = Math.max(16.0, fb.blend ?? 0);
+      if (dBox < reach) {
+        const t = THREE.MathUtils.smoothstep(dBox, 0.0, reach);
+        const k = 1 / ((dBox + 0.4) * (dBox + 0.4));
+        flatSumK += k;
+        flatSumKT += k * (lot.roadY - 0.16);
+        flatMaxW = Math.max(flatMaxW, 1 - t);
         specialFlatBlend = Math.min(specialFlatBlend, t);
       }
     } else if (lot.type === 'farm') {
@@ -108,6 +120,8 @@ function getRawTerrainHeight(x, z) {
       }
     }
   }
+
+  if (flatMaxW > 0) h = THREE.MathUtils.lerp(h, flatSumKT / flatSumK, flatMaxW);
 
   let nearDriveway = false;
   let gravelTarget = 0;
