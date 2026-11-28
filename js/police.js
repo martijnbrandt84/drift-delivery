@@ -141,48 +141,63 @@ function buildStation() {
     hardColliders.push({ x: p.x, z: p.z, r: 4.2 });
   });
 
-  // Vlaggenmast naast de ingang
+  // Vlaggenmast op de hoek linksvoor, goed zichtbaar vanaf de weg
   {
+    const FX = -9.6;
+    const FZ = 6.8;
     const pole = createOutlinedMesh(new THREE.CylinderGeometry(0.07, 0.1, 7, 6), makeToonMat(0xd8dadd), 0.02, false);
-    pole.position.set(-9.8, 3.5, -6.5);
+    pole.position.set(FX, 3.5, FZ);
     g.add(pole);
+    const foot = createOutlinedMesh(new THREE.CylinderGeometry(0.45, 0.5, 0.3, 10), makeToonMat(0x9a958d), 0.02, false);
+    foot.position.set(FX, 0.15, FZ);
+    g.add(foot);
     const flag = new THREE.Mesh(new THREE.BoxGeometry(0.04, 1.0, 1.6), blackMat);
-    flag.position.set(-9.8, 6.4, -5.65);
+    flag.position.set(FX, 6.4, FZ + 0.85);
     g.add(flag);
     const star = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.38, 0.38), makeToonMat(0xf4c430));
-    star.position.set(-9.8, 6.4, -6.0);
+    star.position.set(FX, 6.4, FZ + 0.5);
     g.add(star);
-    const p = rotLocal(-9.8, -6.5);
-    hardColliders.push({ x: p.x, z: p.z, r: 0.3 });
+    const p = rotLocal(FX, FZ);
+    hardColliders.push({ x: p.x, z: p.z, r: 0.5 });
   }
 
-  // Vier politievakken (met 'POLITIE'-streep) en twee bezoekersvakken
+  // Vier politievakken naast het gebouw (twee links, twee rechts, met de neus naar de stoeprand) en twee
+  // bezoekersvakken rechtsvoor. Het voorplein voor de deur blijft open.
+  const stopMat = makeToonMat(0xcfc8be);
+  const policeMarkMat = makeToonMat(0x2a6aff);
+  const SIDE_X = 9.3;     // midden van de zijvakken
+  const SIDE_LEN = 4.6;   // lengte van een vak (langs x)
+  const SIDE_W = 2.8;     // breedte van een vak (langs z)
+  const sideBayZ = [-7.4, -4.6];
+  [-1, 1].forEach((side) => {
+    [sideBayZ[0] - SIDE_W / 2, sideBayZ[0] + SIDE_W / 2, sideBayZ[1] + SIDE_W / 2].forEach((lz) => {
+      const line = new THREE.Mesh(new THREE.PlaneGeometry(SIDE_LEN, 0.16), lineMat);
+      line.rotation.x = -Math.PI / 2;
+      line.position.set(side * SIDE_X, 0.02, lz);
+      g.add(line);
+    });
+    sideBayZ.forEach((bz) => {
+      const mark = new THREE.Mesh(new THREE.PlaneGeometry(0.35, 2.0), policeMarkMat);
+      mark.rotation.x = -Math.PI / 2;
+      mark.position.set(side * (SIDE_X + SIDE_LEN / 2 - 0.95), 0.025, bz);
+      g.add(mark);
+      const stop = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.1, 1.55), stopMat);
+      stop.position.set(side * (SIDE_X + SIDE_LEN / 2 - 0.35), 0.05, bz);
+      g.add(stop);
+      const lp = rotLocal(side * SIDE_X, bz);
+      garageSpots.push({ x: lp.x, z: lp.z, yaw: lot.yaw + side * Math.PI * 0.5, taken: false });
+    });
+  });
+  // Bezoekersvakken rechtsvoor
   const bayW = 3.0;
-  const bayZ = 3.2;
-  for (let k = 0; k <= 4; k++) {
-    const line = new THREE.Mesh(new THREE.PlaneGeometry(0.16, 4.6), lineMat);
-    line.rotation.x = -Math.PI / 2;
-    line.position.set(-6 + k * bayW, 0.02, bayZ);
-    g.add(line);
-  }
-  for (let k = 0; k < 4; k++) {
-    const bx = -4.5 + k * bayW;
-    const mark = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 0.35), makeToonMat(0x2a6aff));
-    mark.rotation.x = -Math.PI / 2;
-    mark.position.set(bx, 0.025, bayZ - 1.35);
-    g.add(mark);
-    const lp = rotLocal(bx, bayZ);
-    garageSpots.push({ x: lp.x, z: lp.z, yaw: lot.yaw, taken: false });
-  }
-  [-11.4, -8.7, 8.7, 11.4].forEach((x) => {
+  const bayZ = 3.4;
+  [5.4, 8.4, 11.4].forEach((x) => {
     const line = new THREE.Mesh(new THREE.PlaneGeometry(0.16, 4.6), lineMat);
     line.rotation.x = -Math.PI / 2;
     line.position.set(x, 0.02, bayZ);
     g.add(line);
   });
-  // Stootranden achter in alle vakken (vier politievakken en de twee bezoekersvakken)
-  const stopMat = makeToonMat(0xcfc8be);
-  [-4.5, -1.5, 1.5, 4.5, -10.05, 10.05].forEach((bx) => {
+  [5.4 + bayW / 2, 8.4 + bayW / 2].forEach((bx) => {
     const stop = new THREE.Mesh(new THREE.BoxGeometry(1.55, 0.1, 0.22), stopMat);
     stop.position.set(bx, 0.05, bayZ - 1.95);
     g.add(stop);
