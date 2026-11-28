@@ -2895,9 +2895,15 @@ function createVilla__build() {
     col.position.set(cx, 2.3, mainD * 0.5 + 2.3);
     g.add(col);
   });
-  const steps = createOutlinedMesh(new THREE.BoxGeometry(4.6, 0.3, 1.6), stoneMat, 0.03, false, true);
-  steps.position.set(0, 0.35, mainD * 0.5 + 3.1);
-  g.add(steps);
+  // Bordes onder het portiek (sluit naadloos aan op de sokkel, geen gras tussen deur en zuilen) met twee treden
+  const landing = createOutlinedMesh(new THREE.BoxGeometry(5.6, 0.6, 2.6), stoneMat, 0.03, false, true);
+  landing.position.set(0, 0.2, mainD * 0.5 + 1.25);
+  g.add(landing);
+  [[5.2, 0.32, 2.55 + 0.35], [5.8, 0.16, 2.55 + 1.05]].forEach(([w, top, zc]) => {
+    const step = createOutlinedMesh(new THREE.BoxGeometry(w, top + 0.3, 0.7), stoneMat, 0.03, false, true);
+    step.position.set(0, (top - 0.3) * 0.5, mainD * 0.5 + zc);
+    g.add(step);
+  });
   const door = createOutlinedMesh(new THREE.BoxGeometry(1.6, 2.6, 0.14), villaDoorMat, 0.03, false);
   door.position.set(0, 1.75, mainD * 0.5 + 0.06);
   g.add(door);
@@ -3248,7 +3254,7 @@ function buildVilla(lot) {
     // Geschoren buxus in oranje terracotta potten naast de voordeur
     const terracottaMat = makeToonMat(0xc8693c);
     const potRimMat = makeToonMat(0xa9532c);
-    [[-2.5, 5.6], [2.5, 5.6]].forEach(([lx, lz]) => {
+    [[-3.7, 6.1], [3.7, 6.1]].forEach(([lx, lz]) => { // naast de treden van het bordes
       const p = at(lx, lz);
       const planter = new THREE.Group();
       const pot = createOutlinedMesh(new THREE.CylinderGeometry(0.55, 0.4, 0.75, 12), terracottaMat, 0.025, false);
@@ -3260,10 +3266,10 @@ function buildVilla(lot) {
       const bux = createOutlinedMesh(new THREE.ConeGeometry(0.52, 1.7, 10), hedgeMat, 0.025, false);
       bux.position.y = 1.62;
       planter.add(bux);
-      planter.position.set(p.x, padY, p.z);
+      planter.position.set(p.x, p.y, p.z);
       planter.rotation.y = lot.yaw;
       scene.add(planter);
-      registerDestructible(planter, p.x, padY, p.z, 0.65, 'small', 6, 'Box planter');
+      registerDestructible(planter, p.x, p.y, p.z, 0.65, 'small', 6, 'Box planter');
     });
   }
 

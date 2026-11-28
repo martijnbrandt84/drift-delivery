@@ -27,25 +27,25 @@ function computeExactDriveSurface(x, z, currentY = null) {
     return { height: TOWN_ELEV + 0.16, onAsphalt: true };
   }
 
+  // Opritten liggen op het terrein (dat langs de oprit glad is gemaakt): je rijdt dus gewoon over het terrein
+  let onDrvAsphalt = false;
   for (const d of driveways) {
-    if (d.noMesh) continue; // grindinrit zonder eigen plaat: je rijdt gewoon over het (gladde) terrein
+    if (!d.asphalt) continue;
     const l2 = (d.x2 - d.x1) ** 2 + (d.z2 - d.z1) ** 2;
     if (l2 > 0) {
       const proj = THREE.MathUtils.clamp(((x - d.x1) * (d.x2 - d.x1) + (z - d.z1) * (d.z2 - d.z1)) / l2, 0, 1);
       const px = d.x1 + proj * (d.x2 - d.x1);
       const pz = d.z1 + proj * (d.z2 - d.z1);
-      if (Math.hypot(x - px, z - pz) <= d.halfWidth) {
-        return { height: THREE.MathUtils.lerp(d.y1, d.y2, proj) + 0.12, onAsphalt: false };
-      }
+      if (Math.hypot(x - px, z - pz) <= d.halfWidth) { onDrvAsphalt = true; break; }
     }
   }
 
   if (rs && !onAnyBridge && marginDist <= 2.4) {
     const t = (marginDist - 0.45) / 1.95;
-    return { height: THREE.MathUtils.lerp(effectiveRoadY + 0.10, terrH, t), onAsphalt: false };
+    return { height: THREE.MathUtils.lerp(effectiveRoadY + 0.10, terrH, t), onAsphalt: onDrvAsphalt };
   }
 
-  return { height: terrH, onAsphalt: false };
+  return { height: terrH, onAsphalt: onDrvAsphalt };
 }
 
 // Berijdbare plankieren/pieren (bijv. de pier bij de camping): { x1, z1, x2, z2, halfWidth, y }

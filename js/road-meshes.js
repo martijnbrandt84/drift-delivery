@@ -7,11 +7,12 @@ import {
 import {
   MAIN_HALF_WIDTH, lakeSamples, valleySamples, streetSampleSets, INTERSECTIONS,
   isInsideIntersection, allRoadNetworks, LAKE_BRIDGES, lakeCurve, getLakeLoopBaseElev, getLakeBridgeAtU,
-  valleyCurve, VALLEY_BRIDGES, getValleyBaseElev, getValleyBridgeAtU, outerRoadDefs
+  valleyCurve, VALLEY_BRIDGES, getValleyBaseElev, getValleyBridgeAtU, outerRoadDefs, getClosestNetworkRoad
 } from './roads.js';
 import { driveways } from './water-lots.js';
 import { hardColliders, registerDestructible } from './demolition.js';
 import { getTerrainHeight } from './terrain.js';
+import { getDriveHeightAndWaterState } from './drive-surface.js';
 
 // =========================================================
 // WEGENNET, HOUTEN BRUGGEN & GOLDEN GATE-BRUG BIJ BOERDERIJ
@@ -317,16 +318,59 @@ function buildCompleteRoadSystem() {
   if (allDashOutlineGeos.length) scene.add(new THREE.Mesh(BufferGeometryUtils.mergeGeometries(allDashOutlineGeos), outlineRoadMat));
   if (allYellowDashGeos.length) scene.add(new THREE.Mesh(BufferGeometryUtils.mergeGeometries(allYellowDashGeos), yellowStripeMat));
 
+  // Opritten: een dunne laag die het terrein volgt (geen starre schuine plaat meer), zodat ze overal naadloos
+  // aansluiten op de weg, de berm en het perceel. Bij de weg wijken ze trechtervormig uit.
+  const surfY = (x, z) => Math.max(getTerrainHeight(x, z) + 0.07, getDriveHeightAndWaterState(x, z).height - 0.02);
   driveways.forEach((d) => {
-    if (d.noMesh) return;
-    const dx = d.x2 - d.x1;
-    const dz = d.z2 - d.z1;
-    const horizLen = Math.hypot(dx, dz);
-    const totalLen = Math.hypot(horizLen, d.y2 - d.y1);
-    const drvHolder = new THREE.Group();
-    setAlignedTransform(drvHolder, (d.x1 + d.x2) * 0.5, (d.y1 + d.y2) * 0.5 - 0.06, (d.z1 + d.z2) * 0.5, Math.atan2(dx, dz), -Math.atan2(d.y2 - d.y1, horizLen));
-    drvHolder.add(createOutlinedMesh(new THREE.BoxGeometry(d.halfWidth * 2, 0.34, totalLen + 0.4), d.asphalt ? asphaltMat : drivewayMat, 0.05, false, true));
-    scene.add(drvHolder);
+    if (d.noMesh) return; // (de villa tekent haar eigen grindstrook)
+    const L = Math.hypot(d.x2 - d.x1, d.z2 - d.z1);
+    if (L < 0.5) return;
+    const ux = (d.x2 - d.x1) / L;
+    const uz = (d.z2 - d.z1) / L;
+    const nx = -uz;
+    const nz = ux;
+    const rows = [];
+    for (let s = -3; s <= L + 0.6; s += 0.5) {
+      const cx = d.x1 + ux * s;
+      const cz = d.z1 + uz * s;
+      const m = getClosestNetworkRoad(cx, cz).marginDist;
+      if (m < -0.3) continue; // niet over de weg heen
+      const hw = d.halfWidth + Math.min(2.0, d.halfWidth * 0.6) * (1 - THREE.MathUtils.smoothstep(m, -0.3, 3.0));
+      rows.push({ cx, cz, hw });
+    }
+    if (rows.length < 2) return;
+    const ACROSS = 6;
+    const pos = [];
+    const idx = [];
+    rows.forEach(({ cx, cz, hw }) => {
+      for (let j = 0; j <= ACROSS; j++) {
+        const o = -hw + (2 * hw * j) / ACROSS;
+        const x = cx + nx * o;
+        const z = cz + nz * o;
+        pos.push(x, surfY(x, z), z);
+      }
+      [-hw, hw].forEach((o) => {
+        const x = cx + nx * o;
+        const z = cz + nz * o;
+        pos.push(x, getTerrainHeight(x, z) - 0.3, z); // zijrand tot onder de grond (ook naast de lagere berm)
+      });
+    });
+    const stride = ACROSS + 3;
+    for (let r = 0; r < rows.length - 1; r++) {
+      const a0 = r * stride;
+      const b0 = (r + 1) * stride;
+      for (let j = 0; j < ACROSS; j++) idx.push(a0 + j, a0 + j + 1, b0 + j, a0 + j + 1, b0 + j + 1, b0 + j); // bovenkant naar boven
+      [[a0, b0, a0 + ACROSS + 1, b0 + ACROSS + 1], [a0 + ACROSS, b0 + ACROSS, a0 + ACROSS + 2, b0 + ACROSS + 2]].forEach(([p0, p1, q0, q1]) => {
+        idx.push(p0, q0, p1, p1, q0, q1, p0, p1, q0, p1, q1, q0);
+      });
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    geo.setIndex(idx);
+    geo.computeVertexNormals();
+    const strip = new THREE.Mesh(geo, d.asphalt ? asphaltMat : drivewayMat);
+    strip.receiveShadow = true;
+    scene.add(strip);
   });
 
   const bollardBaked = createMergedToonProp(
