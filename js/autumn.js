@@ -7,6 +7,7 @@ import { getClosestNetworkRoad, getDistToRivers } from './roads.js';
 import { ruralLots } from './water-lots.js';
 import { destructibles, registerDestructible, registerInstancedDestructible } from './demolition.js';
 import { getTerrainHeight } from './terrain.js';
+import { farmDecor } from './farm.js';
 
 // =========================================================
 // HERFSTDETAILS: pompoenen, bladerhopen en vogelverschrikkers.
@@ -70,9 +71,10 @@ ruralLots.forEach((lot) => {
   }
   if (lot.type === 'motel' || lot.type === 'sawmill' || lot.type === 'fair' || lot.type === 'airfield' || lot.type === 'coffee' || lot.type === 'police') return;
   if (lot.type === 'villa') {
-    [[-2.8, 0.6], [2.8, 0.6], [-3.3, 1.2]].forEach(([lx, lz]) => {
+    const stepY = getTerrainHeight(lot.x, lot.z) + 0.16; // onderste trede van het bordes
+    [[-2.35, -1.65, 1.15], [2.35, -1.65, 1.15], [-1.75, -1.6, 0.8]].forEach(([lx, lz, sc]) => {
       const w = lotLocalToWorld(lot, lx, lz);
-      addPumpkin(w.x, w.z, 1.2);
+      addPumpkin(w.x, w.z, sc, stepY);
     });
     return;
   }
@@ -82,14 +84,14 @@ ruralLots.forEach((lot) => {
   });
 });
 
-// Pompoenveld in de buitenste helft van de hooiweide van Pinewood Farm (achter de schuur)
-ruralLots.filter((l) => l.type === 'farm' && l.variant !== 'wheat').forEach((farm) => {
-  for (let r = 0; r < 4; r++) {
-    for (let c = 0; c < 9; c++) {
-      if (Math.random() < 0.18) continue;
-      const lx = -36 + c * 1.5 + (Math.random() - 0.5) * 0.5;
-      const lz = -28.5 - r * 1.8 + (Math.random() - 0.5) * 0.5;
-      const w = lotLocalToWorld(farm, lx, lz);
+// Pompoenveld (los, zonder hek) op de plek die de boerderij ervoor heeft ingericht
+Object.values(farmDecor).forEach(({ lot: farm, pumpkinPatch }) => {
+  if (!pumpkinPatch) return;
+  const [x0, x1, z0, z1] = pumpkinPatch;
+  for (let lz = z0 + 0.8; lz <= z1 - 0.6; lz += 1.8) {
+    for (let lx = x0 + 0.7; lx <= x1 - 0.6; lx += 1.5) {
+      if (Math.random() < 0.2) continue;
+      const w = lotLocalToWorld(farm, lx + (Math.random() - 0.5) * 0.5, lz + (Math.random() - 0.5) * 0.5);
       addPumpkin(w.x, w.z, 0.8 + Math.random() * 0.6);
     }
   }
@@ -211,9 +213,8 @@ function createScarecrow(shirtMat) {
   return g;
 }
 
-ruralLots.filter((l) => l.type === 'farm').forEach((farm, fi) => {
-  const front = farm.flatBox.maxLZ * 0.5 + 2;
-  [[-22, front], [22, front - 4]].forEach(([lx, lz], k) => {
+Object.values(farmDecor).forEach(({ lot: farm, scarecrows }, fi) => {
+  scarecrows.forEach(([lx, lz], k) => {
     const w = lotLocalToWorld(farm, lx, lz);
     const y = getTerrainHeight(w.x, w.z);
     const sc = createScarecrow(shirtMats[(fi + k) % shirtMats.length]);

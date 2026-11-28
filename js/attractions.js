@@ -329,6 +329,13 @@ function buildMotel(lot) {
     line.position.set(-5.0 + k * 2.6, 0.16, -2.0);
     g.add(line);
   }
+  // Stootranden achter in de vijf vakken (aan de kant van de kamers; je parkeert met de neus naar de deur)
+  const wheelStopMat = makeToonMat(0xcfc8be);
+  for (let k = 0; k < 5; k++) {
+    const stop = createOutlinedMesh(new THREE.BoxGeometry(1.55, 0.1, 0.22), wheelStopMat, 0.015, false);
+    stop.position.set(-3.7 + k * 2.6, 0.2, -2.0 - 1.95);
+    g.add(stop);
+  }
 
   // Klein omheind zwembad rechtsvoor
   {

@@ -709,47 +709,64 @@ function createWaterTrough() {
 }
 
 // =========================================================
-// BOERDERIJ-INDELINGEN (lokaal: lx langs de weg, lz richting weg = +)
-// Alles ligt op één raster: de oprit loopt over het midden (lx = 0), aan weerszijden twee kolommen van
-// lx ±7,5 tot ±38,5. Voor het erf in beide kolommen een akker; achter het erf aan de kant van de schuur de
-// (omheinde) wei en aan de kant van het woonhuis de derde akker, precies even breed als de akker ervoor.
-// De windmolen staat los op de hoek tussen woonhuis en achterakker, nooit in de wei.
+// BOERDERIJ-INDELINGEN (lokaal: lx langs de weg, lz richting weg = +; de oprit loopt over lx = 0)
+// Elke boerderij heeft een eigen karakter:
+//  - Pinewood Farm (akkerbouw): mais en tarwe aan de weg, een pompoenveld met de windmolen op de hoek bij de
+//    oprit, en achter de silo's één brede tarweakker over de hele breedte. Hier staat de oogsttractor.
+//  - Sunny Acres (melkvee): de koeienwei ligt vooraan langs de weg (je ziet ze grazen als je langsrijdt),
+//    tarwe aan de andere kant, achter de stal een hooiland met balen en de windmolen, en mais achter het woonhuis.
+// Rechthoeken: [x0, x1, z0, z1]
 // =========================================================
 const FARM_LAYOUTS = {
-  // Pinewood Farm: klassiek rood akkerbouwbedrijf: mais voor, tarwe achter rechts, hooiweide achter de schuur
   corn: {
     pal: PAL_CLASSIC,
     barn: [-15, -15, 0],
     silos: [[-2.5, -23, 2.05, 9.2], [2.6, -23.6, 1.75, 7.8]],
     house: [18, -8, -Math.PI * 0.5],
     shed: [-32, -5, 0, 9, 6],
-    windmill: [32, -19.5],
-    front: 'corn',
-    back: 'wheat',
-    pastureSide: -1, // achter de schuur
-    cows: 0,
-    yardHay: [[-7, 1.2, 0], [-5.5, 1.8, 0], [-6.2, 1.5, 1.18], [-9.5, -1.5, 0]],
-    // hooiweide: balen in twee nette rijen op de binnenste helft (de buitenste helft is het pompoenveld)
-    meadowHay: [[-10.5, -29.5], [-15, -29.5], [-19.5, -29.5], [-12.5, -34.5], [-17, -34.5], [-21.5, -34.5]],
-    millHay: [[28.4, -20.2, 0], [29.6, -21.6, 0], [29.0, -20.9, 1.18]]
+    windmill: [31, 8.5],
+    fields: [
+      ['corn', -38.5, -7.5, 4.0, 34.0],
+      ['wheat', 7.5, 38.5, 15.5, 34.0],
+      ['wheat', -38.5, 38.5, -38.0, -28.0]
+    ],
+    pastures: [],
+    noDriveFence: [],
+    pumpkinPatch: [9.0, 23.0, 5.0, 12.5],
+    scarecrows: [[-22, 20], [23, 25], [-14, -33]],
+    hay: [
+      [-7, 1.2, 0], [-5.5, 1.8, 0], [-6.2, 1.5, 1.18], [-9.5, -1.5, 0],
+      [27.5, 5.2, 0], [28.9, 4.6, 0], [28.2, 4.9, 1.18],
+      [-27.6, -10.2, 0], [-30.4, -10.2, 0], [-33.2, -10.2, 0], [-29.0, -10.2, 1.18], [-31.8, -10.2, 1.18]
+    ]
   },
-  // Sunny Acres: wit-groene melkveehouderij, gespiegeld: tarwe voor, koeienwei achter de stal, mais achter links
   wheat: {
     pal: PAL_DAIRY,
     barn: [15, -15, 0],
     silos: [[1.5, -24, 2.5, 11.0], [-4.2, -23.2, 1.5, 6.8]],
     house: [-18, -8, Math.PI * 0.5],
     shed: [30, -4, 0, 14, 6],
-    windmill: [-32, -19.5],
-    front: 'wheat',
-    back: 'corn',
-    pastureSide: 1, // achter de stal
-    cows: 7,
-    yardHay: [[7, 1.2, 0], [5.5, 1.8, 0], [6.2, 1.5, 1.18], [-9.5, -1.5, 0]],
-    meadowHay: [],
-    millHay: [[-28.4, -20.2, 0], [-29.6, -21.6, 0], [-29.0, -20.9, 1.18]]
+    windmill: [23.5, -33.5],
+    fields: [
+      ['wheat', -38.5, -7.5, 4.0, 38.0],
+      ['corn', -38.5, -9.0, -40.0, -27.0]
+    ],
+    pastures: [{ rect: [6.5, 38.5, 5.0, 37.0], cows: 8, trough: [22.5, 8.0] }],
+    noDriveFence: [1], // de wei grenst zelf aan de oprit
+    pumpkinPatch: null,
+    scarecrows: [[-23, 22], [-24, -33]],
+    // hooiland achter de stal: balen in losse rijen rond de windmolen
+    hay: [
+      [7, 1.2, 0], [5.5, 1.8, 0], [6.2, 1.5, 1.18], [-9.5, -1.5, 0],
+      [11, -30, 0], [16, -30.5, 0], [31, -30, 0], [35.5, -29.5, 0],
+      [12, -36.5, 0], [17.5, -37, 0], [30, -37, 0], [35, -36.5, 0],
+      [23.5, -28.5, 0], [24.9, -28.0, 0], [24.2, -28.25, 1.18]
+    ]
   }
 };
+
+// Per boerderij: waar de vogelverschrikkers en het pompoenveld komen (gebruikt door autumn.js)
+export const farmDecor = {};
 
 function buildFarm(farmLot) {
   const { x: baseX, y: baseY, z: baseZ, yaw } = farmLot;
@@ -790,11 +807,14 @@ function buildFarm(farmLot) {
   p = place(createWindmill(), L.windmill[0], L.windmill[1], 0.35, getTerrainHeight(toWorld(L.windmill[0], L.windmill[1]).x, toWorld(L.windmill[0], L.windmill[1]).z));
   hardColliders.push({ x: p.x, z: p.z, r: 1.5 });
 
-  // 3. Sloopbare hekken langs de hele oprit
+  farmDecor[farmLot.name] = { lot: farmLot, scarecrows: L.scarecrows, pumpkinPatch: L.pumpkinPatch };
+
+  // 3. Sloopbare hekken langs de oprit (niet waar een wei zelf aan de oprit grenst)
   const drivewayLen = farmLot.dist - 5.0;
   for (let fz = 8.5; fz < drivewayLen - 2; fz += 5.0) {
-    [-5.2, 5.2].forEach((fx) => {
-      const w = toWorld(fx, fz);
+    [-1, 1].forEach((side) => {
+      if (L.noDriveFence.includes(side)) return;
+      const w = toWorld(side * 5.2, fz);
       const wy = getTerrainHeight(w.x, w.z);
       const fence = createWoodenFenceSection(4.4);
       fence.position.set(w.x, wy, w.z);
@@ -804,41 +824,23 @@ function buildFarm(farmLot) {
     });
   }
 
-  // 4. Sloopbare hooibalen: op het erf, bij de windmolen en (Pinewood) in rijen op de hooiweide
-  const placeBale = (lx, lz, extraY) => {
+  // 4. Sloopbare hooibalen
+  L.hay.forEach(([lx, lz, extraY]) => {
     const w = toWorld(lx, lz);
     const bale = createHayBale();
     const wy = getTerrainHeight(w.x, w.z) + 0.64 + extraY;
     bale.position.set(w.x, wy, w.z);
-    bale.rotation.y = yaw + (extraY > 0 ? 0 : Math.PI * 0.5) + (Math.random() - 0.5) * 0.3;
+    bale.rotation.y = yaw + (Math.random() - 0.5) * 0.35;
     scene.add(bale);
     registerDestructible(bale, w.x, wy, w.z, 0.8, 'small', 8, 'Hay bale');
-  };
-  L.yardHay.forEach(([lx, lz, ey]) => placeBale(lx, lz, ey));
-  L.millHay.forEach(([lx, lz, ey]) => placeBale(lx, lz, ey));
-  L.meadowHay.forEach(([lx, lz]) => placeBale(lx, lz, 0));
+  });
 
-  // 5. Akkers op het raster: twee voor het erf, één achter aan de kant van het woonhuis (even breed)
-  const COL_IN = 7.5;
-  const COL_OUT = fb.maxLX - 1.5;
-  const colW = COL_OUT - COL_IN;
-  const colMid = (COL_IN + COL_OUT) * 0.5;
-  const frontStart = 4.0;
-  const frontEnd = fb.maxLZ - 2.0;
-  const frontDepth = frontEnd - frontStart;
-  buildCropField(baseX, baseY, baseZ, yaw, -colMid, frontStart + frontDepth * 0.5, colW, frontDepth, L.front, farmLot.name);
-  buildCropField(baseX, baseY, baseZ, yaw, colMid, frontStart + frontDepth * 0.5, colW, frontDepth, L.front, farmLot.name);
+  // 5. Akkers
+  L.fields.forEach(([crop, x0, x1, z0, z1]) => {
+    buildCropField(baseX, baseY, baseZ, yaw, (x0 + x1) * 0.5, (z0 + z1) * 0.5, x1 - x0, z1 - z0, crop, farmLot.name);
+  });
 
-  const BACK_TOP = -25.0;
-  const backBottom = fb.minLZ + 1.5;
-  const ps = L.pastureSide;
-  buildCropField(baseX, baseY, baseZ, yaw, -ps * colMid, (BACK_TOP + backBottom) * 0.5, colW, BACK_TOP - backBottom - 1.2, L.back, farmLot.name);
-
-  // 6. De wei achter de schuur: omheind (met koeien en een drinkbak bij Sunny Acres, hooi bij Pinewood)
-  const pMinX = ps > 0 ? COL_IN : -COL_OUT;
-  const pMaxX = ps > 0 ? COL_OUT : -COL_IN;
-  const pMinZ = backBottom;
-  const pMaxZ = BACK_TOP;
+  // 6. Omheinde weides met koeien en een drinkbak
   const fenceAlong = (x1, z1, x2, z2) => {
     const len = Math.hypot(x2 - x1, z2 - z1);
     const n = Math.max(1, Math.round(len / 4.4));
@@ -855,14 +857,13 @@ function buildFarm(farmLot) {
       registerDestructible(fence, w.x, wy + 0.5, w.z, 1.4, 'small', 12, 'Pasture fence');
     }
   };
-  fenceAlong(pMinX, pMaxZ, pMaxX, pMaxZ);
-  fenceAlong(pMinX, pMinZ, pMaxX, pMinZ);
-  fenceAlong(pMinX, pMinZ, pMinX, pMaxZ);
-  fenceAlong(pMaxX, pMinZ, pMaxX, pMaxZ);
-
-  if (L.cows > 0) {
-    for (let c = 0; c < L.cows; c++) {
-      const lx = THREE.MathUtils.lerp(pMinX + 3, pMaxX - 3, (c + 0.5) / L.cows) + (Math.random() - 0.5) * 2;
+  L.pastures.forEach(({ rect: [pMinX, pMaxX, pMinZ, pMaxZ], cows: nCows, trough: [tx, tz] }) => {
+    fenceAlong(pMinX, pMaxZ, pMaxX, pMaxZ);
+    fenceAlong(pMinX, pMinZ, pMaxX, pMinZ);
+    fenceAlong(pMinX, pMinZ, pMinX, pMaxZ);
+    fenceAlong(pMaxX, pMinZ, pMaxX, pMaxZ);
+    for (let c = 0; c < nCows; c++) {
+      const lx = THREE.MathUtils.lerp(pMinX + 3, pMaxX - 3, (c + 0.5) / nCows) + (Math.random() - 0.5) * 2;
       const lz = THREE.MathUtils.lerp(pMinZ + 3, pMaxZ - 3, Math.random());
       const w = toWorld(lx, lz);
       const cow = createCow();
@@ -874,17 +875,17 @@ function buildFarm(farmLot) {
       cows.push({
         mesh: cow, collider, lx, lz, tx: lx, tz: lz, toWorld, yaw,
         bounds: { minX: pMinX + 2.5, maxX: pMaxX - 2.5, minZ: pMinZ + 2.5, maxZ: pMaxZ - 2.5 },
-        avoid: { x: (pMinX + pMaxX) * 0.5, z: pMaxZ - 2.5 }, // om de drinkbak heen
+        avoid: { x: tx, z: tz }, // om de drinkbak heen
         idle: Math.random() * 4, phase: Math.random() * 10, speed: 0
       });
     }
-    const tr = toWorld((pMinX + pMaxX) * 0.5, pMaxZ - 2.5);
+    const tr = toWorld(tx, tz);
     const trough = createWaterTrough();
     trough.position.set(tr.x, getTerrainHeight(tr.x, tr.z), tr.z);
     trough.rotation.y = yaw;
     scene.add(trough);
     hardColliders.push({ x: tr.x, z: tr.z, r: 1.2 });
-  }
+  });
 }
 
 const cows = [];
