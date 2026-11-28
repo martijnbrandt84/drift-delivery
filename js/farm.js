@@ -716,7 +716,6 @@ function createWaterTrough() {
 //    een pompoenveld met de windmolen, en achter de silo's natuurlijk bos. Hier staat de oogsttractor.
 //  - Sunny Acres (melkvee): de koeienwei ligt vooraan langs de weg (je ziet ze grazen als je langsrijdt),
 //    tarwe aan de andere kant, achter de stal een hooiland met balen en de windmolen, en mais achter het woonhuis.
-//    Aan de weg staat een boerderijkraampje met melk en kaas.
 // Rechthoeken: [x0, x1, z0, z1]
 // =========================================================
 const FARM_LAYOUTS = {
@@ -754,8 +753,6 @@ const FARM_LAYOUTS = {
       ['wheat', -38.5, -7.5, 4.0, 38.0],
       ['corn', -38.5, -9.0, -40.0, -27.0]
     ],
-    // kraampje aan de weg, links naast de oprit, met een grindstrook om even te stoppen
-    farmStand: { at: [-15.5, 39.8], pull: [-23.0, -8.0, 41.0, 45.4] },
     pastures: [{ rect: [6.5, 38.5, 5.0, 37.0], cows: 8, trough: [22.5, 8.0] }],
     noDriveFence: [1], // de wei grenst zelf aan de oprit
     pumpkinPatch: null,
@@ -812,7 +809,32 @@ function buildFarm(farmLot) {
   p = place(createWindmill(), L.windmill[0], L.windmill[1], 0.35, getTerrainHeight(toWorld(L.windmill[0], L.windmill[1]).x, toWorld(L.windmill[0], L.windmill[1]).z));
   hardColliders.push({ x: p.x, z: p.z, r: 1.5 });
 
-  farmDecor[farmLot.name] = { lot: farmLot, scarecrows: L.scarecrows, pumpkinPatch: L.pumpkinPatch };
+  // Pompoenveld: omgeploegde grond met rijen ranken; de pompoenen zelf legt autumn.js op de rijen
+  let pumpkinRows = null;
+  if (L.pumpkinPatch) {
+    const [px0, px1, pz0, pz1] = L.pumpkinPatch;
+    drapeStrip(toWorld, px0, px1, pz0, pz1, dirtFieldMat, 0.06);
+    pumpkinRows = [];
+    const leafMat = registerSeasonalMat(0x4f8a3c, 0xe4ecf4);
+    const leafGeo = new THREE.SphereGeometry(0.45, 7, 5);
+    leafGeo.scale(1.3, 0.35, 1.0);
+    const leaves = [];
+    for (let rz = pz0 + 1.0; rz <= pz1 - 0.8; rz += 2.1) {
+      pumpkinRows.push([px0, px1, rz]);
+      drapeStrip(toWorld, px0 + 0.2, px1 - 0.2, rz - 0.45, rz + 0.45, furrowMat, 0.08);
+      for (let lx = px0 + 0.4; lx <= px1 - 0.3; lx += 0.55) {
+        const w = toWorld(lx, rz + (Math.random() - 0.5) * 0.7);
+        const m = new THREE.Matrix4().compose(
+          new THREE.Vector3(w.x, getTerrainHeight(w.x, w.z) + 0.14, w.z),
+          new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.random() * Math.PI),
+          new THREE.Vector3().setScalar(0.7 + Math.random() * 0.5)
+        );
+        leaves.push(m);
+      }
+    }
+    addInstanced(leafGeo, leafMat, leaves);
+  }
+  farmDecor[farmLot.name] = { lot: farmLot, scarecrows: L.scarecrows, pumpkinRows };
 
   // 3. Sloopbare hekken langs de oprit (niet waar een wei zelf aan de oprit grenst)
   const drivewayLen = farmLot.dist - 5.0;
@@ -923,8 +945,6 @@ function buildFarm(farmLot) {
       allowed: (lx, lz, x, z) => lz < -28.5 && !(Math.abs(lx) < 6 && lz > -30) && !insideOther(x, z, 6)
     });
   }
-  // 8. Boerderijkraampje aan de weg
-  if (L.farmStand) buildFarmStand(L.farmStand, toWorld, yaw, L.pal);
 }
 
 // Een laag die het terrein volgt (grindpad, stopstrook), van x0..x1 en z0..z1 in lokale coördinaten
@@ -960,82 +980,6 @@ function drapeStrip(toWorld, x0, x1, z0, z1, mat, lift = 0.05) {
   mesh.receiveShadow = true;
   scene.add(mesh);
   return mesh;
-}
-
-function makeFarmSignTexture(text, bg, fg) {
-  const c = document.createElement('canvas');
-  c.width = 512;
-  c.height = 128;
-  const ctx = c.getContext('2d');
-  ctx.fillStyle = bg;
-  ctx.fillRect(0, 0, 512, 128);
-  ctx.fillStyle = fg;
-  ctx.font = '900 58px system-ui, sans-serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(text, 256, 68);
-  const tex = Object.assign(new THREE.CanvasTexture(c), { colorSpace: THREE.SRGBColorSpace });
-  tex.needsUpdate = true;
-  return tex;
-}
-
-// Houten kraampje met afdak aan de weg, met melkbussen en kaas.
-function buildFarmStand({ at: [sx, sz], pull }, toWorld, yaw, pal) {
-  drapeStrip(toWorld, pull[0], pull[1], pull[2], pull[3], yardGravelMat, 0.06);
-  // houten stootbalken langs de achterkant van de stopstrook
-  const beamMat = makeToonMat(0x8a5a36);
-  for (let x = pull[0] + 1.6; x < pull[1] - 1.0; x += 3.0) {
-    const p = toWorld(x, pull[2] + 0.5);
-    const beam = createOutlinedMesh(new THREE.BoxGeometry(1.8, 0.16, 0.22), beamMat, 0.012, false);
-    beam.position.set(p.x, getTerrainHeight(p.x, p.z) + 0.12, p.z);
-    beam.rotation.y = yaw;
-    scene.add(beam);
-  }
-  const base = toWorld(sx, sz);
-  const by = getTerrainHeight(base.x, base.z);
-  const stand = new THREE.Group();
-  stand.position.set(base.x, by, base.z);
-  stand.rotation.y = yaw; // de voorkant (+z) kijkt naar de weg
-  scene.add(stand);
-  const wood = makeToonMat(0x9a6a3e);
-  const counter = createOutlinedMesh(new THREE.BoxGeometry(4.2, 1.0, 1.2), wood, 0.03);
-  counter.position.set(0, 0.5, 0.4);
-  stand.add(counter);
-  const backWall = createOutlinedMesh(new THREE.BoxGeometry(4.2, 2.4, 0.15), wood, 0.03);
-  backWall.position.set(0, 1.2, -0.6);
-  stand.add(backWall);
-  [-2.0, 2.0].forEach((px) => {
-    const post = createOutlinedMesh(new THREE.BoxGeometry(0.14, 2.6, 0.14), wood, 0.015, false);
-    post.position.set(px, 1.3, 0.95);
-    stand.add(post);
-  });
-  const roof = createOutlinedMesh(new THREE.BoxGeometry(4.8, 0.14, 2.3), pal.roof, 0.03);
-  roof.position.set(0, 2.7, 0.2);
-  roof.rotation.x = -0.18;
-  stand.add(roof);
-  hardColliders.push({ x: base.x, z: base.z, r: 2.0 });
-
-  // melkbussen en kaaswielen + bord
-  const autumn = new THREE.Group();
-  stand.add(autumn);
-  const steel = makeToonMat(0xc9ced4);
-  [[-1.4, 0.6], [-0.9, 0.7], [1.3, 1.45]].forEach(([px, pz]) => {
-    const churn = createOutlinedMesh(new THREE.CylinderGeometry(0.22, 0.26, 0.7, 10), steel, 0.015, false);
-    churn.position.set(px, pz > 1 ? 0.35 : 1.35, pz > 1 ? pz : 0.4);
-    autumn.add(churn);
-  });
-  const cheese = makeToonMat(0xf2c230);
-  [[0.2, 0.3], [0.8, 0.5], [0.5, 0.15]].forEach(([px, pz], k) => {
-    const wheel = createOutlinedMesh(new THREE.CylinderGeometry(0.28, 0.28, 0.16, 12), cheese, 0.012, false);
-    wheel.position.set(px, 1.08 + (k === 2 ? 0.16 : 0), pz);
-    autumn.add(wheel);
-  });
-  const milkSign = new THREE.Mesh(
-    new THREE.PlaneGeometry(3.6, 0.8),
-    new THREE.MeshBasicMaterial({ map: makeFarmSignTexture('FRESH MILK · CHEESE', '#3f6b4a', '#ffffff'), polygonOffset: true, polygonOffsetFactor: -4 })
-  );
-  milkSign.position.set(0, 2.15, -0.5);
-  autumn.add(milkSign);
 }
 
 const cows = [];

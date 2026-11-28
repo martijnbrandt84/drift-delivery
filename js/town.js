@@ -242,7 +242,7 @@ function createParkingIslandTree(size = 1.9) {
 // =========================================================
 // STRAATMEUBILAIR (HOEKLANTAARNS, BRANDKRANEN, BANKJES, BAKKEN)
 // =========================================================
-function createSmashableStreetLampAt(x, y, z) {
+export function createSmashableStreetLampAt(x, y, z) {
   const g = new THREE.Group();
   const pole = createOutlinedMesh(new THREE.CylinderGeometry(0.1, 0.15, 3.6, 7), streetPostMat, 0.028);
   pole.position.y = 1.8;
@@ -302,7 +302,7 @@ function createSmashableHydrant(x, z) {
   registerDestructible(g, x, py, z, 0.55, 'small', 32, 'Fire hydrant');
 }
 
-function createBenchAt(x, y, z, rotY = 0) {
+export function createBenchAt(x, y, z, rotY = 0) {
   const g = new THREE.Group();
   const seat = createOutlinedMesh(new THREE.BoxGeometry(1.65, 0.1, 0.5), benchWoodMat, 0.02, false);
   seat.position.y = 0.46;
@@ -1781,13 +1781,6 @@ function buildGeneralStore() {
     ml.position.set(mx, 0.016, 14.2);
     complexGroup.add(ml);
   });
-  // Zebrapad over rijpad 1 naar de ingang van de mall
-  for (let k = 0; k < 5; k++) {
-    const bar = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 0.5), storeLineMat);
-    bar.rotation.x = -Math.PI * 0.5;
-    bar.position.set(0, 0.016, 5.4 + k * 0.9);
-    complexGroup.add(bar);
-  }
 
   // Plantenstroken rondom de parkeerplaats. De lange stroken stoppen precies waar de voorstroken beginnen,
   // zodat de hoeken netjes als een L aansluiten. Opening voor de inrit (midden); links en rechts gespiegeld.
@@ -1824,8 +1817,9 @@ function buildGeneralStore() {
     [8.6, 24.3], [13.0, 24.3],
     [16.0, 1.6], [16.0, 7.4], [16.0, 13.2], [16.0, 19.0]
   ];
-  // Lantaarns: op alle drie de lange stroken op dezelfde hoogtes (z = 4,3 en 14,8)
-  const lampSpots = [[-16.0, 4.5], [-16.0, 16.1], [16.0, 4.5], [16.0, 16.1]];
+  // Lantaarns: rondom het parkeerterrein (zijstroken en voorstrook), en vier langs de gevel
+  // rondom het parkeerterrein: twee op elke zijstrook en twee op de voorstrook (tussen de bomen)
+  const lampSpots = [[-16.0, 4.5], [-16.0, 16.1], [16.0, 4.5], [16.0, 16.1], [-10.8, 24.3], [10.8, 24.3]];
   treeSpots.forEach(([tx, tz]) => {
     const wp = rl(tx, tz, yaw);
     const tree = createParkTree();
@@ -1842,7 +1836,7 @@ function buildGeneralStore() {
   });
 
   const promY = surfaceY + 0.16;
-  [-15.8, -5.4, 5.4, 15.8, 26.2, 35.6].forEach((lx) => {
+  [-15.8, -5.4, 5.4, 15.8].forEach((lx) => {
     const wp = rl(lx, -0.5, yaw);
     createSmashableStreetLampAt(baseX + wp.x, promY, baseZ + wp.z);
   });

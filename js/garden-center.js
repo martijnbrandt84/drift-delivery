@@ -4,10 +4,10 @@ import {
 } from './scene-setup.js';
 import { ruralLots } from './water-lots.js';
 import { hardColliders, registerDestructible } from './demolition.js';
-import { houseWindows, warmWindowMat, PARK_BAY_W, PARK_BAY_D, createParkTree } from './town.js';
-import { createRoadSign } from './scenery.js';
+import { houseWindows, warmWindowMat, PARK_BAY_W, PARK_BAY_D, createParkTree, createSmashableStreetLampAt, createBenchAt } from './town.js';
 import { tagMap } from './map-tags.js';
 import { plantNaturalGrove } from './props.js';
+import { getTerrainHeight } from './terrain.js';
 
 // =========================================================
 // PINEWOOD GARDEN CENTER aan de kustweg in het zuidwesten
@@ -17,6 +17,8 @@ import { plantNaturalGrove } from './props.js';
 // Lokaal: lx langs de weg, lz richting de weg (+). De inrit komt binnen op lx = 0.
 // =========================================================
 const lot = ruralLots.find((l) => l.type === 'garden');
+// Pompoenen voor het seizoensplein: autumn.js maakt ze met dezelfde (omlijnde) pompoenen als overal
+export const gardenPumpkinSpots = [];
 
 function makeSignTexture(lines, bg, fg) {
   const c = document.createElement('canvas');
@@ -338,7 +340,7 @@ function buildGardenCenter() {
   });
   // pallets met zakken potgrond en een stapel brandhout tegen de zijgevel van de winkel
   const bagMat = makeToonMat(0x3f6e3c);
-  [[-3.0, -7.0], [4.5, -7.0]].forEach(([px, pz]) => {
+  [[1.5, -6.8], [6.5, -6.8]].forEach(([px, pz]) => {
     const stack = new THREE.Group();
     const pallet = createOutlinedMesh(new THREE.BoxGeometry(2.0, 0.18, 1.2), makeToonMat(0xc9a06a), 0.02, false);
     pallet.position.y = 0.09;
@@ -411,19 +413,14 @@ function buildGardenCenter() {
   g.add(autumnStall);
   deciduousFoliageObjects.push(autumnStall);
   const hayMat = makeToonMat(0xd9ac4e);
-  const pumpkinMats = [makeToonMat(0xf08a24), makeToonMat(0xe8741c), makeToonMat(0xf2a33a)];
-  const pumpkinGeo = new THREE.SphereGeometry(0.4, 9, 6);
-  pumpkinGeo.scale(1.15, 0.78, 1.15);
   const pumpkinPile = (x0, z0, w, d) => {
     const bale = createOutlinedMesh(new THREE.BoxGeometry(w, 0.55, d), hayMat, 0.025, false);
     bale.position.set(x0 + w / 2, 0.28, z0 + d / 2);
     autumnStall.add(bale);
-    for (let i = 0; i < Math.floor(w / 0.95); i++) {
-      for (let j = 0; j < Math.floor(d / 0.95); j++) {
-        const pk = new THREE.Mesh(pumpkinGeo, pumpkinMats[(i + j) % 3]);
-        pk.position.set(x0 + 0.5 + i * 0.95, 0.8, z0 + 0.5 + j * 0.95);
-        pk.rotation.y = Math.random() * Math.PI;
-        autumnStall.add(pk);
+    for (let i = 0; i < Math.floor(w / 1.0); i++) {
+      for (let j = 0; j < Math.floor(d / 1.0); j++) {
+        const p = toWorld(x0 + 0.5 + i * 1.0 + (Math.random() - 0.5) * 0.15, z0 + 0.5 + j * 1.0 + (Math.random() - 0.5) * 0.15);
+        gardenPumpkinSpots.push({ x: p.x, z: p.z, y: surfaceY + 0.56, scale: 0.75 + Math.random() * 0.35 });
       }
     }
   };
@@ -536,21 +533,206 @@ function buildGardenCenter() {
     roadGap: 6,
     maxSlope: 0.55,
     clusters: [
-      [-22, -36, 12, 14, 0.55, 1.0],
-      [8, -38, 13, 15, 0.5, 0.85],
-      [32, -34, 9, 9, 0.6, 1.1],
-      [-44, -18, 8, 7, 0.6, 0.9],
-      [-46, 2, 6, 4, 0.5, 0.6],
-      [46, -12, 8, 7, 0.55, 0.9],
-      [47, 8, 5, 3, 0.4, 0.5],
-      [-6, -52, 10, 8, 0.65, 0.7]
+      [-22, -34, 12, 18, 0.55, 1.2],
+      [6, -35, 13, 18, 0.5, 1.05],
+      [30, -32, 10, 12, 0.6, 1.25],
+      [-41, -16, 8, 10, 0.6, 1.1],
+      [-40, 0, 6, 6, 0.55, 0.9],
+      [-39, 12, 5, 3, 0.4, 0.6],
+      [42, -14, 8, 10, 0.55, 1.1],
+      [41, 4, 6, 5, 0.45, 0.8],
+      [-6, -50, 12, 12, 0.65, 0.85],
+      [24, -50, 9, 8, 0.6, 0.8]
     ],
-    // niet op het terrein zelf (met een strook gras eromheen) en niet op een ander perceel
-    allowed: (lx, lz, x, z) => (lx < fb.minLX - 3 || lx > fb.maxLX + 3 || lz < -24.5) && lz < 12 && !nearOtherLot(x, z)
+    // het tuincentrum ligt in het bos: bomen tot vlak achter en naast het terrein, open naar de weg
+    allowed: (lx, lz, x, z) => (lx < fb.minLX - 1 || lx > fb.maxLX + 1 || lz < -24.0) && lz < 13 && !nearOtherLot(x, z)
   });
 
-  // ---- Bord aan de weg ----
-  const sp = toWorld(-9.0, 18.0);
-  createRoadSign(sp.x, sp.z, surfaceY, lot.yaw, ['GARDEN CENTER', 'Café · Plants']);
+  // ---- Groot houten bord aan de weg, naast de inrit, met een bloembak aan de voet ----
+  {
+    const sign = new THREE.Group();
+    const postMat = makeToonMat(0x5e3a22);
+    [-2.3, 2.3].forEach((px) => {
+      const post = createOutlinedMesh(new THREE.BoxGeometry(0.28, 4.2, 0.28), postMat, 0.025);
+      post.position.set(px, 2.1, 0);
+      sign.add(post);
+    });
+    const board = createOutlinedMesh(new THREE.BoxGeometry(5.4, 2.0, 0.18), makeToonMat(0x2f5e3f), 0.035);
+    board.position.set(0, 3.0, 0);
+    sign.add(board);
+    const roofCap = createOutlinedMesh(new THREE.BoxGeometry(5.9, 0.16, 0.7), roofMat, 0.02, false);
+    roofCap.position.set(0, 4.15, 0);
+    sign.add(roofCap);
+    [-1, 1].forEach((side) => {
+      const face = new THREE.Mesh(
+        new THREE.PlaneGeometry(5.0, 1.7),
+        new THREE.MeshBasicMaterial({ map: makeSignTexture(['PINEWOOD GARDEN CENTER', 'PLANTS · TREES · CAFÉ'], '#2f5e3f', '#f6f2ea'), ...SIGN_OPTS })
+      );
+      face.position.set(0, 3.0, side * 0.1);
+      if (side < 0) face.rotation.y = Math.PI;
+      sign.add(face);
+    });
+    const box = createOutlinedMesh(new THREE.BoxGeometry(5.6, 0.5, 1.1), woodMat, 0.02, false);
+    box.position.set(0, 0.25, 0);
+    sign.add(box);
+    for (let k = 0; k < 9; k++) {
+      const fl = new THREE.Mesh(new THREE.IcosahedronGeometry(0.28, 0), flowerMats[k % 4]);
+      fl.position.set(-2.4 + k * 0.6, 0.62, (k % 2 ? 0.2 : -0.2));
+      sign.add(fl);
+    }
+    const sp = toWorld(-10.5, 19.5);
+    sign.position.set(sp.x, getTerrainHeight(sp.x, sp.z), sp.z);
+    sign.rotation.y = lot.yaw + 0.25; // iets gedraaid, zodat het verkeer van beide kanten het ziet
+    scene.add(sign);
+    collide(-12.8, 19.5, 0.4);
+    collide(-8.2, 19.5, 0.4);
+  }
+
+  // ---- Aankleding ----
+  // Bloembakken langs de voorkant van de parkeerplaats (aan weerszijden van de inrit)
+  const planterBox = (lx, lz, len, rotOff = 0) => {
+    const grp = new THREE.Group();
+    const box = createOutlinedMesh(new THREE.BoxGeometry(len, 0.45, 0.9), woodMat, 0.02, false);
+    box.position.y = 0.23;
+    grp.add(box);
+    for (let x = -len / 2 + 0.35; x <= len / 2 - 0.3; x += 0.5) {
+      const fl = new THREE.Mesh(new THREE.IcosahedronGeometry(0.24, 0), Math.random() < 0.35 ? plantMats[Math.floor(Math.random() * 3)] : flowerMats[Math.floor(Math.random() * 4)]);
+      fl.position.set(x, 0.58, (Math.random() - 0.5) * 0.35);
+      grp.add(fl);
+    }
+    const p = toWorld(lx, lz);
+    const y = getTerrainHeight(p.x, p.z);
+    grp.position.set(p.x, Math.max(y, surfaceY - 0.1), p.z);
+    grp.rotation.y = lot.yaw + rotOff;
+    scene.add(grp);
+    registerDestructible(grp, p.x, y + 0.2, p.z, 0.9, 'small', 5, 'Flower box');
+  };
+  [-14.5, -11.0, -7.5].forEach((x) => planterBox(x, 15.5, 3.0));
+  [7.5, 11.0].forEach((x) => planterBox(x, 15.5, 3.0));
+  // Bloembakken tegen de gevel, naast de winkeldeuren
+  planterBox(-4.6, -7.4, 2.2);
+  // Lantaarns op de hoeken van de parkeerplaats
+  [[-16.8, 0.0], [-16.8, 10.0], [12.8, 0.0], [12.8, 10.0]].forEach(([lx, lz]) => {
+    const p = toWorld(lx, lz);
+    createSmashableStreetLampAt(p.x, getTerrainHeight(p.x, p.z), p.z);
+  });
+  // Bankjes bij de ingang
+  [[-15.0, -5.0], [10.5, -5.0]].forEach(([lx, lz]) => {
+    const p = toWorld(lx, lz);
+    createBenchAt(p.x, surfaceY + 0.16, p.z, lot.yaw);
+  });
+
+  // Showtuin links van de parkeerplaats: twee tuinhuisjes, een picknicktafel, een vogelbad en kabouters
+  slab(-31, -17.5, -2.5, 13.5, gravelMat);
+  const shedMats = [makeToonMat(0x7a9a6a), makeToonMat(0xb89a6a)];
+  [[-27.5, 2.5, 0.4], [-27.5, 9.5, -0.3]].forEach(([sx, sz, rot], i) => {
+    const shed = new THREE.Group();
+    const body = createOutlinedMesh(new THREE.BoxGeometry(3.0, 2.2, 2.6), shedMats[i], 0.035);
+    body.position.y = 1.1;
+    shed.add(body);
+    [-1, 1].forEach((side) => {
+      const pane = createOutlinedMesh(new THREE.BoxGeometry(3.4, 0.12, 1.75), roofMat, 0.02);
+      pane.position.set(0, 2.55, side * 0.68);
+      pane.rotation.x = side * 0.55;
+      shed.add(pane);
+    });
+    const doorS = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 1.7), woodDarkMat);
+    doorS.position.set(0, 0.85, 1.31);
+    shed.add(doorS);
+    const winS = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 0.55), new THREE.MeshBasicMaterial({ color: 0xbfe3ea }));
+    winS.position.set(0.95, 1.4, 1.31);
+    shed.add(winS);
+    const tag = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.35), new THREE.MeshBasicMaterial({ map: makeSignTexture(['SALE'], '#c63b3b', '#ffffff'), ...SIGN_OPTS }));
+    tag.position.set(-0.9, 1.6, 1.32);
+    shed.add(tag);
+    const p = toWorld(sx, sz);
+    shed.position.set(p.x, surfaceY + 0.05, p.z);
+    shed.rotation.y = lot.yaw + Math.PI / 2 + rot;
+    scene.add(shed);
+    collide(sx, sz, 1.8);
+  });
+  {
+    const table = new THREE.Group();
+    const top = createOutlinedMesh(new THREE.BoxGeometry(1.8, 0.08, 0.8), woodMat, 0.015, false);
+    top.position.y = 0.75;
+    table.add(top);
+    [-0.65, 0.65].forEach((oz) => {
+      const benchT = createOutlinedMesh(new THREE.BoxGeometry(1.8, 0.07, 0.3), woodMat, 0.012, false);
+      benchT.position.set(0, 0.45, oz);
+      table.add(benchT);
+    });
+    [-0.75, 0.75].forEach((ox) => {
+      const leg = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.75, 1.5), woodDarkMat);
+      leg.position.set(ox, 0.38, 0);
+      table.add(leg);
+    });
+    const p = toWorld(-21.5, 6.0);
+    table.position.set(p.x, surfaceY + 0.05, p.z);
+    table.rotation.y = lot.yaw + 0.3;
+    scene.add(table);
+    registerDestructible(table, p.x, surfaceY + 0.05, p.z, 1.0, 'small', 6, 'Picnic table');
+  }
+  {
+    const bath = new THREE.Group();
+    const foot = createOutlinedMesh(new THREE.CylinderGeometry(0.16, 0.26, 0.8, 8), makeToonMat(0xc8c2b4), 0.015, false);
+    foot.position.y = 0.4;
+    bath.add(foot);
+    const bowl = createOutlinedMesh(new THREE.CylinderGeometry(0.55, 0.3, 0.2, 10), makeToonMat(0xc8c2b4), 0.015, false);
+    bowl.position.y = 0.88;
+    bath.add(bowl);
+    const water = new THREE.Mesh(new THREE.CircleGeometry(0.45, 10), new THREE.MeshBasicMaterial({ color: 0x5fb6cf }));
+    water.rotation.x = -Math.PI / 2;
+    water.position.y = 0.99;
+    bath.add(water);
+    const p = toWorld(-21.0, 11.0);
+    bath.position.set(p.x, surfaceY + 0.05, p.z);
+    scene.add(bath);
+    registerDestructible(bath, p.x, surfaceY + 0.05, p.z, 0.6, 'small', 4, 'Bird bath');
+  }
+  const gnomeHat = makeToonMat(0xc63b3b);
+  const gnomeCoat = [makeToonMat(0x2f6fb0), makeToonMat(0x3f8a3a), makeToonMat(0xe0a020)];
+  const gnomeFace = makeToonMat(0xf1c9a5);
+  [[-23.8, 0.2], [-23.2, 1.0], [-19.5, 3.2], [-19.0, 12.4]].forEach(([gx, gz], i) => {
+    const gnome = new THREE.Group();
+    const coat = createOutlinedMesh(new THREE.ConeGeometry(0.22, 0.45, 8), gnomeCoat[i % 3], 0.012, false);
+    coat.position.y = 0.23;
+    gnome.add(coat);
+    const face = createOutlinedMesh(new THREE.SphereGeometry(0.12, 8, 6), gnomeFace, 0.01, false);
+    face.position.y = 0.5;
+    gnome.add(face);
+    const beard = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.18, 6), makeToonMat(0xf6f2ea));
+    beard.rotation.x = Math.PI;
+    beard.position.set(0, 0.42, 0.06);
+    gnome.add(beard);
+    const hat = createOutlinedMesh(new THREE.ConeGeometry(0.13, 0.32, 8), gnomeHat, 0.01, false);
+    hat.position.y = 0.72;
+    gnome.add(hat);
+    const p = toWorld(gx, gz);
+    gnome.position.set(p.x, surfaceY + 0.05, p.z);
+    gnome.rotation.y = lot.yaw + (Math.random() - 0.5) * 0.8;
+    scene.add(gnome);
+    registerDestructible(gnome, p.x, surfaceY + 0.05, p.z, 0.3, 'small', 2, 'Garden gnome');
+  });
+  {
+    // kruiwagen met bloemen
+    const wb = new THREE.Group();
+    const tray = createOutlinedMesh(new THREE.BoxGeometry(0.7, 0.35, 1.0), makeToonMat(0x3f6e9a), 0.015, false);
+    tray.position.set(0, 0.55, 0);
+    wb.add(tray);
+    const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.08, 10), makeToonMat(0x2b2b2b));
+    wheel.rotation.z = Math.PI / 2;
+    wheel.position.set(0, 0.2, 0.6);
+    wb.add(wheel);
+    for (let k = 0; k < 4; k++) {
+      const fl = new THREE.Mesh(new THREE.IcosahedronGeometry(0.2, 0), flowerMats[k % 4]);
+      fl.position.set(k % 2 ? 0.15 : -0.15, 0.82, -0.25 + Math.floor(k / 2) * 0.45);
+      wb.add(fl);
+    }
+    const p = toWorld(-18.6, 7.8);
+    wb.position.set(p.x, surfaceY + 0.05, p.z);
+    wb.rotation.y = lot.yaw - 0.6;
+    scene.add(wb);
+    registerDestructible(wb, p.x, surfaceY + 0.05, p.z, 0.6, 'small', 4, 'Wheelbarrow');
+  }
 }
 buildGardenCenter();

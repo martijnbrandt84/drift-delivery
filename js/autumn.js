@@ -8,6 +8,7 @@ import { ruralLots } from './water-lots.js';
 import { destructibles, registerDestructible, registerInstancedDestructible } from './demolition.js';
 import { getTerrainHeight } from './terrain.js';
 import { farmDecor } from './farm.js';
+import { gardenPumpkinSpots } from './garden-center.js';
 
 // =========================================================
 // HERFSTDETAILS: pompoenen, bladerhopen en vogelverschrikkers.
@@ -84,18 +85,20 @@ ruralLots.forEach((lot) => {
   });
 });
 
-// Pompoenveld (los, zonder hek) op de plek die de boerderij ervoor heeft ingericht
-Object.values(farmDecor).forEach(({ lot: farm, pumpkinPatch }) => {
-  if (!pumpkinPatch) return;
-  const [x0, x1, z0, z1] = pumpkinPatch;
-  for (let lz = z0 + 0.8; lz <= z1 - 0.6; lz += 1.8) {
-    for (let lx = x0 + 0.7; lx <= x1 - 0.6; lx += 1.5) {
-      if (Math.random() < 0.2) continue;
-      const w = lotLocalToWorld(farm, lx + (Math.random() - 0.5) * 0.5, lz + (Math.random() - 0.5) * 0.5);
-      addPumpkin(w.x, w.z, 0.8 + Math.random() * 0.6);
+// Pompoenveld op de plek die de boerderij ervoor heeft ingericht: pompoenen liggen op de rijen ranken
+// (de omgeploegde grond en de ranken maakt farm.js; hier alleen de pompoenen)
+Object.values(farmDecor).forEach(({ lot: farm, pumpkinRows }) => {
+  if (!pumpkinRows) return;
+  pumpkinRows.forEach(([x0, x1, rz]) => {
+    for (let lx = x0 + 0.6; lx <= x1 - 0.5; lx += 1.25 + Math.random() * 0.7) {
+      if (Math.random() < 0.15) continue;
+      const w = lotLocalToWorld(farm, lx, rz + (Math.random() - 0.5) * 0.6);
+      addPumpkin(w.x, w.z, 0.75 + Math.random() * 0.6);
     }
-  }
+  });
 });
+// Het seizoensplein van het tuincentrum: pompoenen op hooibalen
+gardenPumpkinSpots.forEach((p) => addPumpkin(p.x, p.z, p.scale, p.y));
 
 if (pumpkinSpots.length) {
   const n = pumpkinSpots.length;

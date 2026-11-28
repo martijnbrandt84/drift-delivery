@@ -1,12 +1,12 @@
 import * as THREE from 'three';
 import { scene, createOutlinedMesh, makeToonMat, registerSeasonalMat } from './scene-setup.js';
 import { ruralLots } from './water-lots.js';
-import { hardColliders, registerDestructible, markLastPlanted } from './demolition.js';
-import { houseWindows, warmWindowMat, PARK_BAY_W, PARK_BAY_D, createParkTree } from './town.js';
+import { hardColliders, registerDestructible } from './demolition.js';
+import { houseWindows, warmWindowMat, PARK_BAY_W, PARK_BAY_D } from './town.js';
 import { createRoadSign } from './scenery.js';
 import { tagMap } from './map-tags.js';
 import { buildSchoolBusMesh, parkedCars, setVehicleLights } from './vehicles.js';
-import { getTerrainHeight } from './terrain.js';
+import { plantNaturalGrove } from './props.js';
 
 // =========================================================
 // PINEWOOD SCHOOL: klein bakstenen schooltje naast het politiebureau, met een basketbalveld,
@@ -300,18 +300,53 @@ function buildSchool() {
     registerDestructible(bench, p.x, surfaceY + 0.06, p.z, 0.8, 'small', 6, 'Bench');
   });
 
-  // ---- Bomen achter en naast de school ----
-  [[-19.5, -16.5], [-19.8, -7.0], [-1.0, -17.0], [19.8, -16.5], [20.0, 2.0]].forEach(([tx, tz]) => {
-    const p = toWorld(tx, tz);
-    const y = getTerrainHeight(p.x, p.z);
-    const tree = createParkTree();
-    tree.scale.setScalar(1.1 + Math.random() * 0.25);
-    tree.position.set(p.x, y, p.z);
-    tree.rotation.y = Math.random() * Math.PI * 2;
-    scene.add(tree);
-    registerDestructible(tree, p.x, y, p.z, 0.7, 'tree', 15, 'Tree');
-    markLastPlanted();
+  // ---- Natuurlijk bos achter en naast de school en langs de startbaan (dennen en loofbomen door elkaar,
+  //      in plukjes met wisselende dichtheid); niet op een perceel, de baan of het platform ----
+  const inLotBox = (o, b, x, z, m) => {
+    const oc = Math.cos(o.yaw);
+    const os = Math.sin(o.yaw);
+    const dx = x - o.x;
+    const dz = z - o.z;
+    const lx = dx * oc - dz * os;
+    const lz = dx * os + dz * oc;
+    return lx > b.minLX - m && lx < b.maxLX + m && lz > b.minLZ - m && lz < b.maxLZ + m;
+  };
+  const blocked = (x, z) => ruralLots.some((o) => {
+    if (!o.flatBox) return false;
+    if (o.flatBoxes) return o.flatBoxes.some((b) => inLotBox(o, b, x, z, o.type === 'airfield' ? 9 : 4));
+    return inLotBox(o, o.flatBox, x, z, o === lot ? 2.5 : 4);
   });
+  plantNaturalGrove({
+    toWorld,
+    roadGap: 5,
+    maxSlope: 0.55,
+    clusters: [
+      [-20, -27, 8, 7, 0.55, 0.9],
+      [2, -28, 9, 8, 0.5, 0.75],
+      [22, -26, 8, 7, 0.6, 1.0],
+      [30, -6, 7, 6, 0.5, 0.9],
+      [29, 10, 4, 2, 0.4, 0.6]
+    ],
+    allowed: (lx, lz, x, z) => !blocked(x, z)
+  });
+  const airfield = ruralLots.find((o) => o.type === 'airfield');
+  if (airfield) {
+    const ac = Math.cos(airfield.yaw);
+    const as = Math.sin(airfield.yaw);
+    plantNaturalGrove({
+      toWorld: (lx, lz) => ({ x: airfield.x + lx * ac + lz * as, z: airfield.z - lx * as + lz * ac }),
+      roadGap: 5,
+      maxSlope: 0.55,
+      // een rafelige bosrand naast de startbaan, aan de kant van de school
+      clusters: [
+        [20, -36, 6, 5, 0.6, 0.9],
+        [22, -58, 7, 6, 0.55, 0.8],
+        [19, -82, 6, 4, 0.6, 0.7],
+        [23, -104, 7, 5, 0.5, 0.85]
+      ],
+      allowed: (lx, lz, x, z) => lx > 13 && !blocked(x, z)
+    });
+  }
 
   // ---- De gele schoolbus in het busvak ----
   const bus = buildSchoolBusMesh();
